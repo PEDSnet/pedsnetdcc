@@ -73,9 +73,14 @@ GROUP BY person_id
 logger = logging.getLogger('pedsnetdcc')
 
 
-def run(dburi):
+def run(dburi, search_path=''):
+
     with psycopg2.connect(dburi) as conn:
         with conn.cursor() as cursor:
+
+            if search_path:
+                # SQL injection vulnerability?
+                cursor.execute('SET search_path TO {0}'.format(search_path))
 
             cursor.execute(sql_create_date_table)
             cursor.execute(sql_fill_null_maxes)
@@ -96,4 +101,4 @@ def run(dburi):
 
 # Test on data local to Aaron's computer.
 if __name__ == '__main__':
-    run('postgresql://localhost/tmp')
+    run('postgresql://localhost/tmp', 'other')
