@@ -18,7 +18,6 @@ def clean(s):
 
 
 class ConceptNameTest(unittest.TestCase):
-
     def test(self):
         """
         If you say so ...
@@ -27,21 +26,25 @@ class ConceptNameTest(unittest.TestCase):
 
         col1 = Column('foo_concept_id', Integer)
         col2 = Column('bar_concept_id', Integer)
-        col3 = Column('user_name', String(16))
 
         user = Table('user', metadata,
                      col1,
-                     col2,
-                     col3)
+                     col2)
 
         # Create and add the `concept` table to the sqlalchemy metadata
         concept = Table('concept', metadata, Column('concept_id', Integer),
                         Column('concept_name', String(512)))
 
-        sel = select().column(col1).column(col2).select_from(user)
+        select_obj = select([user])
+        join_obj = user
 
-        new_sel = ConceptNameTransform.modify_select(metadata, 'user', sel)
-        new_sql = str(new_sel.compile(dialect=postgresql.dialect()))
+        select_obj, join_obj = ConceptNameTransform.modify_select(metadata,
+                                                                  'user',
+                                                                  select_obj,
+                                                                  join_obj)
+        select_obj = select_obj.select_from(join_obj)
+
+        new_sql = str(select_obj.compile(dialect=postgresql.dialect()))
 
         expected = clean("""
           SELECT "user".foo_concept_id, "user".bar_concept_id,

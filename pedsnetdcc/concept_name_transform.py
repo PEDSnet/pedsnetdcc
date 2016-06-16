@@ -13,7 +13,7 @@ def modify_table(table):
 
 class ConceptNameTransform(Transform):
     @classmethod
-    def modify_select(cls, metadata, table_name, select):
+    def modify_select(cls, metadata, table_name, select, join):
         """Add a _concept_name column for each _concept_id column in a table.
 
         Requirements: `concept` table exists.
@@ -25,20 +25,17 @@ class ConceptNameTransform(Transform):
         """
         concept = metadata.tables['concept']
 
-        from_list = metadata.tables[table_name]  # Will be chained onto
-
         for col in select.c:
             if col.name.endswith('_concept_id'):
                 new_name = col.name.replace('_concept_id', '_concept_name')
                 concept_alias = concept.alias()
                 new_col = concept_alias.c.concept_name.label(new_name)
-                from_list = from_list.outerjoin(concept_alias,
+                join = join.outerjoin(concept_alias,
                                                 concept_alias.c.concept_id
                                                 == col)
                 select = select.column(new_col)
-        select = select.select_from(from_list)
 
-        return select
+        return select, join
 
     @classmethod
     def modify_metadata(cls, metadata):
