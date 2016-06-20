@@ -20,6 +20,18 @@ class Transform(object):
     __metaclass__ = ABCMeta
 
     @classmethod
+    def pre_transform(cls, conn):
+        """Execute statements required before a transform.
+
+        A Transform can override this method to execute prerequisite
+        statements for a transform, e.g. creating database functions, etc.
+
+        :param sqlalchemy.engine.Connection conn:
+        :return: None
+        """
+        pass
+
+    @classmethod
     @abstractmethod
     def modify_select(cls, metadata, table_name, select, join):
         """Transform a Select object into a new Select object.
@@ -72,3 +84,6 @@ class Transform(object):
         :rtype: sqlalchemy.MetaData
 
         """
+
+    # TODO: we could define a non-abstract method to execute a bunch
+    # of transformations.
