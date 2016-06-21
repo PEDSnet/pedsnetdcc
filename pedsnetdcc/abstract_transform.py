@@ -20,13 +20,14 @@ class Transform(object):
     __metaclass__ = ABCMeta
 
     @classmethod
-    def pre_transform(cls, conn):
+    def pre_transform(cls, dburi, schema):
         """Execute statements required before a transform.
 
         A Transform can override this method to execute prerequisite
         statements for a transform, e.g. creating database functions, etc.
 
-        :param sqlalchemy.engine.Connection conn:
+        :param str dburi:
+        :param str schema:
         :return: None
         """
         pass
