@@ -1,6 +1,12 @@
 from abc import ABCMeta, abstractmethod
+import hashlib
 
 from pedsnetdcc import VOCAB_TABLES
+
+
+# Oracle's identifier length maximum is 30 bytes, so we must limit
+# object identifier length (e.g. for columns and indexes).
+NAME_LIMIT = 30
 
 
 class Transform(object):
@@ -109,5 +115,27 @@ class Transform(object):
         """
         pass
 
-    # TODO: we could define a non-abstract method to execute a bunch
+    # TODO: we could define a new concrete method to execute a bunch
     # of transformations.
+
+    @staticmethod
+    def make_index_name(table_name, column_name):
+        """
+        Create an index name for a given table/column combination with
+        a NAME_LIMIT-character (Oracle) limit.  The table/column combination
+        `provider.gender_source_concept_name` results in the index name
+        `pro_gscn_ae1fd5b22b92397ca9_ix`.  We opt for a not particularly
+        human-readable name in order to avoid collisions, which are all too
+        possible with columns like provider.gender_source_concept_name and
+        person.gender_source_concept_name.
+        :param str table_name:
+        :param str column_name:
+        :rtype: str
+        """
+        table_abbrev = table_name[:3]
+        column_abbrev = ''.join([x[0] for x in column_name.split('_')])
+        md5 = hashlib.md5(
+            '{}.{}'.format(table_name, column_name).encode('utf-8')).hexdigest()
+        hashlen = NAME_LIMIT - (len(table_abbrev) + len(column_abbrev) +
+                                3 * len('_') + len('ix'))
+        return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
