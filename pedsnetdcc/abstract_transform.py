@@ -1,5 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
+from pedsnetdcc import VOCAB_TABLES
+
 
 class Transform(object):
     """Abstract class to define an interface for transforming the CDM.
@@ -73,9 +75,10 @@ class Transform(object):
         pass
 
     @classmethod
-    @abstractmethod
     def modify_metadata(cls, metadata):
         """Modify SQLAlchemy metadata for all appropriate tables.
+
+        Iterate over all non-vocabulary tables and run `modify_table`.
 
         The only current use of this is to allow the user to iterate over
         modified tables and generate indexes and constraints.
@@ -85,6 +88,26 @@ class Transform(object):
         :rtype: sqlalchemy.MetaData
 
         """
+        for table in metadata.tables.values():
+            if table in VOCAB_TABLES:
+                continue
+
+            cls.modify_table(metadata, table)
+
+        return metadata
+
+    @classmethod
+    @abstractmethod
+    def modify_table(cls, metadata, table):
+        """Helper function to apply the transformation to a table in place.
+
+        The user must implement this method.
+
+        :param sqlalchemy.schema.MetaData metadata:
+        :param sqlalchemy.schema.Table table:
+        :return: None
+        """
+        pass
 
     # TODO: we could define a non-abstract method to execute a bunch
     # of transformations.

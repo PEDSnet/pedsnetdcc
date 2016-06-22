@@ -1,4 +1,3 @@
-import re
 import unittest
 
 from sqlalchemy import *
@@ -6,20 +5,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex
 
 from pedsnetdcc.concept_name_transform import ConceptNameTransform
-
-
-def clean(s):
-    """Strip leading & trailing space, remove newlines, compress space.
-    Also expand '{NL}' to a literal newline.
-    :param str s:
-    :rtype: str
-    """
-    s = s.strip()
-    s = re.sub(' +', ' ', s)
-    s = s.replace('\n', '')
-    s = s.replace('\r', '')
-    s = s.replace('{NL}', '\n')
-    return s
+from pedsnetdcc.transform_test_utils import clean
 
 
 class ConceptNameTest(unittest.TestCase):
@@ -84,9 +70,17 @@ class ConceptNameTest(unittest.TestCase):
             index_sql = str(CreateIndex(index).compile(
                 dialect=postgresql.dialect()))
             if index.name == 'tab_fcn_81387a6132eed7f69b5_ix':
-                self.assertEqual(index_sql, 'CREATE INDEX tab_fcn_81387a6132eed7f69b5_ix ON table1 (foo_concept_name)')
+                expected = clean("""
+                  CREATE INDEX tab_fcn_81387a6132eed7f69b5_ix
+                    ON table1 (foo_concept_name)
+                """)
+                self.assertEqual(index_sql, expected)
                 num_expected_indexes += 1
             elif index.name == 'tab_bcn_7baa5e16ad1f8129b90_ix':
-                self.assertEqual(index_sql, 'CREATE INDEX tab_bcn_7baa5e16ad1f8129b90_ix ON table1 (bar_concept_name)')
+                expected = clean("""
+                  CREATE INDEX tab_bcn_7baa5e16ad1f8129b90_ix
+                    ON table1 (bar_concept_name)
+                """)
+                self.assertEqual(index_sql, expected)
                 num_expected_indexes += 1
         self.assertEqual(num_expected_indexes, 2)

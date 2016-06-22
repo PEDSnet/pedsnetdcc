@@ -2,7 +2,6 @@ import hashlib
 
 from sqlalchemy.schema import Column, Index
 
-from pedsnetdcc import VOCAB_TABLES
 from pedsnetdcc.abstract_transform import Transform
 
 
@@ -51,17 +50,12 @@ class ConceptNameTransform(Transform):
                                       == col)
                 select = select.column(new_col)
 
-        print("modify_select: ", hasattr(cls, 'modify_select'))
-        print("nonexistent: ", hasattr(cls, 'nonexistent'))
-
         return select, join
 
     @classmethod
     def modify_table(cls, metadata, table):
         """Helper function to apply the transformation to a table in place.
-        :param sqlalchemy.schema.MetaData metadata:
-        :param sqlalchemy.schema.Table table:
-        :return: None
+        See Transform.modify_table for signature.
         """
         concept_name = metadata.tables['concept'].c.concept_name
 
@@ -72,19 +66,3 @@ class ConceptNameTransform(Transform):
                 new_col = Column(new_col_name, concept_name.type)
                 table.append_column(new_col)
                 Index(make_index_name(table.name, new_col_name), new_col)
-
-    @classmethod
-    def modify_metadata(cls, metadata):
-        """Add a _concept_name column for each _concept_id column in a table
-
-        Requirements: `concept` table exists.
-
-        See Transform.modify_metadata for signature.
-        """
-        for table in metadata.tables.values():
-            if table in VOCAB_TABLES:
-                continue
-
-            cls.modify_table(metadata, table)
-
-        return metadata
