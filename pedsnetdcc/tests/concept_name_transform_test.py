@@ -1,6 +1,6 @@
 import unittest
 
-from sqlalchemy import *
+from sqlalchemy import MetaData, Table, Column, Integer, String, select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex
 

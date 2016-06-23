@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from sqlalchemy import *
+from sqlalchemy import MetaData, Table, Column, Integer, DateTime, select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex
 
