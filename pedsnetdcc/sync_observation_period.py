@@ -1,6 +1,5 @@
 import logging
 import psycopg2
-from pedsnetdcc.utils import make_conn_str
 
 sql_create_date_table = '''
 CREATE TEMP TABLE date_limit
@@ -74,7 +73,7 @@ GROUP BY person_id
 logger = logging.getLogger('pedsnetdcc')
 
 
-def run(conn_str):
+def sync_observation_period(conn_str):
 
     with psycopg2.connect(conn_str) as conn:
         with conn.cursor() as cursor:
@@ -95,7 +94,3 @@ def run(conn_str):
             #              'old_count': deleted, 'new_count': cursor.rowcount})
 
     conn.close()
-
-# Test on data local to Aaron's computer.
-if __name__ == '__main__':
-    run(make_conn_str('postgresql://localhost/tmp', search_path='other'))
