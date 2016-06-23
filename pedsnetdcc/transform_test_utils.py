@@ -1,5 +1,6 @@
 import re
 
+
 def clean(s):
     """Strip leading & trailing space, remove newlines, compress space.
     Also expand '{NL}' to a literal newline.

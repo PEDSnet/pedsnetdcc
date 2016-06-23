@@ -28,14 +28,13 @@ class Transform(object):
     __metaclass__ = ABCMeta
 
     @classmethod
-    def pre_transform(cls, dburi, search_path):
+    def pre_transform(cls, conn_str):
         """Execute statements required before a transform.
 
         A Transform can override this method to execute prerequisite
         statements for a transform, e.g. creating database functions, etc.
 
-        :param str dburi: URL to access database
-        :param str search_path: PostgreSQL schema search_path
+        :param str conn_str: libpq connection string or URI
         :return: None
         """
         pass

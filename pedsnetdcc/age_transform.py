@@ -1,5 +1,5 @@
 import psycopg2
-from sqlalchemy import text, literal_column
+from sqlalchemy import literal_column
 from sqlalchemy.schema import Column, Index
 from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
 
@@ -43,6 +43,7 @@ $$""",
     difficulty.'"""
 )
 
+
 class AgeTransform(Transform):
     # Caller may override `columns`
     columns = [
@@ -66,18 +67,12 @@ class AgeTransform(Transform):
         return False
 
     @classmethod
-    def pre_transform(cls, dburi, search_path):
+    def pre_transform(cls, conn_str):
         """Define PL/SQL functions needed for the age transform
         See also Transform.pre_transform.
         """
-        with psycopg2.connect(dburi) as conn:
+        with psycopg2.connect(conn_str) as conn:
             with conn.cursor() as cursor:
-
-                if search_path:
-                    # SQL injection vulnerability?
-                    cursor.execute(
-                        'SET search_path TO {0}'.format(search_path))
-
                 for stmt in AGE_FUNCTIONS_SQL:
                     cursor.execute(stmt)
         conn.close()
@@ -110,7 +105,6 @@ class AgeTransform(Transform):
                 raise ValueError(
                     "Table {0} has no `person_id` column".format(table_name))
 
-            col = table.c[col_name]
             new_col_name = col_name.replace('_time', '_age_in_months')
 
             new_col = literal_column(
