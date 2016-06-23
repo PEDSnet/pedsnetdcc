@@ -1,32 +1,6 @@
-import hashlib
-
 from sqlalchemy.schema import Column, Index
 
 from pedsnetdcc.abstract_transform import Transform
-
-
-# Oracle's identifier length maximum is 30 bytes, so we must limit
-# object identifier length (e.g. for columns and indexes).
-NAME_LIMIT = 30
-
-
-def make_index_name(table_name, column_name):
-    """
-    Create an index name for a given table/column combination with
-    a NAME_LIMIT-character (Oracle) limit.  The table/column combination
-    `provider.gender_source_concept_name` results in the index name
-    `pro_gscn_ae1fd5b22b92397ca9_ix`.  We opt for a not particularly
-    human-readable name in order to avoid collisions, which are all too
-    possible with columns like provider.gender_source_concept_name and
-    person.gender_source_concept_name.
-    """
-    table_abbrev = table_name[:3]
-    column_abbrev = ''.join([x[0] for x in column_name.split('_')])
-    md5 = hashlib.md5(
-        '{}.{}'.format(table_name, column_name).encode('utf-8')).hexdigest()
-    hashlen = NAME_LIMIT - (len(table_abbrev) + len(column_abbrev) +
-                            3 * len('_') + len('ix'))
-    return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
 
 
 class ConceptNameTransform(Transform):
@@ -65,4 +39,5 @@ class ConceptNameTransform(Transform):
                 new_col_name = col.name.replace('_concept_id', '_concept_name')
                 new_col = Column(new_col_name, concept_name.type)
                 table.append_column(new_col)
-                Index(make_index_name(table.name, new_col_name), new_col)
+                Index(Transform.make_index_name(table.name, new_col_name),
+                      new_col)

@@ -65,7 +65,7 @@ class ConceptNameTest(unittest.TestCase):
 
         indexes = metadata.tables['table1'].indexes
         self.assertEqual(len(indexes), 2, 'Indexes created')
-        num_expected_indexes = 0
+
         for index in indexes:
             index_sql = str(CreateIndex(index).compile(
                 dialect=postgresql.dialect()))
@@ -75,12 +75,12 @@ class ConceptNameTest(unittest.TestCase):
                     ON table1 (foo_concept_name)
                 """)
                 self.assertEqual(index_sql, expected)
-                num_expected_indexes += 1
             elif index.name == 'tab_bcn_7baa5e16ad1f8129b90_ix':
                 expected = clean("""
                   CREATE INDEX tab_bcn_7baa5e16ad1f8129b90_ix
                     ON table1 (bar_concept_name)
                 """)
                 self.assertEqual(index_sql, expected)
-                num_expected_indexes += 1
-        self.assertEqual(num_expected_indexes, 2)
+            else:
+                self.fail(
+                    'Unexpected index encountered: {}'.format(index.name))
