@@ -80,6 +80,7 @@ class AgeTransform(Transform):
 
                 for stmt in AGE_FUNCTIONS_SQL:
                     cursor.execute(stmt)
+        conn.close()
 
     @classmethod
     def modify_select(cls, metadata, table_name, select, join):
