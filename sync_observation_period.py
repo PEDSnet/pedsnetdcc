@@ -1,5 +1,6 @@
 import logging
 import psycopg2
+from pedsnetdcc.utils import make_conn_str
 
 sql_create_date_table = '''
 CREATE TEMP TABLE date_limit
@@ -73,14 +74,10 @@ GROUP BY person_id
 logger = logging.getLogger('pedsnetdcc')
 
 
-def run(dburi, search_path=''):
+def run(conn_str):
 
-    with psycopg2.connect(dburi) as conn:
+    with psycopg2.connect(conn_str) as conn:
         with conn.cursor() as cursor:
-
-            if search_path:
-                # SQL injection vulnerability?
-                cursor.execute('SET search_path TO {0}'.format(search_path))
 
             cursor.execute(sql_create_date_table)
             cursor.execute(sql_fill_null_maxes)
@@ -101,4 +98,4 @@ def run(dburi, search_path=''):
 
 # Test on data local to Aaron's computer.
 if __name__ == '__main__':
-    run('postgresql://localhost/tmp', 'other')
+    run(make_conn_str('postgresql://localhost/tmp', search_path='other'))
