@@ -6,8 +6,8 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex
 
 from pedsnetdcc.age_transform import AgeTransform
-from pedsnetdcc.transform_test_utils import clean
 from pedsnetdcc.utils import make_conn_str
+from pedsnetdcc.tests.transform_test_utils import clean
 
 
 class AgeTest(unittest.TestCase):
