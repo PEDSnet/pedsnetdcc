@@ -1,5 +1,8 @@
 import logging
 import psycopg2
+import time
+
+from pedsnetdcc.dict_logging import secs_since
 
 sql_create_date_table = '''
 CREATE TEMP TABLE date_limit
@@ -70,7 +73,7 @@ FROM date_limit
 GROUP BY person_id
 '''
 
-logger = logging.getLogger('pedsnetdcc')
+logger = logging.getLogger(__name__)
 
 
 def sync_observation_period(conn_str):
@@ -78,19 +81,28 @@ def sync_observation_period(conn_str):
     with psycopg2.connect(conn_str) as conn:
         with conn.cursor() as cursor:
 
+            logger.info({'msg': 'Starting observation period sync.'})
+            starttime = time.time()
+
+            logger.debug({'msg': 'Creating temporary date table.',
+                          'sql': sql_create_date_table})
             cursor.execute(sql_create_date_table)
+
+            logger.debug({'msg': 'Filling in null max dates.',
+                          'sql': sql_fill_null_maxes})
             cursor.execute(sql_fill_null_maxes)
 
+            logger.debug({'msg': 'Deleting existing observation period rows.',
+                          'sql': sql_delete_obs_period})
             cursor.execute(sql_delete_obs_period)
             deleted = cursor.rowcount
 
+            logger.debug({'msg': ('Populating observation period with new'
+                          ' rows.'), 'sql': sql_fill_obs_period})
             cursor.execute(sql_fill_obs_period)
 
-            # Should be deleted once larger structure is in place.
-            print('observation period synced, old_count: {0}, new_count: {1}'.
-                  format(deleted, cursor.rowcount))
-            # Proper logging for when the larger structure is implemented.
-            # logger.info({'msg': 'observation period synced',
-            #              'old_count': deleted, 'new_count': cursor.rowcount})
+            logger.info({'msg': 'Finished observation period sync.',
+                         'deleted': deleted, 'created': cursor.rowcount,
+                         'seconds': secs_since(starttime)})
 
     conn.close()
