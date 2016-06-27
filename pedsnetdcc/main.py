@@ -21,21 +21,17 @@ def pedsnetdcc(logfmt, loglvl):
     logger = logging.getLogger('pedsnetdcc')
     sh = logging.StreamHandler()
 
-    # If at tty without explicit logfmt, use tty format.
-    if sys.stderr.isatty() and not logfmt:
-            logfmt = 'tty'
-
     if logfmt == 'tty':
         sh.addFilter(DictLogFilter('tty'))
-        sh.setFormatter(logging.Formatter('%(tty_out)s'))
     elif logfmt == 'text':
         sh.addFilter(DictLogFilter('text'))
-        sh.setFormatter(logging.Formatter('%(text_out)s'))
-
-    # If not at tty without explicit logfmt, use json format.
     else:
-        sh.addFilter(DictLogFilter('json'))
-        sh.setFormatter(logging.Formatter('%(json_out)s'))
+        if sys.stderr.isatty():
+            # Without explicit logfmt at tty use tty format.
+            logfmt = 'tty'
+        else:
+            # Without explicit logfmt and not at tty, use json format.
+            sh.addFilter(DictLogFilter('json'))
 
     logger.addHandler(sh)
     logger.setLevel(logging.getLevelName(loglvl))

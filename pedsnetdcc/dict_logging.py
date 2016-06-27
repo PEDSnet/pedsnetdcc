@@ -1,8 +1,7 @@
-import copy
+from datetime import datetime
 import logging
 from logging.handlers import QueueHandler
 import time
-from datetime import datetime
 
 nocolor = 0
 red = 31
@@ -20,13 +19,16 @@ def secs_since(starttime):
 
 def strtime():
     """Return the current time in a string conforming to RFC3339."""
-    ts = time.time()
-    utc_offset = (datetime.fromtimestamp(ts) -
-                  datetime.utcfromtimestamp(ts)).total_seconds()
-    return '{0}{1:0=+3}:{2:0>2}'.format(time.strftime('%Y-%m-%dT%H:%M:%S',
-                                                      time.localtime(ts)),
-                                        int(utc_offset // 3600),
-                                        abs(int(utc_offset % 3600 // 60)))
+
+    curr_time = time.time()
+    fmtd_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(curr_time))
+
+    utc_offset = (datetime.fromtimestamp(curr_time) -
+                  datetime.utcfromtimestamp(curr_time)).total_seconds()
+    utc_hours = int(utc_offset // 3600)
+    utc_mins = abs(int(utc_offset % 3600 // 60))
+
+    return '{0}{1:0=+3}:{2:0>2}'.format(fmtd_time, utc_hours, utc_mins)
 
 
 def levelcolor(level):
@@ -45,15 +47,10 @@ def levelcolor(level):
 class DictLogFilter(object):
     """A logging 'filter' that adds arbitrary data to messages.
 
-    Depending on the output format type chosen at instantiation, the filter
-    converts a dict-type log message to the appropriate format and places it
-    on the log record in an aptly named attribute. The formats are intended to
-    mimic the Sirupsen/logrus formats.
-
-    'text' output is placed at record.text_out, 'tty' output is placed at
-    record.tty_out, and 'json' output is placed at record.json_out. This means
-    that the filter should be paired with a log formatter that prints these
-    attributes, like `logging.Formatter('%(text_out)s')` etc.
+    Depending on the output format type in `self.output` which can be chosen at
+    instantiation or assigned afterwards, the filter converts a dict-type log
+    message to the appropriate format. The formats are intended to mimic the
+    Sirupsen/logrus formats.
     """
 
     def __init__(self, output=None):
@@ -72,9 +69,8 @@ class DictLogFilter(object):
             return self.json_filter(record)
 
     def json_filter(self, record):
-        record.json_out = copy.copy(record.msg)
-        record.json_out['time'] = strtime()
-        record.json_out['level'] = record.levelname.lower()
+        record.msg['time'] = strtime()
+        record.msg['level'] = record.levelname.lower()
 
         return True
 
@@ -89,7 +85,7 @@ class DictLogFilter(object):
                 out = out + ' \x1b[{0}m{1}\x1b[0m={2}'\
                     .format(levelcolor(record.levelno), k, v)
 
-        record.tty_out = out
+        record.msg = out
 
         return True
 
@@ -99,11 +95,23 @@ class DictLogFilter(object):
         for k, v in record.msg.items():
             out = out + " {0}='{1}'".format(k, v)
 
-        record.text_out = out
+        record.msg = out
 
         return True
 
 
-class NoFmtQueueHandler(QueueHandler):
+class DictQueueHandler(QueueHandler):
+    """A Logging QueueHandler that does *not* format the record.
+
+    The standard library's QueueHandler formats the record before enqueuing it,
+    which turns the dict msg into a string message. This is problematic for
+    the DictLogFilter on the receiving end. This handler does not format the
+    record if the msg is a dict. However, it may run in to pickle-ability
+    errors at some point, see https://hg.python.org/cpython/file/3.5/Lib/logging/handlers.py#l1289
+    for details.
+    """  # noqa
+
     def prepare(self, record):
+        if not isinstance(record.msg, dict):
+            return super(DictQueueHandler, self).prepare(record)
         return record

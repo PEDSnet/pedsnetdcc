@@ -1,13 +1,4 @@
-import logging
-from pedsnetdcc.dict_logging import NoFmtQueueHandler
-import psycopg2
 import urllib.parse
-
-from multiprocessing import Process, Queue
-import threading
-from queue import Empty
-
-logger = logging.getLogger(__name__)
 
 
 def make_conn_str(uri, search_path=None, password=None):
@@ -81,72 +72,3 @@ def make_conn_str(uri, search_path=None, password=None):
             parts.append('{0}={1}'.format(k, value))
 
     return ' '.join(parts)
-
-
-def parallel_db_exec_fetchall(conn_str, sql_list):
-
-    resq = Queue()
-    logq = Queue()
-    workers = []
-
-    for i in range(len(sql_list)):
-        wp = Process(target=db_exec_fetchall, name='worker %d' % (i + 1),
-                     args=(conn_str, sql_list[i], resq, logq, i + 1))
-        workers.append(wp)
-        wp.start()
-
-    logp = threading.Thread(target=logger_thread, args=(logq,))
-    logp.start()
-
-    for wp in workers:
-        wp.join()
-
-    logq.put(None)
-    logp.join()
-
-    results = []
-    while True:
-        try:
-            results.append(resq.get_nowait())
-        except Empty:
-            break
-
-    return sorted(results, key=lambda x: x['order'])
-
-
-def logger_thread(q):
-    """Passes log records from a queue on to the logger."""
-    while True:
-        record = q.get()
-        if record is None:
-            break
-        logger.handle(record)
-
-
-def db_exec_fetchall(conn_str, sql, resq=None, logq=None, order=None):
-
-    if logq:
-        qh = NoFmtQueueHandler(logq)
-        logger = logging.getLogger()
-        logger.setLevel(logging.DEBUG)
-        logger.addHandler(qh)
-
-    result = {'order': order}
-
-    with psycopg2.connect(conn_str) as conn:
-        with conn.cursor() as cursor:
-
-            logger.debug({'msg': 'Executing SQL.', 'sql': sql})
-            cursor.execute(sql)
-            result['data'] = cursor.fetchall()
-
-            result['field_names'] = []
-            for field in cursor.description:
-                result['field_names'].append(field[0])
-
-    conn.close()
-
-    if resq:
-        resq.put(result)
-
-    return result

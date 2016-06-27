@@ -1,8 +1,7 @@
 from __future__ import division
-
 import logging
 
-from pedsnetdcc.utils import parallel_db_exec_fetchall
+from pedsnetdcc.parallel_db_exec import parallel_db_exec
 
 logger = logging.getLogger('__name__')
 
@@ -122,24 +121,23 @@ def check_fact_relationship(conn_str, output='percent'):
 
     if output == 'percent':
 
-        sql_list = [
-            sql_tot_obs_count,
-            sql_tot_meas_count,
-            sql_tot_visit_count,
-            sql_bad_obs_count,
-            sql_bad_meas_count,
-            sql_bad_visit_count
-        ]
+        sqls = {
+            'tot_obs': sql_tot_obs_count,
+            'tot_meas': sql_tot_meas_count,
+            'tot_visit': sql_tot_visit_count,
+            'bad_obs': sql_bad_obs_count,
+            'bad_meas': sql_bad_meas_count,
+            'bad_visit': sql_bad_visit_count
+        }
 
-        results = parallel_db_exec_fetchall(conn_str, sql_list)
+        results = parallel_db_exec(conn_str, sqls, count=1)
 
-        print(results)
-        bad_obs_percent = (results[3]['data'][0][0] * 100 //
-                           results[0]['data'][0][0])
-        bad_meas_percent = (results[4]['data'][0][0] * 100 //
-                            results[1]['data'][0][0])
-        bad_visit_percent = (results[5]['data'][0][0] * 100 //
-                             results[2]['data'][0][0])
+        bad_obs_percent = (results['bad_obs']['data'][0] * 100 //
+                           results['tot_obs']['data'][0])
+        bad_meas_percent = (results['bad_meas']['data'][0] * 100 //
+                            results['tot_meas']['data'][0])
+        bad_visit_percent = (results['bad_visit']['data'][0] * 100 //
+                             results['tot_visit']['data'][0])
 
         print('percent bad observation records: {0}'.format(bad_obs_percent))
         print('percent bad measurement records: {0}'.format(bad_meas_percent))
@@ -156,7 +154,7 @@ def check_fact_relationship(conn_str, output='percent'):
             sql_bad_visit_2_sample
         ]
 
-        results = parallel_db_exec_fetchall(conn_str, sql_list)
+        results = parallel_db_exec(conn_str, sql_list, count=1)
 
         print('bad observation in fact_id_1 sample: {0}'.format(results[0][0]))
         print('bad observation in fact_id_2 sample: {0}'.format(results[1][0]))
