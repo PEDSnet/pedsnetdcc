@@ -69,7 +69,8 @@ def logger_thread(q):
         record = q.get()
         if record is None:
             break
-        logger.handle(record)
+        if logger.isEnabledFor(record.levelno):
+            logger.handle(record)
 
 
 def db_exec(conn_str, sql, count=None, name=None, resq=None, logq=None):
@@ -101,32 +102,35 @@ def db_exec(conn_str, sql, count=None, name=None, resq=None, logq=None):
     # Build the result object. (The `data` entry will be added when fetched.)
     result = {'name': name, 'output': {'field_names': []}}
 
-    with psycopg2.connect(conn_str) as conn:
-        with conn.cursor() as cursor:
+    # Errors need to be caught and sent through the logger in order
+    # to avoid random interleaving.
+    try:
 
-            logger.debug({'msg': 'Executing SQL.', 'sql': sql})
+        with psycopg2.connect(conn_str) as conn:
+            with conn.cursor() as cursor:
 
-            # Errors need to be caught and sent through the logger in order
-            # to avoid random interleaving. Perhaps this strategy will need
-            # to be expanded to other statements in this method as well.
-            try:
+                # Execute the query.
+                logger.debug({'msg': 'Executing SQL.', 'sql': sql,
+                              'process': name})
                 cursor.execute(sql)
-            except Exception as err:
-                logger.error({'msg': 'Database error.', 'err': str(err)})
 
-            # Get the query output, depending on count size.
-            if count == 1:
-                result['output']['data'] = cursor.fetchone()
-            elif not count:
-                result['output']['data'] = cursor.fetchall()
-            else:
-                result['output']['data'] = cursor.fetchmany(count)
+                # Get the query output, depending on count size.
+                if count == 1:
+                    result['output']['data'] = cursor.fetchone()
+                elif not count:
+                    result['output']['data'] = cursor.fetchall()
+                else:
+                    result['output']['data'] = cursor.fetchmany(count)
 
-            # Get the result field names.
-            for field in cursor.description:
-                result['output']['field_names'].append(field[0])
+                # Get the result field names.
+                for field in cursor.description:
+                    result['output']['field_names'].append(field[0])
 
-    conn.close()
+        conn.close()
+
+    except Exception as err:
+        logger.error({'msg': 'Database error.', 'err': str(err),
+                      'process': name})
 
     if resq:
         resq.put(result)

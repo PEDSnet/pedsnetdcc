@@ -90,10 +90,11 @@ class DictLogFilter(object):
         return True
 
     def text_filter(self, record):
-        out = "time='{0}' level='{1}'".format(strtime(),
+        out = 'time="{0}" level="{1}"'.format(strtime(),
                                               record.levelname.lower())
         for k, v in record.msg.items():
-            out = out + " {0}='{1}'".format(k, v)
+            v = str(v).replace('"', r'\"')
+            out = out + ' {0}="{1}"'.format(k, v)
 
         record.msg = out
 

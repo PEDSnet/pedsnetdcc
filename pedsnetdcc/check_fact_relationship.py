@@ -122,43 +122,162 @@ def check_fact_relationship(conn_str, output='percent'):
     if output == 'percent':
 
         sqls = {
-            'tot_obs': sql_tot_obs_count,
-            'tot_meas': sql_tot_meas_count,
-            'tot_visit': sql_tot_visit_count,
-            'bad_obs': sql_bad_obs_count,
-            'bad_meas': sql_bad_meas_count,
-            'bad_visit': sql_bad_visit_count
+            'tot_fr_obs': sql_tot_obs_count,
+            'tot_fr_meas': sql_tot_meas_count,
+            'tot_fr_visit': sql_tot_visit_count,
+            'bad_fr_obs': sql_bad_obs_count,
+            'bad_fr_meas': sql_bad_meas_count,
+            'bad_fr_visit': sql_bad_visit_count
         }
 
         results = parallel_db_exec(conn_str, sqls, count=1)
 
-        bad_obs_percent = (results['bad_obs']['data'][0] * 100 //
-                           results['tot_obs']['data'][0])
-        bad_meas_percent = (results['bad_meas']['data'][0] * 100 //
-                            results['tot_meas']['data'][0])
-        bad_visit_percent = (results['bad_visit']['data'][0] * 100 //
-                             results['tot_visit']['data'][0])
+        for k, v in results.items():
+            if 'data' not in v:
+                logger.critical({'msg': 'Data not returned.', 'process': k})
+                raise RuntimeError('Data not returned from'
+                                   ' check_fact_relationship {0} query.'
+                                   .format(k))
 
-        print('percent bad observation records: {0}'.format(bad_obs_percent))
-        print('percent bad measurement records: {0}'.format(bad_meas_percent))
-        print('percent bad visit records: {0}'.format(bad_visit_percent))
+        if results['bad_fr_obs']['data'][0] != 0:
+            bad = results['bad_fr_obs']['data'][0]
+            total = results['tot_fr_obs']['data'][0]
+            percent = (bad * 100 // total)
+            logger.warn({
+                'msg': 'Fact relationship table has bad observation refs.',
+                'percent': percent,
+                'bad': bad,
+                'total': total
+            })
+        else:
+            logger.info({
+                'msg': 'Fact relationship observation refs are valid.'
+            })
+
+        if results['bad_fr_meas']['data'][0] != 0:
+            bad = results['bad_fr_meas']['data'][0]
+            total = results['tot_fr_meas']['data'][0]
+            percent = (bad * 100 // total)
+            logger.warn({
+                'msg': 'Fact relationship table has bad measurement refs.',
+                'percent': percent,
+                'bad': bad,
+                'total': total
+            })
+        else:
+            logger.info({
+                'msg': 'Fact relationship measurement refs are valid.'
+            })
+
+        if results['bad_fr_visit']['data'][0] != 0:
+            bad = results['bad_fr_visit']['data'][0]
+            total = results['tot_fr_visit']['data'][0]
+            percent = (bad * 100 // total)
+            logger.warn({
+                'msg': 'Fact relationship table has bad visit refs.',
+                'percent': percent,
+                'bad': bad,
+                'total': total
+            })
+        else:
+            logger.info({
+                'msg': 'Fact relationship visit refs are valid.'
+            })
 
     elif output == 'samples':
 
-        sql_list = [
-            sql_bad_obs_1_sample,
-            sql_bad_obs_2_sample,
-            sql_bad_meas_1_sample,
-            sql_bad_meas_2_sample,
-            sql_bad_visit_1_sample,
-            sql_bad_visit_2_sample
-        ]
+        sqls = {
+            'bad_fr_obs_id1_sample': sql_bad_obs_1_sample,
+            'bad_fr_obs_id2_sample': sql_bad_obs_2_sample,
+            'bad_fr_meas_id1_sample': sql_bad_meas_1_sample,
+            'bad_fr_meas_id2_sample': sql_bad_meas_2_sample,
+            'bad_fr_visit_id1_sample': sql_bad_visit_1_sample,
+            'bad_fr_visit_id2_sample': sql_bad_visit_2_sample
+        }
 
-        results = parallel_db_exec(conn_str, sql_list, count=1)
+        results = parallel_db_exec(conn_str, sqls, count=1)
 
-        print('bad observation in fact_id_1 sample: {0}'.format(results[0][0]))
-        print('bad observation in fact_id_2 sample: {0}'.format(results[1][0]))
-        print('bad measurement in fact_id_1 sample: {0}'.format(results[2][0]))
-        print('bad measurement in fact_id_2 sample: {0}'.format(results[3][0]))
-        print('bad visit in fact_id_1 sample: {0}'.format(results[4][0]))
-        print('bad visit in fact_id_2 sample: {0}'.format(results[5][0]))
+        for k, v in results.items():
+            if 'data' not in v:
+                logger.critical({'msg': 'Data not returned.', 'process': k})
+                raise RuntimeError('Data not returned from'
+                                   ' check_fact_relationship {0} query.'
+                                   .format(k))
+
+        if results['bad_fr_obs_id1_sample']['data']:
+            names = results['bad_fr_obs_id1_sample']['field_names']
+            data = results['bad_fr_obs_id1_sample']['data']
+            sample = dict(zip(names, data))
+            logger.warn({
+                'msg': 'Fact relationship table has bad observation refs.',
+                'field': 'fact_id_1',
+                'sample': sample
+            })
+
+        if results['bad_fr_obs_id2_sample']['data']:
+            names = results['bad_fr_obs_id2_sample']['field_names']
+            data = results['bad_fr_obs_id2_sample']['data']
+            sample = dict(zip(names, data))
+            logger.warn({
+                'msg': 'Fact relationship table has bad observation refs.',
+                'field': 'fact_id_2',
+                'sample': sample
+            })
+
+        if not results['bad_fr_obs_id1_sample']['data'] and \
+                not results['bad_fr_obs_id2_sample']['data']:
+            logger.info({
+                'msg': 'Fact relationship table observation refs are valid.'
+            })
+
+        if results['bad_fr_meas_id1_sample']['data']:
+            names = results['bad_fr_meas_id1_sample']['field_names']
+            data = results['bad_fr_meas_id1_sample']['data']
+            sample = dict(zip(names, data))
+            logger.warn({
+                'msg': 'Fact relationship table has bad measurement refs.',
+                'field': 'fact_id_1',
+                'sample': sample
+            })
+
+        if results['bad_fr_meas_id2_sample']['data']:
+            names = results['bad_fr_meas_id2_sample']['field_names']
+            data = results['bad_fr_meas_id2_sample']['data']
+            sample = dict(zip(names, data))
+            logger.warn({
+                'msg': 'Fact relationship table has bad measurement refs.',
+                'field': 'fact_id_2',
+                'sample': sample
+            })
+
+        if not results['bad_fr_meas_id1_sample']['data'] and \
+                not results['bad_fr_meas_id2_sample']['data']:
+            logger.info({
+                'msg': 'Fact relationship table measurement refs are valid.'
+            })
+
+        if results['bad_fr_visit_id1_sample']['data']:
+            names = results['bad_fr_visit_id1_sample']['field_names']
+            data = results['bad_fr_visit_id1_sample']['data']
+            sample = dict(zip(names, data))
+            logger.warn({
+                'msg': 'Fact relationship table has bad visit refs.',
+                'field': 'fact_id_1',
+                'sample': sample
+            })
+
+        if results['bad_fr_visit_id2_sample']['data']:
+            names = results['bad_fr_visit_id2_sample']['field_names']
+            data = results['bad_fr_visit_id2_sample']['data']
+            sample = dict(zip(names, data))
+            logger.warn({
+                'msg': 'Fact relationship table has bad visit refs.',
+                'field': 'fact_id_2',
+                'sample': sample
+            })
+
+        if not results['bad_fr_visit_id1_sample']['data'] and \
+                not results['bad_fr_visit_id2_sample']['data']:
+            logger.info({
+                'msg': 'Fact relationship table visit refs are valid.'
+            })
