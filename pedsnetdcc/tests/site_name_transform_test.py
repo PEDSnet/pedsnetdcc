@@ -26,6 +26,10 @@ class SiteNameTest(unittest.TestCase):
         self.table2 = Table('table2', self.metadata,
                             baz_col)
 
+        # A vocab table -- should not be transformed
+        self.concept = Table('concept', self.metadata,
+                             Column('concept_id', Integer))
+
     def test_modify_select(self):
 
         select_obj = select([self.table1])
@@ -65,3 +69,8 @@ class SiteNameTest(unittest.TestCase):
                   ON table1 (site)
                 """)
             self.assertEqual(index_sql, expected)
+
+        # Test the vocab-excluding nature of Transform.modify_metadata:
+        expected_concept_columns = {'concept_id'}
+        actual_concept_columns = set(metadata.tables['concept'].c.keys())
+        self.assertEqual(actual_concept_columns, expected_concept_columns)
