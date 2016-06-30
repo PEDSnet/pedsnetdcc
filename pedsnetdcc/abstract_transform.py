@@ -93,8 +93,8 @@ class Transform(object):
         :rtype: sqlalchemy.MetaData
 
         """
-        for table in metadata.tables.values():
-            if table in VOCAB_TABLES:
+        for table_name, table in metadata.tables.items():
+            if table_name in VOCAB_TABLES:
                 continue
 
             cls.modify_table(metadata, table)
