@@ -1,5 +1,6 @@
 #psycopg2
 #docopt
 #requests==2.7.0
+click
 sqlalchemy
 nose

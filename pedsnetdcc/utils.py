@@ -1,3 +1,4 @@
+import re
 import urllib.parse
 
 
@@ -72,3 +73,24 @@ def make_conn_str(uri, search_path=None, password=None):
             parts.append('{0}={1}'.format(k, value))
 
     return ' '.join(parts)
+
+
+def get_search_path(conn_str):
+    """Return the `search_path` from a libpq-compliant connection string.
+
+    The `search_path` is extracted using a regular expression. If the regular
+    expression is not matched in the `conn_str`, None is returned.
+
+    See https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
+
+    :param str conn_str: A libpq-compliant connection string.
+    :returns:            The extracted `search_path`, if one is found.
+    :rtype:              str or None
+    """  # noqa
+
+    match = re.search(r"search_path=(.*?)[' ]", conn_str)
+
+    if match:
+        return match.group(1)
+
+    return None
