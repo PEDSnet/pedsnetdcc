@@ -1,5 +1,8 @@
+import logging
 import re
 import urllib.parse
+
+logger = logging.getLogger(__name__)
 
 
 def make_conn_str(uri, search_path=None, password=None):
@@ -75,22 +78,81 @@ def make_conn_str(uri, search_path=None, password=None):
     return ' '.join(parts)
 
 
-def get_search_path(conn_str):
-    """Return the `search_path` from a libpq-compliant connection string.
+def get_conn_info_dict(conn_str):
+    """Return the connection info form a libpq-compliant conn string as a dict.
 
-    The `search_path` is extracted using a regular expression. If the regular
-    expression is not matched in the `conn_str`, None is returned.
+    The `user`, `host`, `port`, `dbname`, and `search_path` are extracted using
+    regular expressions. If any of them are not found, the corresponding dict
+    value will be None.
 
     See https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
 
-    :param str conn_str: A libpq-compliant connection string.
-    :returns:            The extracted `search_path`, if one is found.
-    :rtype:              str or None
+    :param str conn_str: a libpq-compliant connection string
+    :returns:            the extracted connection info in dict form
+    :rtype:              dict
     """  # noqa
 
-    match = re.search(r"search_path=(.*?)[' ]", conn_str)
+    result = {'user': None, 'host': None, 'port': None, 'dbname': None,
+              'search_path': None}
 
-    if match:
-        return match.group(1)
+    host_match = re.search(r"host=(\S*)", conn_str)
+    port_match = re.search(r"port=(\S*)", conn_str)
+    dbname_match = re.search(r"dbname=(\S*)", conn_str)
+    user_match = re.search(r"user=(\S*)", conn_str)
+    search_path_match = re.search(r"search_path=(.*?)[' ]", conn_str)
 
-    return None
+    if host_match:
+        result['host'] = host_match.group(1)
+    if port_match:
+        result['port'] = port_match.group(1)
+    if dbname_match:
+        result['dbname'] = dbname_match.group(1)
+    if user_match:
+        result['user'] = user_match.group(1)
+    if search_path_match:
+        result['search_path'] = search_path_match.group(1)
+
+    return result
+
+
+def combine_dicts(*args):
+    """Return a new dict that combines all the args in successive update calls.
+
+    :param args: any number of dict-type objects
+    :returns:    a dict which is the result of combining all the args
+    :rtype:      dict
+    """
+
+    result = {}
+
+    for arg in args:
+        result.update(arg)
+
+    return result
+
+
+def check_stmt_data(stmt, caller_name=''):
+    """Log and raise an error if data is missing.
+
+    :param stmt: the statement to check
+    :type stmt:  Statement
+    :raises:     RuntimeError if stmt.data is None or 0 length
+    """
+    if stmt.data is None or len(stmt.data) == 0:
+        err = RuntimeError('data not returned from {0}'.format(stmt.msg))
+        logger.critical({'msg': 'exiting {0}'.format(caller_name), 'err': err})
+        raise err
+
+
+def check_stmt_err(stmt, caller_name=''):
+    """Log and raise an error if there is an error on the statement.
+
+    :param stmt: the statement to check
+    :type stmt:  Statement
+    :raises:     RuntimeError if stmt.err is not None
+    """
+    if stmt.err is not None:
+        err = RuntimeError('database error while {0}: {1}'.format(stmt.msg,
+                                                                  stmt.err))
+        logger.critical({'msg': 'exiting {0}'.format(caller_name), 'err': err})
+        raise err
