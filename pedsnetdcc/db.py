@@ -20,7 +20,7 @@ class Statement(object):
     the resulting data and field names or error from executing the sql
     statement. Able to execute the sql statement if given a connection string.
 
-    :raises: RuntimeError if setting the id_ attribute is attempted
+    :raises RuntimeError: if setting the id_ attribute is attempted
     """
 
     logger = logger
@@ -88,23 +88,13 @@ class Statement(object):
         """Execute the sql statement against a database. Usable in parallel.
 
         A new database connection is made using the passed connection string
-        and the statement is executed in a new cursor. The statement sql, msg,
-        id_ and the search_path are logged at debug level. The data is fetched
-        using cursor.fetchall() and stored in self.data and the field names
-        are stored in self.fields. If an error occurs, the error is caught and
-        stored in self.err and 'database error while `msg`', str(err), id_ and
-        search_path are logged at error level. The error is not reraised.
-        The Statement object itself is returned.
-
-        If logq is given, a DictQueueHandler is created and the log messages
-        are passed through that instead of the module level logger. If resq is
-        given, the Statement object is put onto that queue after processing.
+        and the `execute_on_conn` method is called with that connections and
+        `resq` and `logq`. After execution, regardless of errors, the
+        connection is closed.
 
         :param str conn_str: connection string for the database
-        :param resq:         queue to put resulting Statement objects onto
-        :type resq:          queue.Queue or None
-        :param logq:         queue to put log records onto
-        :type logq:          queue.Queue or None
+        :param Queue resq:   result queue to pass to `execute_on_conn`
+        :param Queue logq:   logging queue to pass to `execute_on_conn`
         :returns:            the processed Statement object itself
         :rtype:              Statement
         """
@@ -119,15 +109,18 @@ class Statement(object):
         return self
 
     def execute_on_conn(self, conn, resq=None, logq=None):
-        """Execute the sql statement against a database. Usable in parallel.
+        """Execute the sql statement on a connection. Usable in parallel.
 
-        A new database connection is made using the passed connection string
-        and the statement is executed in a new cursor. The statement sql, msg,
-        id_ and the search_path are logged at debug level. The data is fetched
-        using cursor.fetchall() and stored in self.data and the field names
-        are stored in self.fields. If an error occurs, the error is caught and
+        A new cursor is made using the passed database connection and the
+        statement is executed in that cursor. The statement sql, msg, id_ and
+        conn_info are logged at debug level. The rowcount or None is placed in
+        self.rowcount. The field names are stored in the self.fields list. The
+        data is fetched using cursor.fetchall() and stored in self.data. If no
+        results exist, the error is caught and None is stored instead.
+        
+        If an error occurs while executing the statement, it is caught and
         stored in self.err and 'database error while `msg`', str(err), id_ and
-        search_path are logged at error level. The error is not reraised.
+        conn_info are logged at error level. The error is not reraised.
         The Statement object itself is returned.
 
         If logq is given, a DictQueueHandler is created and the log messages
@@ -135,10 +128,8 @@ class Statement(object):
         given, the Statement object is put onto that queue after processing.
 
         :param str conn_str: connection string for the database
-        :param resq:         queue to put resulting Statement objects onto
-        :type resq:          queue.Queue or None
-        :param logq:         queue to put log records onto
-        :type logq:          queue.Queue or None
+        :param Queue resq:   queue to put resulting Statement objects onto
+        :param Queue logq:   queue to put log records onto
         :returns:            the processed Statement object itself
         :rtype:              Statement
         """
@@ -203,18 +194,13 @@ class Statement(object):
 
 
 class StatementSet(collections.MutableSet):
-    """A set of statements that can be executed in serial or in parallel.
+    """A set of statements that can be executed in parallel.
 
-    A collections.MutableSet class that adds `serial_execute` and
-    `parallel_execute` methods that call `execute` on each member of the set.
-    The serial version does not gaurantee order. The parallel version
-    intelligently handles tasks for a given number of workers, logging messages
-    and errors from workers without random interleaving, and collecting the
-    results of the work back into the set.
-
-    Another method, `get_by_id_`, is added for convenience to return a
-    particular member based on its `id_` attribute. This is a slow and stupid
-    iteration through the set, but it will save a lot of lines of code.
+    A collections.MutableSet class that adds a `parallel_execute` method that
+    calls `execute` on each member of the set. The method intelligently handles
+    tasks for a given number of workers, logging messages and errors from
+    workers without random interleaving, and collecting the results of the work
+    back into the set.
 
     The class is implemented with a simple underlying set in the `data`
     attribute that can be manipulated directly if needed.
@@ -222,8 +208,6 @@ class StatementSet(collections.MutableSet):
     Although the intent is for all members to be Statement objects, any object
     that meets the `obj.execute(conn_str, resq=None, logq=None) -> obj` API
     should work (no type checking is done).
-
-    :raises: KeyError if `get_by_id_` does not find a matching member
     """
 
     def __init__(self, *data):
@@ -258,10 +242,19 @@ class StatementSet(collections.MutableSet):
         on the task queue to finish. Stop all the workers, end the logging
         thread, and collect the results by clearing the set and then adding
         the now modified Statements on the result queue back into the set.
+        Return self.
 
         If taskq, resq, or logq are not given, fresh multiprocessing.Queues are
         used for resq and logq and a fresh multiprocessing.JoinableQueue is
         used for taskq.
+
+        :param str conn_str:  connection string for the database
+        :param int pool_size: number of workers in the pool
+        :param Queue taskq:   task provisioning queue
+        :param Queue resq:    result putting queue
+        :param Queue logq:    log record putting queue
+        :returns:             self with modified Statements
+        :rtype:               StatementSet
         """
 
         workers = []
@@ -317,27 +310,19 @@ class StatementSet(collections.MutableSet):
 
 
 class StatementList(collections.MutableSequence):
-    """A set of statements that can be executed in serial or in parallel.
+    """A list of statements that can be executed in serial, guaranteeing order.
 
-    A collections.MutableSet class that adds `serial_execute` and
-    `parallel_execute` methods that call `execute` on each member of the set.
-    The serial version does not gaurantee order. The parallel version
-    intelligently handles tasks for a given number of workers, logging messages
-    and errors from workers without random interleaving, and collecting the
-    results of the work back into the set.
+    A collections.MutableSequence class that adds a `serial_execute` method
+    that calls `execute` on each member of the list in order, optionally inside
+    of a single transaction.
 
-    Another method, `get_by_id_`, is added for convenience to return a
-    particular member based on its `id_` attribute. This is a slow and stupid
-    iteration through the set, but it will save a lot of lines of code.
-
-    The class is implemented with a simple underlying set in the `data`
+    The class is implemented with a simple underlying list in the `data`
     attribute that can be manipulated directly if needed.
 
     Although the intent is for all members to be Statement objects, any object
     that meets the `obj.execute(conn_str, resq=None, logq=None) -> obj` API
-    should work (no type checking is done).
-
-    :raises: KeyError if `get_by_id_` does not find a matching member
+    should work (no type checking is done). For execution in a transaction,
+    the `obj.execute_on_conn(conn) -> obj` API must also be met.
     """
 
     def __init__(self, *data):
@@ -366,14 +351,17 @@ class StatementList(collections.MutableSequence):
         self.data[idx:idx] = [val]
 
     def serial_execute(self, conn_str, transaction=False):
-        """Serially execute each statement in the set without order gaurantee.
+        """Serially execute each statement in the list in order.
 
-        Statements are iterated over and executed. They are modified in place
-        and thus the set is modified in place. The set itself is returned.
+        Statements are iterated over and executed. If `transaction` is True,
+        a connection is created here and the lower level `execute_on_conn` is
+        called on each statement instead. The statments are modified in place
+        and thus the list is modified in place. The list itself is returned.
 
-        :param str conn_str: connection string for the database
-        :returns:            the StatementSet itself
-        :rtype:              StatementSet
+        :param str conn_str:     connection string for the database
+        :param bool transaction: whether to use a transaction or not
+        :returns:                the StatementList itself
+        :rtype:                  StatementList
         """
 
         conn_info = get_conn_info_dict(conn_str)
@@ -389,6 +377,8 @@ class StatementList(collections.MutableSequence):
         else:
 
             try:
+                # The `with` block automatically calls `conn.commit()` if it
+                # exits without errors or `conn.rollback()` if hits errors.
                 with psycopg2.connect(conn_str) as conn:
                     for each in self:
                         each.execute_on_conn(conn)
