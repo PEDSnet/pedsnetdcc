@@ -6,7 +6,7 @@ import uuid
 import threading
 
 from pedsnetdcc.dict_logging import DictQueueHandler
-from pedsnetdcc.utils import get_search_path
+from pedsnetdcc.utils import get_conn_info_dict, combine_dicts
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class Statement(object):
     logger = logger
 
     def __init__(self, sql, msg='executing SQL', id_=None):
-        """Create a new Statement object.
+        """Populate defaults on a new Statement object.
 
         If msg is not passed, a default 'executing SQL' message is used. If id_
         is not passed, a uuid is generated for the Statement.
@@ -34,14 +34,13 @@ class Statement(object):
         :param str sql: the sql statement
         :param str msg: a message describing the purpose of the sql
         :param id_:     the unique identifer of the Statement
-        :returns:       the new Statement object
-        :rtype:         Statement
         """
         self.sql = sql
         self.msg = msg
         self._id_ = id_ or uuid.uuid4()
         self.data = None
         self.fields = []
+        self.rowcount = None
         self.err = None
 
     def __eq__(self, other):
@@ -58,7 +57,7 @@ class Statement(object):
         :returns: unique immutable identifier
         :rtype:   int
         """
-        return hash(self._id)
+        return hash(self.id_)
 
     def __repr__(self):
         return 'Statement(sql={0}, msg={1}, id_={2})'.format(self.sql,
@@ -110,8 +109,42 @@ class Statement(object):
         :rtype:              Statement
         """
 
+        try:
+            with psycopg2.connect(conn_str) as conn:
+                self.execute_on_conn(conn, resq, logq)
+
+        finally:
+            conn.close()
+
+        return self
+
+    def execute_on_conn(self, conn, resq=None, logq=None):
+        """Execute the sql statement against a database. Usable in parallel.
+
+        A new database connection is made using the passed connection string
+        and the statement is executed in a new cursor. The statement sql, msg,
+        id_ and the search_path are logged at debug level. The data is fetched
+        using cursor.fetchall() and stored in self.data and the field names
+        are stored in self.fields. If an error occurs, the error is caught and
+        stored in self.err and 'database error while `msg`', str(err), id_ and
+        search_path are logged at error level. The error is not reraised.
+        The Statement object itself is returned.
+
+        If logq is given, a DictQueueHandler is created and the log messages
+        are passed through that instead of the module level logger. If resq is
+        given, the Statement object is put onto that queue after processing.
+
+        :param str conn_str: connection string for the database
+        :param resq:         queue to put resulting Statement objects onto
+        :type resq:          queue.Queue or None
+        :param logq:         queue to put log records onto
+        :type logq:          queue.Queue or None
+        :returns:            the processed Statement object itself
+        :rtype:              Statement
+        """
+
         local_logger = self.logger
-        search_path = get_search_path(conn_str)
+        conn_info = get_conn_info_dict(conn.dsn)
 
         if logq:
             # See the DictQueueHandler docstring for the reason why the
@@ -122,29 +155,46 @@ class Statement(object):
             local_logger.addHandler(qh)
 
         try:
-            with psycopg2.connect(conn_str) as conn:
-                with conn.cursor() as cursor:
+            with conn.cursor() as cursor:
 
-                    # Execute the query.
-                    local_logger.debug({'msg': self.msg, 'sql': self.sql,
-                                        'id': self.id_,
-                                        'search_path': search_path})
-                    cursor.execute(self.sql)
+                # Execute the query.
+                msg_dict = combine_dicts({'msg': self.msg, 'sql': self.sql,
+                                          'id_': self.id_}, conn_info)
+                local_logger.debug(msg_dict)
 
-                    # Retrieve the data.
-                    self.data = cursor.fetchall()
+                cursor.execute(self.sql)
 
-                    # Get the result field names.
+                # Get the effected row count.
+                if cursor.rowcount in [-1, None]:
+                    self.rowcount = None
+                else:
+                    self.rowcount = cursor.rowcount
+
+                # Get the result field names.
+                if cursor.description:
                     for field in cursor.description:
                         self.fields.append(field[0])
+                else:
+                    self.fields = []
 
-            conn.close()
+                # Retrieve the data or, if none, set data to None.
+                try:
+                    self.data = cursor.fetchall()
+                except psycopg2.ProgrammingError as e:
+                    if e.args[0] == 'no results to fetch':
+                        self.data = None
+                    else:
+                        raise
 
         except Exception as err:
             self.err = err
-            local_logger.error({'msg': 'database error while {0}'.
-                                format(self.msg), 'err': str(err),
-                                'id': self._id, 'search_path': search_path})
+            msg_dict = combine_dicts({'msg': 'database error while {0}'.
+                                      format(self.msg), 'err': str(err),
+                                      'id': self.id_}, conn_info)
+            local_logger.error(msg_dict)
+
+        else:
+            self.err = None
 
         if resq:
             resq.put(self)
@@ -157,9 +207,10 @@ class StatementSet(collections.MutableSet):
 
     A collections.MutableSet class that adds `serial_execute` and
     `parallel_execute` methods that call `execute` on each member of the set.
-    The parallel version intelligently handles tasks for a given number of
-    workers, logging messages and errors from workers without random
-    interleaving, and collecting the results of the work back into the set.
+    The serial version does not gaurantee order. The parallel version
+    intelligently handles tasks for a given number of workers, logging messages
+    and errors from workers without random interleaving, and collecting the
+    results of the work back into the set.
 
     Another method, `get_by_id_`, is added for convenience to return a
     particular member based on its `id_` attribute. This is a slow and stupid
@@ -194,37 +245,6 @@ class StatementSet(collections.MutableSet):
     def discard(self, elem):
         return self.data.discard(elem)
 
-    def get_by_id_(self, id_):
-        """Iterate through members and return one matching the given id_.
-
-        This is a non-performant method intended to add convenience. If all or
-        a significant portion of the members need to be visited, it is much
-        better to use `for each in StatementSet`.
-
-        :param str id_: the id_ of the member to search for
-        :returns:       the matching member
-        :rtype:         Statement
-        :raises:        KeyError if a matching member is not found
-        """
-        for each in self:
-            if each.id_ == id_:
-                return each
-        return KeyError("member with id_ '{0}' not found".format(id_))
-
-    def serial_execute(self, conn_str):
-        """Serially execute each statement in the set.
-
-        Statements are iterated over and executed. They are modified in place
-        and thus the set is modified in place. The set itself is returned.
-
-        :param str conn_str: connection string for the database
-        :returns:            the StatementSet itself
-        :rtype:              StatementSet
-        """
-        for each in self:
-            each.execute(conn_str)
-        return self
-
     def parallel_execute(self, conn_str, pool_size=None, taskq=None, resq=None,
                          logq=None):
         """Execute all statements in parallel using pool_size num workers.
@@ -240,14 +260,21 @@ class StatementSet(collections.MutableSet):
         the now modified Statements on the result queue back into the set.
 
         If taskq, resq, or logq are not given, fresh multiprocessing.Queues are
-        used.
+        used for resq and logq and a fresh multiprocessing.JoinableQueue is
+        used for taskq.
         """
 
         workers = []
         pool_size = pool_size or len(self)
-        taskq = taskq or multiprocessing.Queue()
+        taskq = taskq or multiprocessing.JoinableQueue()
         resq = resq or multiprocessing.Queue()
         logq = logq or multiprocessing.Queue()
+
+        conn_info = get_conn_info_dict(conn_str)
+        msg_dict = combine_dicts({'msg': 'executing sql statement set in'
+                                  ' parallel', 'len': len(self),
+                                  'pool_size': pool_size}, conn_info)
+        logger.info(msg_dict)
 
         # Start the worker processes.
         for i in range(pool_size):
@@ -285,6 +312,89 @@ class StatementSet(collections.MutableSet):
             if result is None:
                 break
             self.add(result)
+
+        return self
+
+
+class StatementList(collections.MutableSequence):
+    """A set of statements that can be executed in serial or in parallel.
+
+    A collections.MutableSet class that adds `serial_execute` and
+    `parallel_execute` methods that call `execute` on each member of the set.
+    The serial version does not gaurantee order. The parallel version
+    intelligently handles tasks for a given number of workers, logging messages
+    and errors from workers without random interleaving, and collecting the
+    results of the work back into the set.
+
+    Another method, `get_by_id_`, is added for convenience to return a
+    particular member based on its `id_` attribute. This is a slow and stupid
+    iteration through the set, but it will save a lot of lines of code.
+
+    The class is implemented with a simple underlying set in the `data`
+    attribute that can be manipulated directly if needed.
+
+    Although the intent is for all members to be Statement objects, any object
+    that meets the `obj.execute(conn_str, resq=None, logq=None) -> obj` API
+    should work (no type checking is done).
+
+    :raises: KeyError if `get_by_id_` does not find a matching member
+    """
+
+    def __init__(self, *data):
+        self.data = list(data)
+
+    def __contains__(self, elem):
+        return elem in self.data
+
+    def __iter__(self):
+        for elem in self.data:
+            yield elem
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+    def __setitem__(self, idx, val):
+        self.data[idx] = val
+
+    def __delitem__(self, idx):
+        del self.data[idx]
+
+    def insert(self, idx, val):
+        self.data[idx:idx] = [val]
+
+    def serial_execute(self, conn_str, transaction=False):
+        """Serially execute each statement in the set without order gaurantee.
+
+        Statements are iterated over and executed. They are modified in place
+        and thus the set is modified in place. The set itself is returned.
+
+        :param str conn_str: connection string for the database
+        :returns:            the StatementSet itself
+        :rtype:              StatementSet
+        """
+
+        conn_info = get_conn_info_dict(conn_str)
+        msg_dict = combine_dicts({'msg': 'executing sql statement list'
+                                  ' serially', 'len': len(self),
+                                  'transaction': transaction}, conn_info)
+        logger.info(msg_dict)
+
+        if not transaction:
+            for each in self:
+                each.execute(conn_str)
+
+        else:
+
+            try:
+                with psycopg2.connect(conn_str) as conn:
+                    for each in self:
+                        each.execute_on_conn(conn)
+
+            finally:
+                conn.close()
 
         return self
 

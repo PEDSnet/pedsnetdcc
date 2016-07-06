@@ -6,8 +6,10 @@ from pedsnetdcc import __version__
 from pedsnetdcc.utils import make_conn_str
 from pedsnetdcc.dict_logging import DictLogFilter
 
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
-@click.group()
+
+@click.group(context_settings=CONTEXT_SETTINGS)
 @click.option('--logfmt', type=click.Choice(['tty', 'text', 'json']),
               help='Logging output format.')
 @click.option('--loglvl', default='INFO', help='Logging output level.',
@@ -43,13 +45,15 @@ def pedsnetdcc(logfmt, loglvl):
 @click.option('--searchpath', '-s', help='Schema search path in database.')
 @click.argument('dburi')
 def sync_observation_period(searchpath, pwprompt, dburi):
-    """Sync the observation period table with the fact data.
+    """Sync the observation period table to the fact data.
 
-    Fill the observation period table with records that span the minimum
-    and maximum fact dates per person in the data. Replaces any existing
-    observation period data. The database should be specified using a DBURI:
+    Delete any existing records in the observation period table and calculate a
+    completely new set of records from the fact data in the database. Log the
+    number of new records and timing at INFO level.
 
-    \b
+    The database should be specified using a DBURI:
+
+    \b')
     postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
     """
 
@@ -68,11 +72,18 @@ def sync_observation_period(searchpath, pwprompt, dburi):
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
 @click.option('--searchpath', '-s', help='Schema search path in database.')
-@click.option('--output', '-o', type=click.Choice(['percent', 'samples']),
-              default='percent', help='Output format.')
+@click.option('--output', '-o', default='both', help='Output format.',
+              type=click.Choice(['both', 'percent', 'samples']))
+@click.option('--poolsize', type=int,
+              help='Number of parallel processes to use.')
 @click.argument('dburi')
-def check_fact_relationship(searchpath, pwprompt, output, dburi):
+def check_fact_relationship(searchpath, pwprompt, output, poolsize, dburi):
     """Check the referential integrity of the fact relationship table.
+
+    Execute SQL statements, in parallel, to inspect the fact relationship table
+    for validity. The statements needed to get the requested output format are
+    executed and the results are logged. Problems are reported at the WARNING
+    level and positive results and timing are reported at the INFO level.
 
     The database should be specified using a DBURI:
 
@@ -88,7 +99,7 @@ def check_fact_relationship(searchpath, pwprompt, output, dburi):
         password = click.prompt(hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
-    check_fact_relationship(conn_str, output)
+    check_fact_relationship(conn_str, output, poolsize)
 
 
 if __name__ == '__main__':
