@@ -133,7 +133,7 @@ bad_visit_2_msg = 'searching for invalid visit ref in fact_id_2'
 logger = logging.getLogger(__name__)
 
 
-def check_fact_relationship(conn_str, output, pool_size=None):
+def check_fact_relationship(conn_str, output='both', pool_size=None):
     """Check the referential integrity of the fact relationship table.
 
     Execute sql statements, in parallel, to inspect the fact relationship table
@@ -152,7 +152,7 @@ def check_fact_relationship(conn_str, output, pool_size=None):
     saying that none were found or emit a warning-level log message with the
     results.
 
-    If `output` is 'both', both sets of checks are run.
+    If `output` is 'both', both sets of checks are run. This is the default.
 
     :param str conn_str:  the connection string for the database
     :param str output:    the type of checks to run and output to produce

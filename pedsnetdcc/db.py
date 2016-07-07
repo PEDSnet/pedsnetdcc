@@ -17,12 +17,15 @@ class Statement(object):
     Stores the executable sql as well as a msg describing the purpose of the
     sql statement. Uniquely and immutably identified by an id_ attribute to
     facilitate membership in StatementSets and parallel execution. Also stores
-    the resulting data and field names or error from executing the sql
-    statement. Able to execute the sql statement if given a connection string.
+    the resulting data, rowcount, and field names or error from executing the
+    sql statement. Able to execute the sql statement if given a connection
+    string or an open dbapi connection object. Will reset state on statement
+    re-execution.
 
     :raises RuntimeError: if setting the id_ attribute is attempted
     """
 
+    # Keep a class constant reference to the module-level logger.
     logger = logger
 
     def __init__(self, sql, msg='executing SQL', id_=None):
@@ -84,6 +87,30 @@ class Statement(object):
         """
         raise RuntimeError('Statement.id_ is immutable.')
 
+    def _get_logger(self, logq):
+        """Setup and return a logger for the instance.
+
+        If not logq, this is just the module level logger via self.logger. If
+        logq, this is a QueueHandler logger for parallel process logging.
+
+        :param Queue logq: the queue to log on or None
+        :returns:          the logger to use
+        :rtype:            logging.Logger
+        """
+
+        if not logq:
+            return self.logger
+
+        else:
+            # See the DictQueueHandler docstring for the reason why the
+            # standard logging.handlers.QueueHandler can't be used here.
+            local_logger = logging.getLogger(str(self.id_))
+            local_logger.setLevel(logging.DEBUG)
+            if not local_logger.handlers:
+                qh = DictQueueHandler(logq)
+                local_logger.addHandler(qh)
+            return local_logger
+
     def execute(self, conn_str, resq=None, logq=None):
         """Execute the sql statement against a database. Usable in parallel.
 
@@ -99,12 +126,27 @@ class Statement(object):
         :rtype:              Statement
         """
 
+        local_logger = self._get_logger(logq)
+        conn_info = get_conn_info_dict(conn_str)
+
+        conn = None
+
         try:
             with psycopg2.connect(conn_str) as conn:
                 self.execute_on_conn(conn, resq, logq)
 
+        # `execute_on_conn` handles its own errors, so this must be a
+        # connection error.
+        except Exception as err:
+            self.err = err
+            msg_dict = combine_dicts({'msg': 'connection error while {0}'.
+                                      format(self.msg), 'err': str(err),
+                                      'id': self.id_}, conn_info)
+            local_logger.error(msg_dict)
+
         finally:
-            conn.close()
+            if conn:
+                conn.close()
 
         return self
 
@@ -117,7 +159,7 @@ class Statement(object):
         self.rowcount. The field names are stored in the self.fields list. The
         data is fetched using cursor.fetchall() and stored in self.data. If no
         results exist, the error is caught and None is stored instead.
-        
+
         If an error occurs while executing the statement, it is caught and
         stored in self.err and 'database error while `msg`', str(err), id_ and
         conn_info are logged at error level. The error is not reraised.
@@ -127,23 +169,23 @@ class Statement(object):
         are passed through that instead of the module level logger. If resq is
         given, the Statement object is put onto that queue after processing.
 
-        :param str conn_str: connection string for the database
-        :param Queue resq:   queue to put resulting Statement objects onto
-        :param Queue logq:   queue to put log records onto
-        :returns:            the processed Statement object itself
-        :rtype:              Statement
+        Resets state on every call to make re-execution produce sensible state.
+
+        :param str conn:   dbapi connection object to the database
+        :param Queue resq: queue to put resulting Statement objects onto
+        :param Queue logq: queue to put log records onto
+        :returns:          the processed Statement object itself
+        :rtype:            Statement
         """
 
-        local_logger = self.logger
-        conn_info = get_conn_info_dict(conn.dsn)
+        # Re-initialize attributes in case this is a re-execution.
+        self.data = None
+        self.fields = []
+        self.rowcount = None
+        self.err = None
 
-        if logq:
-            # See the DictQueueHandler docstring for the reason why the
-            # standard logging.handlers.QueueHandler can't be used here.
-            qh = DictQueueHandler(logq)
-            local_logger = logging.getLogger()
-            local_logger.setLevel(logging.DEBUG)
-            local_logger.addHandler(qh)
+        local_logger = self._get_logger(logq)
+        conn_info = get_conn_info_dict(conn.dsn)
 
         try:
             with conn.cursor() as cursor:
@@ -156,24 +198,20 @@ class Statement(object):
                 cursor.execute(self.sql)
 
                 # Get the effected row count.
-                if cursor.rowcount in [-1, None]:
-                    self.rowcount = None
-                else:
+                if cursor.rowcount not in [-1, None]:
                     self.rowcount = cursor.rowcount
 
                 # Get the result field names.
                 if cursor.description:
                     for field in cursor.description:
                         self.fields.append(field[0])
-                else:
-                    self.fields = []
 
-                # Retrieve the data or, if none, set data to None.
+                # Retrieve the data or, if none, leave data as None.
                 try:
                     self.data = cursor.fetchall()
                 except psycopg2.ProgrammingError as e:
                     if e.args[0] == 'no results to fetch':
-                        self.data = None
+                        pass
                     else:
                         raise
 
@@ -183,9 +221,6 @@ class Statement(object):
                                       format(self.msg), 'err': str(err),
                                       'id': self.id_}, conn_info)
             local_logger.error(msg_dict)
-
-        else:
-            self.err = None
 
         if resq:
             resq.put(self)
@@ -376,6 +411,8 @@ class StatementList(collections.MutableSequence):
 
         else:
 
+            conn = None
+
             try:
                 # The `with` block automatically calls `conn.commit()` if it
                 # exits without errors or `conn.rollback()` if hits errors.
@@ -384,12 +421,13 @@ class StatementList(collections.MutableSequence):
                         each.execute_on_conn(conn)
 
             finally:
-                conn.close()
+                if conn:
+                    conn.close()
 
         return self
 
 
-def _worker_process(conn_str, taskq, resq, logq):
+def _worker_process(conn_str, taskq, resq=None, logq=None):
     """Calls task.execute(conn_str, resq, logq) on tasks in taskq.
 
     Marks tasks as complete with taskq.task_done(). Stops when None is

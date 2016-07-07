@@ -1,24 +1,42 @@
-import unittest
+import os
 import psycopg2
+import unittest
 
-from pedsnetdcc.utils import make_conn_str
 from pedsnetdcc.sync_observation_period import sync_observation_period
+from pedsnetdcc.utils import make_conn_str
 
 
 class SyncObservationPeriodTest(unittest.TestCase):
 
     def test_observation_period_count(self):
+        dburi_var = 'PEDSNETDCC_TEST_DBURI'
+        search_path_var = 'PEDSNETDCC_TEST_SEARCH_PATH'
+        if (dburi_var not in os.environ and
+                search_path_var not in os.environ):
+            self.skipTest(
+                '{} and {} required for testing '
+                'sync_observation_period'.format(
+                    dburi_var, search_path_var))
 
-        conn_str = make_conn_str('postgresql://localhost/tmp',
-                                 search_path='other')
+        conn_str = make_conn_str(uri=os.environ[dburi_var],
+                                 search_path=os.environ[search_path_var])
 
-        sync_observation_period(conn_str)
+        success = sync_observation_period(conn_str)
+        self.assertTrue(success)
 
-        with psycopg2.connect(conn_str) as conn:
-            with conn.cursor() as cursor:
+        conn = None
+        r = [0]
 
-                cursor.execute('SELECT COUNT(*) FROM observation_period')
+        try:
+            with psycopg2.connect(conn_str) as conn:
+                with conn.cursor() as cursor:
 
-                r = cursor.fetchone()
+                    cursor.execute('SELECT COUNT(*) FROM observation_period')
 
-                self.assertEqual(r[0], 100)
+                    r = cursor.fetchone()
+
+        finally:
+            if conn:
+                conn.close()
+
+        self.assertEqual(r[0], 100)

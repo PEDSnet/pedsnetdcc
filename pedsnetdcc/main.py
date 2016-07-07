@@ -53,7 +53,7 @@ def sync_observation_period(searchpath, pwprompt, dburi):
 
     The database should be specified using a DBURI:
 
-    \b')
+    \b
     postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
     """
 
@@ -65,7 +65,12 @@ def sync_observation_period(searchpath, pwprompt, dburi):
         password = click.prompt(hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
-    sync_observation_period(conn_str)
+    success = sync_observation_period(conn_str)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
 
 
 @pedsnetdcc.command()
@@ -99,7 +104,12 @@ def check_fact_relationship(searchpath, pwprompt, output, poolsize, dburi):
         password = click.prompt(hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
-    check_fact_relationship(conn_str, output, poolsize)
+    success = check_fact_relationship(conn_str, output, poolsize)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 import collections
 import datetime
+import json
 import logging
 import logging.handlers
 import time
@@ -87,7 +88,7 @@ class DictLogFilter(object):
         :param output: the output format
         :type output:  None or str from ['json', 'text', or 'tty']
         :returns:      a new DictLogFilter object
-        :rtype:        DictLogFilter
+        :rtype:        Dic)LogFilter
         """
         self.output = output
 
@@ -121,8 +122,15 @@ class DictLogFilter(object):
         :returns:      always True to indicate the record should be handled
         :rtype:        bool
         """
+        # Add time and level entries.
         record.msg['time'] = strtime()
         record.msg['level'] = record.levelname.lower()
+
+        # Ensure all keys and values are stringified to assist json.dumps.
+        record.msg = stringify(record.msg)
+
+        # Make sure msg is valid JSON.
+        record.msg = json.dumps(record.msg)
         return True
 
     def tty_filter(self, record):
@@ -134,11 +142,19 @@ class DictLogFilter(object):
         :rtype:        bool
         """
 
+        # Ensure all keys and values are stringified.
+        record.msg = stringify(record.msg)
+
+        # Construct the start of the message.
         out = '\x1b[{0}m{1}\x1b[0m[{2}] {3}'.format(levelcolor(record.levelno),
                                                     record.levelname[:4],
                                                     secs_since(starttime),
                                                     record.msg.get('msg', ''))
+
+        # Pad to or truncate at 80 characters.
         out = '{0:<80}'.format(out)
+
+        # Format into colorized k=v pairs
         for k, v in record.msg.items():
             if k != 'msg':
                 out = out + ' \x1b[{0}m{1}\x1b[0m={2}'\
@@ -157,13 +173,19 @@ class DictLogFilter(object):
         :rtype:        bool
         """
 
-        out = 'time="{0}" level="{1}"'.format(strtime(),
-                                              record.levelname.lower())
-        for k, v in record.msg.items():
-            v = str(v).replace('"', r'\"')
-            out = out + ' {0}="{1}"'.format(k, v)
+        # Add time and level entries.
+        record.msg['time'] = strtime()
+        record.msg['level'] = record.levelname.lower()
 
-        record.msg = out
+        # Ensure all keys and values are stringified.
+        record.msg = stringify(record.msg)
+
+        # Attempt to meet the logfmt-compatible format.
+        # Format into k=v pairs, quoting the v's.
+        record.msg = ['{0}="{1}"'.format(k, v) for k, v in record.msg.items()]
+
+        # Join with a space
+        record.msg = " ".join(record.msg)
 
         return True
 
@@ -190,10 +212,10 @@ class DictQueueHandler(logging.handlers.QueueHandler):
     def prepare(self, record):
         """Prepare the log record for pickling.
 
-        If record.msg is a dict, call str on all its items. If record.args is
-        a sequence or dict, call str on all its items. Convert record.exc_info
-        to a string at record.exc_text, using self.formatter.formatException,
-        and wipe out record.exc_info.
+        If record.msg is a mapping, call str on all its items. If record.args
+        is a sequence or mapping, call str on all its items. Convert
+        record.exc_info to a string at record.exc_text, using
+        self.formatter.formatException, and wipe out record.exc_info.
 
         :param record: the log record to prepare
         :type record:  logging.LogRecord
@@ -201,19 +223,24 @@ class DictQueueHandler(logging.handlers.QueueHandler):
         :rtype:        logging.LogRecord
         """
 
-        if isinstance(record.msg, collections.Mapping):
-            new_msg = {str(k): str(v) for k, v in record.msg.items()}
-            record.msg = new_msg
-
-        if isinstance(record.args, collections.Sequence):
-            new_args = [str(a) for a in record.args]
-            record.args = tuple(new_args)
-        elif isinstance(record.args, collections.Mapping):
-            new_args = {str(k): str(v) for k, v in record.args.items()}
-            record.args = new_args
+        record.msg = stringify(record.msg)
+        record.args = stringify(record.args)
 
         if record.exc_info:
             record.exc_text = self.formatter.formatException(record.exc_info)
             record.exc_info = None
 
         return record
+
+
+def stringify(obj):
+    """Recursively str() an object, leaving mappings and sequences."""
+    if isinstance(obj, str):
+        new_obj = obj
+    elif isinstance(obj, collections.Mapping):
+        new_obj = {str(k): stringify(v) for k, v in obj.items()}
+    elif isinstance(obj, collections.Sequence):
+        new_obj = [stringify(i) for i in obj]
+    else:
+        new_obj = str(obj)
+    return new_obj
