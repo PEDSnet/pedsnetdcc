@@ -88,10 +88,11 @@ def _database_privileges_sql(database_name):
 
 # SQL template for creating site schemas in an internal database instance.
 _sql_site_internal_template = """
-create schema if not exists {{.Site}}_pedsnet authorization dcc_owner;
-create schema if not exists {{.Site}}_pcornet authorization dcc_owner;
-create schema if not exists {{.Site}}_harvest authorization dcc_owner;
+create schema if not exists {{.Site}}_pedsnet  authorization dcc_owner;
+create schema if not exists {{.Site}}_pcornet  authorization dcc_owner;
+create schema if not exists {{.Site}}_harvest  authorization dcc_owner;
 create schema if not exists {{.Site}}_achilles authorization dcc_owner;
+create schema if not exists {{.Site}}_id_maps  authorization dcc_owner;
 grant usage  on               schema {{.Site}}_pedsnet  to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
 grant select on all tables in schema {{.Site}}_pedsnet  to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
 grant all    on               schema {{.Site}}_pedsnet  to loading_user;
@@ -100,6 +101,7 @@ grant usage  on               schema {{.Site}}_pcornet  to peds_staff;
 grant select on all tables in schema {{.Site}}_pcornet  to peds_staff;
 grant all    on               schema {{.Site}}_harvest  to harvest_user;
 grant all    on               schema {{.Site}}_achilles to achilles_user;
+grant all    on               schema {{.Site}}_id_maps  to loading_user;
 alter default privileges for role loading_user in schema {{.Site}}_pedsnet grant select on tables to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
 alter default privileges for role loading_user in schema {{.Site}}_pcornet grant select on tables to peds_staff;
 """
@@ -109,11 +111,13 @@ _sql_site_prod_template = """
 create schema if not exists {{.Site}}_pedsnet authorization dcc_owner;
 create schema if not exists {{.Site}}_pcornet authorization dcc_owner;
 create schema if not exists {{.Site}}_harvest authorization dcc_owner;
+create schema if not exists {{.Site}}_id_maps  authorization dcc_owner;
 grant usage  on               schema {{.Site}}_pedsnet  to harvest_user, peds_staff;
 grant select on all tables in schema {{.Site}}_pedsnet  to harvest_user, peds_staff;
 grant usage  on               schema {{.Site}}_pcornet  to pcornet_sas, peds_staff;
 grant select on all tables in schema {{.Site}}_pcornet  to pcornet_sas, peds_staff;
 grant all    on               schema {{.Site}}_harvest  to harvest_user;
+grant all    on               schema {{.Site}}_id_maps  to loading_user;
 alter default privileges for role dcc_owner in schema {{.Site}}_pedsnet grant select on tables to harvest_user, peds_staff;
 alter default privileges for role dcc_owner in schema {{.Site}}_pcornet grant select on tables to pcornet_sas, peds_staff;
 """
