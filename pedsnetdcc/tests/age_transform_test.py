@@ -1,13 +1,13 @@
 import os
 import unittest
 
-from sqlalchemy import *
+from sqlalchemy import MetaData, Table, Column, Integer, DateTime, select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex
 
 from pedsnetdcc.age_transform import AgeTransform
-from pedsnetdcc.transform_test_utils import clean
 from pedsnetdcc.utils import make_conn_str
+from pedsnetdcc.tests.transform_test_utils import clean
 
 
 class AgeTest(unittest.TestCase):
@@ -97,15 +97,15 @@ class AgeTest(unittest.TestCase):
                     'Unexpected index encountered: {}'.format(index.name))
 
     def test_pre_transform(self):
-        dburi_var = 'PEDSNETDCC_AGE_TRANSFORM_DBURI'
-        search_path_var = 'PEDSNETDCC_AGE_TRANSFORM_SEARCH_PATH'
+        dburi_var = 'PEDSNETDCC_TEST_DBURI'
+        search_path_var = 'PEDSNETDCC_TEST_SEARCH_PATH'
         if (dburi_var not in os.environ and
                 search_path_var not in os.environ):
             self.skipTest(
                 '{} and {} required for testing '
                 'AgeTransform.pre_transform'.format(
                     dburi_var, search_path_var))
-        conn_str = make_conn_str(url=os.environ[dburi_var],
+        conn_str = make_conn_str(uri=os.environ[dburi_var],
                                  search_path=os.environ[search_path_var])
         AgeTransform.pre_transform(conn_str)
         # TODO: verify function creation via introspection

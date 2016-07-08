@@ -1,10 +1,10 @@
 import os
 import unittest
 
-from pedsnetdcc.utils import make_conn_str
+from pedsnetdcc.utils import make_conn_str, get_conn_info_dict
 
 
-class ConnTest(unittest.TestCase):
+class MakeConnTest(unittest.TestCase):
 
     def test_url_without_query(self):
         """ Test adding search_path where query parameters do not exist"""
@@ -82,3 +82,53 @@ class ConnTest(unittest.TestCase):
                     row = cursor.fetchone()
                     self.assertTrue(schema in row[0])
             conn.close()
+
+
+class GetConnInfoDictTest(unittest.TestCase):
+
+    def test_simple_conn_info(self):
+        """Test getting simple conn_info."""
+        cstr = "host=ahost dbname=adb options='-c search_path=testschema'"
+        conn_info = get_conn_info_dict(cstr)
+        expected = {'search_path': 'testschema', 'host': 'ahost',
+                    'dbname': 'adb', 'port': None, 'user': None}
+        self.assertEqual(conn_info, expected)
+
+    def test_conn_info_user_port(self):
+        """Test getting conn_info with user and port."""
+        cstr = "host=ahost port=5433 dbname=adb user=auser " \
+               "password=apass connect_timeout=30 options='-c " \
+               "search_path=testschema' sslmode=disable"
+        conn_info = get_conn_info_dict(cstr)
+        expected = {'search_path': 'testschema', 'host': 'ahost',
+                    'dbname': 'adb', 'port': '5433', 'user': 'auser'}
+        self.assertEqual(conn_info, expected)
+
+    def test_conn_info_with_options(self):
+        """Test getting conn_info with other options."""
+        cstr = "host=ahost port=5433 dbname=adb user=auser " \
+               "password=apass connect_timeout=30 options='-c geqo=off " \
+               "-c search_path=testschema' sslmode=disable"
+        conn_info = get_conn_info_dict(cstr)
+        expected = {'search_path': 'testschema', 'host': 'ahost',
+                    'dbname': 'adb', 'port': '5433', 'user': 'auser'}
+        self.assertEqual(conn_info, expected)
+
+    def test_conn_info_with_follow_options(self):
+        """Test getting conn_info with following options."""
+        cstr = "host=ahost port=5433 dbname=adb user=auser " \
+               "password=apass connect_timeout=30 " \
+               "options='-c search_path=testschema -c geqo=off' " \
+               "sslmode=disable"
+        conn_info = get_conn_info_dict(cstr)
+        expected = {'search_path': 'testschema', 'host': 'ahost',
+                    'dbname': 'adb', 'port': '5433', 'user': 'auser'}
+        self.assertEqual(conn_info, expected)
+
+    def test_user_at_end(self):
+        """Test conn string with no search_path."""
+        cstr = "host=ahost dbname=adb user=auser"
+        conn_info = get_conn_info_dict(cstr)
+        expected = {'search_path': None, 'host': 'ahost',
+                    'dbname': 'adb', 'port': None, 'user': 'auser'}
+        self.assertEqual(conn_info, expected)

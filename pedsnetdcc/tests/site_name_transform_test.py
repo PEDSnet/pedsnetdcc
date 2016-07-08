@@ -5,7 +5,7 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex
 
 from pedsnetdcc.site_name_transform import SiteNameTransform
-from pedsnetdcc.transform_test_utils import clean
+from pedsnetdcc.tests.transform_test_utils import clean
 
 
 class SiteNameTest(unittest.TestCase):

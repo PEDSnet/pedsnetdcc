@@ -1,3 +1,4 @@
 click
 psycopg2
 sqlalchemy
+testing.postgresql

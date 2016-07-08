@@ -134,7 +134,8 @@ class Transform(object):
         table_abbrev = table_name[:3]
         column_abbrev = ''.join([x[0] for x in column_name.split('_')])
         md5 = hashlib.md5(
-            '{}.{}'.format(table_name, column_name).encode('utf-8')).hexdigest()
+            '{}.{}'.format(table_name, column_name).encode('utf-8')).\
+            hexdigest()
         hashlen = NAME_LIMIT - (len(table_abbrev) + len(column_abbrev) +
                                 3 * len('_') + len('ix'))
         return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])

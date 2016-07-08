@@ -1,11 +1,11 @@
 import unittest
 
-from sqlalchemy import *
+from sqlalchemy import MetaData, Table, Column, Integer, String, select
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.schema import CreateIndex
 
 from pedsnetdcc.concept_name_transform import ConceptNameTransform
-from pedsnetdcc.transform_test_utils import clean
+from pedsnetdcc.tests.transform_test_utils import clean
 
 
 class ConceptNameTest(unittest.TestCase):

@@ -1,8 +1,11 @@
 import logging
-import psycopg2
-from pedsnetdcc.utils import make_conn_str
+import time
 
-sql_create_date_table = '''
+from pedsnetdcc.db import Statement, StatementList
+from pedsnetdcc.dict_logging import secs_since
+from pedsnetdcc.utils import check_stmt_err
+
+create_date_table_sql = '''
 CREATE TEMP TABLE date_limit
     (person_id, table_name, min_datetime, max_datetime)
 AS
@@ -48,17 +51,20 @@ UNION ALL
     FROM death
     GROUP BY person_id
 '''
+create_date_table_msg = 'creating the temporary domain date limits table'
 
-sql_fill_null_maxes = '''
+fill_null_maxes_sql = '''
 UPDATE date_limit SET (max_datetime) = (min_datetime)
     WHERE max_datetime IS NULL
 '''
+fill_null_maxes_msg = 'filling null max dates with mins in date limit table'
 
-sql_delete_obs_period = '''
+delete_obs_period_sql = '''
 DELETE FROM observation_period
 '''
+delete_obs_period_msg = 'deleting all existing observation period rows'
 
-sql_fill_obs_period = '''
+fill_obs_period_sql = '''
 INSERT INTO observation_period (
     person_id, observation_period_start_date, observation_period_end_date,
     observation_period_start_time, observation_period_end_time,
@@ -70,32 +76,45 @@ INSERT INTO observation_period (
 FROM date_limit
 GROUP BY person_id
 '''
+fill_obs_period_msg = 'filling observation period with newly calculated rows'
 
-logger = logging.getLogger('pedsnetdcc')
+logger = logging.getLogger(__name__)
 
 
-def run(conn_str):
+def sync_observation_period(conn_str):
+    """Sync the observation period table to the fact data.
 
-    with psycopg2.connect(conn_str) as conn:
-        with conn.cursor() as cursor:
+    Delete any existing records in the observation period table and calculate a
+    completely new set of records from the fact data in the database. Log the
+    number of new records and return True if the process completes without
+    error.
 
-            cursor.execute(sql_create_date_table)
-            cursor.execute(sql_fill_null_maxes)
+    :param str conn_str:  the connection string for the database
+    :returns:             True if the function completes without error
+    :rtype:               bool
+    :raises RuntimeError: if any of the sql statements cause an error
+    """
 
-            cursor.execute(sql_delete_obs_period)
-            deleted = cursor.rowcount
+    logger.info({'msg': 'starting observation period sync'})
+    starttime = time.time()
 
-            cursor.execute(sql_fill_obs_period)
+    # Build appropriate set of statements.
+    stmts = StatementList()
+    stmts.append(Statement(create_date_table_sql, create_date_table_msg))
+    stmts.append(Statement(fill_null_maxes_sql, fill_null_maxes_msg))
+    stmts.append(Statement(delete_obs_period_sql, delete_obs_period_msg))
+    stmts.append(Statement(fill_obs_period_sql, fill_obs_period_msg))
 
-            # Should be deleted once larger structure is in place.
-            print('observation period synced, old_count: {0}, new_count: {1}'.
-                  format(deleted, cursor.rowcount))
-            # Proper logging for when the larger structure is implemented.
-            # logger.info({'msg': 'observation period synced',
-            #              'old_count': deleted, 'new_count': cursor.rowcount})
+    # Execute the statements serially in a single transaction.
+    stmts.serial_execute(conn_str, True)
 
-    conn.close()
+    for stmt in stmts:
+        # Will raise RuntimeError if stmt.err is not None.
+        check_stmt_err(stmt, 'observation period sync')
 
-# Test on data local to Aaron's computer.
-if __name__ == '__main__':
-    run(make_conn_str('postgresql://localhost/tmp', search_path='other'))
+    logger.info({'msg': 'finished observation period sync.',
+                 'rowcount': stmts[3].rowcount,
+                 'elapsed': secs_since(starttime)})
+
+    # If reached without error, then success!
+    return True
