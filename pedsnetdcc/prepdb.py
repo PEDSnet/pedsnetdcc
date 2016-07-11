@@ -1,6 +1,7 @@
 import logging
 import re
-import psycopg2
+
+from pedsnetdcc.db import (Statement, StatementList)
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ def _database_privileges_sql(database_name):
 
 
 # SQL template for creating site schemas in an internal database instance.
-_sql_site_internal_template = """
+_sql_site_template = """
 create schema if not exists {{.Site}}_pedsnet  authorization dcc_owner;
 create schema if not exists {{.Site}}_pcornet  authorization dcc_owner;
 create schema if not exists {{.Site}}_harvest  authorization dcc_owner;
@@ -107,46 +108,22 @@ alter default privileges for role loading_user in schema {{.Site}}_pcornet grant
 alter default privileges for role loading_user in schema {{.Site}}_id_maps grant select on tables to peds_staff;
 """
 
-# SQL template for creating site schemas in a production database instance.
-_sql_site_prod_template = """
-create schema if not exists {{.Site}}_pedsnet authorization dcc_owner;
-create schema if not exists {{.Site}}_pcornet authorization dcc_owner;
-create schema if not exists {{.Site}}_harvest authorization dcc_owner;
-create schema if not exists {{.Site}}_id_maps  authorization dcc_owner;
-grant usage  on               schema {{.Site}}_pedsnet  to harvest_user, peds_staff;
-grant select on all tables in schema {{.Site}}_pedsnet  to harvest_user, peds_staff;
-grant usage  on               schema {{.Site}}_pcornet  to pcornet_sas, peds_staff;
-grant select on all tables in schema {{.Site}}_pcornet  to pcornet_sas, peds_staff;
-grant all    on               schema {{.Site}}_harvest  to harvest_user;
-grant all    on               schema {{.Site}}_id_maps  to loading_user;
-alter default privileges for role dcc_owner in schema {{.Site}}_pedsnet grant select on tables to harvest_user, peds_staff;
-alter default privileges for role dcc_owner in schema {{.Site}}_pcornet grant select on tables to pcornet_sas, peds_staff;
-"""
 
-
-def _site_sql(site, db_type):
+def _site_sql(site):
     """Return a list of statements to create the schemas for a given site.
 
     :param site: site name, e.g. 'dcc' or 'stlouis'
-    :type: str
-    :param db_type: 'prod' or 'internal'
     :type: str
     :return: SQL statements
     :rtype: list(str)
     :raises: ValueError
     """
-    if db_type == 'internal':
-        tmpl = _sql_site_internal_template
-    elif db_type == 'prod':
-        tmpl = _sql_site_prod_template
-    else:
-        raise ValueError('Invalid db_type: {}'.format(db_type))
-
+    tmpl = _sql_site_template
     sql = tmpl.replace('{{.Site}}', site)
     return [x for x in sql.split("\n") if x]
 
 
-_sql_other_internal = """
+_sql_other = """
 create schema if not exists vocabulary authorization dcc_owner;
 create schema if not exists dcc_ids authorization dcc_owner;
 grant all                  on schema dcc_ids    to loading_user;
@@ -156,33 +133,18 @@ grant select on all tables in schema vocabulary to achilles_user, dqa_user, pcor
 alter default privileges for role loading_user in schema vocabulary grant select on tables to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
 """
 
-_sql_other_prod = """
-create schema if not exists vocabulary authorization dcc_owner;
-grant usage                on schema vocabulary to harvest_user, peds_staff;
-grant select on all tables in schema vocabulary to harvest_user, peds_staff;
-alter default privileges for role dcc_owner in schema vocabulary grant select on tables to harvest_user, peds_staff;
-"""
 
-
-def _other_sql(db_type):
+def _other_sql():
     """Return a list of statements to create non-site schemas.
 
-    :param db_type: 'prod' or 'internal'
-    :type: str
     :rtype: list(str)
     :raises: ValueError
     """
-    if db_type == 'internal':
-        sql = _sql_other_internal
-    elif db_type == 'prod':
-        sql = _sql_other_prod
-    else:
-        raise ValueError('Invalid db_type: {}'.format(db_type))
+    sql = _sql_other
     return [x for x in sql.split("\n") if x]
 
 
-def prepare_database(model_version, conn_str, db_type, update=False,
-                     dcc_only=False):
+def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     """Create a new database containing vocabulary and site schemas.
 
     The initial conn_str is used for issuing a CREATE DATABASE statement.
@@ -195,52 +157,56 @@ def prepare_database(model_version, conn_str, db_type, update=False,
     :type: str
     :param conn_str: libpq connection string
     :type: str
-    :param db_type: 'internal' or 'prod'
-    :type: str
     :param update: assume the database is already created
     :type: bool
     :param dcc_only: only create schemas for `dcc` (no sites)
-    :return: None
+    :return: True on success, False otherwise
     """
-
-    stmts = []
-
+    logger.info({'msg': 'Starting prepdb for {0}.'.format(model_version)})
+    err = False
     database_name = _make_database_name(model_version)
 
+    stmts = StatementList()
+
     if not update:
-        stmts.extend(_create_database_sql(database_name))
+        stmts.extend(
+            [Statement(x) for x in _create_database_sql(database_name)])
 
-    stmts.extend(_database_privileges_sql(database_name))
+    stmts.extend([Statement(x) for x in _database_privileges_sql(database_name)])
 
-    logger.info({'msg': 'Starting database preparation.'})
+    stmts.serial_execute(conn_str)
 
-    with psycopg2.connect(conn_str) as conn:
-        conn.set_isolation_level(0)
-        with conn.cursor() as cursor:
+    for stmt in stmts:
+        if stmt.err:
+            err = True
+            break
 
-            for stmt in stmts:
-                logger.debug({'msg': 'Executing SQL.', 'sql': stmt})
-                cursor.execute(stmt)
-    conn.close()
+    if not err:
 
-    # Operate on the newly created database.
+        # Operate on the newly created database.
+        stmts = StatementList()
+        for site in _sites_and_dcc(dcc_only):
+            stmts.extend([Statement(x) for x in _site_sql(site)])
 
-    stmts = []
+        stmts.extend([Statement(x) for x in _other_sql()])
 
-    for site in _sites_and_dcc(dcc_only):
-        stmts.extend(_site_sql(site, db_type))
+        # Create new_conn_str to target the new database
+        new_conn_str = _conn_str_with_database(conn_str, database_name)
 
-    stmts.extend(_other_sql(db_type))
+        stmts.serial_execute(new_conn_str)
 
-    # Create new_conn_str to target the new database
-    new_conn_str = _conn_str_with_database(conn_str, database_name)
+        for stmt in stmts:
+            if stmt.err:
+                err = True
+                break
 
-    with psycopg2.connect(new_conn_str) as conn:
-        with conn.cursor() as cursor:
-
-            for stmt in stmts:
-                logger.debug({'msg': 'Executing SQL.', 'sql': stmt})
-                cursor.execute(stmt)
-
-    conn.close()
-    logger.info({'msg': 'Finished database preparation.'})
+    if err:
+        logger.info({
+            'msg': 'Aborted database preparation for {0}.'.format(
+                model_version)})
+        return False
+    else:
+        logger.info({
+            'msg': 'Finished database preparation for {0}.'.format(
+                model_version)})
+        return True
