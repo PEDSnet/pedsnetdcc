@@ -1,6 +1,9 @@
 import logging
 import re
-import urllib.parse
+try:
+    from urllib.parse import urlparse, parse_qs
+except ImportError:
+    from urlparse import urlparse, parse_qs
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +34,8 @@ def make_conn_str(uri, search_path=None, password=None):
     :raises ValueError: if more than one 'options' query parameter is given in `uri`.
     """  # noqa
 
-    components = urllib.parse.urlparse(uri)
-    params = urllib.parse.parse_qs(components.query)
+    components = urlparse(uri)
+    params = parse_qs(components.query)
     parts = []
 
     if components.hostname:
