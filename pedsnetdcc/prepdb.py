@@ -104,6 +104,7 @@ grant all    on               schema {{.Site}}_achilles to achilles_user;
 grant all    on               schema {{.Site}}_id_maps  to loading_user;
 alter default privileges for role loading_user in schema {{.Site}}_pedsnet grant select on tables to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
 alter default privileges for role loading_user in schema {{.Site}}_pcornet grant select on tables to peds_staff;
+alter default privileges for role loading_user in schema {{.Site}}_id_maps grant select on tables to peds_staff;
 """
 
 # SQL template for creating site schemas in a production database instance.
@@ -145,34 +146,36 @@ def _site_sql(site, db_type):
     return [x for x in sql.split("\n") if x]
 
 
-_sql_vocab_internal = """
+_sql_other_internal = """
+create schema if not exists vocabulary authorization dcc_owner;
+create schema if not exists dcc_ids authorization dcc_owner;
+grant all                  on schema dcc_ids    to loading_user;
 grant all                  on schema vocabulary to loading_user;
 grant usage                on schema vocabulary to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
 grant select on all tables in schema vocabulary to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
 alter default privileges for role loading_user in schema vocabulary grant select on tables to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
 """
 
-_sql_vocab_prod = """
+_sql_other_prod = """
+create schema if not exists vocabulary authorization dcc_owner;
 grant usage                on schema vocabulary to harvest_user, peds_staff;
 grant select on all tables in schema vocabulary to harvest_user, peds_staff;
 alter default privileges for role dcc_owner in schema vocabulary grant select on tables to harvest_user, peds_staff;
 """
 
 
-def _vocabulary_sql(db_type):
-    """Return a list of statements to create the vocabulary schema.
+def _other_sql(db_type):
+    """Return a list of statements to create non-site schemas.
 
     :param db_type: 'prod' or 'internal'
     :type: str
     :rtype: list(str)
     :raises: ValueError
     """
-    sql = "create schema if not exists vocabulary authorization dcc_owner;\n"
-
     if db_type == 'internal':
-        sql += _sql_vocab_internal
+        sql = _sql_other_internal
     elif db_type == 'prod':
-        sql += _sql_vocab_prod
+        sql = _sql_other_prod
     else:
         raise ValueError('Invalid db_type: {}'.format(db_type))
     return [x for x in sql.split("\n") if x]
@@ -197,8 +200,7 @@ def prepare_database(model_version, conn_str, db_type, update=False,
     :param update: assume the database is already created
     :type: bool
     :param dcc_only: only create schemas for `dcc` (no sites)
-    :return: None, or (if `psql` is True) a SQL string
-    :rtype: str
+    :return: None
     """
 
     stmts = []
@@ -228,7 +230,7 @@ def prepare_database(model_version, conn_str, db_type, update=False,
     for site in _sites_and_dcc(dcc_only):
         stmts.extend(_site_sql(site, db_type))
 
-    stmts.extend(_vocabulary_sql(db_type))
+    stmts.extend(_other_sql(db_type))
 
     # Create new_conn_str to target the new database
     new_conn_str = _conn_str_with_database(conn_str, database_name)
