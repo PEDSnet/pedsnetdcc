@@ -84,6 +84,14 @@ class StatementSetTest(unittest.TestCase):
             message = json.loads(msg)
             self.assertEqual(message['msg'], 'executing SQL')
 
+    def test_parallel_execute_vacuum(self):
+        stmts = StatementSet()
+        stmts.add(Statement('VACUUM'))
+        stmts.parallel_execute(self.conn_str)
+
+        for stmt in stmts:
+            if stmt.sql == 'VACUUM':
+                self.assertIsNone(stmt.err)
 
 class StatementListTest(unittest.TestCase):
 
@@ -130,6 +138,37 @@ class StatementListTestTransaction(unittest.TestCase):
         stmts.serial_execute(self.conn_str, True)
 
         self.assertEqual(1, stmts[2].data[0][0])
+
+
+class StatementListTestVacuum(unittest.TestCase):
+
+    def setUp(self):
+        # Create a postgres database in a temp directory.
+        self.postgresql = Postgresql()
+        self.dburi = self.postgresql.url()
+        self.conn_str = make_conn_str(self.dburi)
+        # Reset the log handler.
+        handler.reset()
+
+    def tearDown(self):
+        # Destroy the postgres database.
+        self.postgresql.stop()
+
+    def test_serial_execute_vacuum_transaction(self):
+        stmts = StatementList()
+        stmts.append(Statement('VACUUM'))
+        stmts.serial_execute(self.conn_str, True)
+
+        self.assertIn('VACUUM cannot run inside a transaction block',
+                      str(stmts[0].err))
+
+    def test_serial_execute_vacuum_no_transaction(self):
+        stmts = StatementList()
+        stmts.append(Statement('VACUUM'))
+        stmts.serial_execute(self.conn_str)
+
+        self.assertIsNone(stmts[0].err)
+
 
 
 class StatementTest(unittest.TestCase):
