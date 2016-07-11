@@ -67,7 +67,7 @@ class AgeTransform(Transform):
         return False
 
     @classmethod
-    def pre_transform(cls, conn_str):
+    def pre_transform(cls, conn_str, table_name=None):
         """Define PL/SQL functions needed for the age transform
         See also Transform.pre_transform.
         """

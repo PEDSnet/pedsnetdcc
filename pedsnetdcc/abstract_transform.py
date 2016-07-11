@@ -28,13 +28,16 @@ class Transform(object):
     __metaclass__ = ABCMeta
 
     @classmethod
-    def pre_transform(cls, conn_str):
+    def pre_transform(cls, conn_str, metadata=None, table_name=None):
         """Execute statements required before a transform.
 
         A Transform can override this method to execute prerequisite
         statements for a transform, e.g. creating database functions, etc.
 
-        :param str conn_str: libpq connection string or URI
+        :param str conn_str:   libpq connection string or URI
+        :param sqlalchemy.schema.MetaData metadata: object describing tables
+        and columns, optional
+        :param str table_name: table to be transformed, optional
         :return: None
         """
         pass
