@@ -131,16 +131,29 @@ def combine_dicts(*args):
     return result
 
 
+class StatementError(RuntimeError):
+    pass
+
+
+class MissingDataError(StatementError):
+    pass
+
+
+class DatabaseError(StatementError):
+    pass
+
+
 def check_stmt_data(stmt, caller_name=''):
     """Log and raise an error if data is missing.
 
     :param stmt: the statement to check
     :type stmt:  Statement
-    :raises:     RuntimeError if stmt.data is None or 0 length
+    :param str caller_name: a name for the calling function, used in logging
+    :raises:     MissingDataError if stmt.data is None or 0 length
     """
     if stmt.data is None or len(stmt.data) == 0:
-        err = RuntimeError('data not returned from {0}'.format(stmt.msg))
-        logger.critical({'msg': 'exiting {0}'.format(caller_name), 'err': err})
+        err = MissingDataError('data not returned from {0}'.format(stmt.msg))
+        logger.error({'msg': 'exiting {0}'.format(caller_name), 'err': err})
         raise err
 
 
@@ -149,10 +162,11 @@ def check_stmt_err(stmt, caller_name=''):
 
     :param stmt: the statement to check
     :type stmt:  Statement
-    :raises:     RuntimeError if stmt.err is not None
+    :param str caller_name: a name for the calling function, used in logging
+    :raises:     DatabaseError if stmt.err is not None
     """
     if stmt.err is not None:
-        err = RuntimeError('database error while {0}: {1}'.format(stmt.msg,
-                                                                  stmt.err))
-        logger.critical({'msg': 'exiting {0}'.format(caller_name), 'err': err})
+        err = DatabaseError('database error while {0}: {1}'.format(stmt.msg,
+                                                                   stmt.err))
+        logger.error({'msg': 'exiting {0}'.format(caller_name), 'err': err})
         raise err
