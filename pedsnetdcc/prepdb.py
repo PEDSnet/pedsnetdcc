@@ -1,9 +1,17 @@
 import logging
 import re
+import time
 
 from pedsnetdcc.db import (Statement, StatementList)
+from pedsnetdcc.dict_logging import secs_since
+from pedsnetdcc.utils import check_stmt_err
 
 logger = logging.getLogger(__name__)
+
+
+def _despace(s):
+    """Return string with runs of spaces replaced with a single space"""
+    return re.sub(r' +', ' ', s)
 
 
 def _conn_str_with_database(conn_str, dbname):
@@ -120,7 +128,7 @@ def _site_sql(site):
     """
     tmpl = _sql_site_template
     sql = tmpl.replace('{{.Site}}', site)
-    return [x for x in sql.split("\n") if x]
+    return [_despace(x) for x in sql.split("\n") if x]
 
 
 _sql_other = """
@@ -141,7 +149,7 @@ def _other_sql():
     :raises: ValueError
     """
     sql = _sql_other
-    return [x for x in sql.split("\n") if x]
+    return [_despace(x) for x in sql.split("\n") if x]
 
 
 def prepare_database(model_version, conn_str, update=False, dcc_only=False):
@@ -161,9 +169,12 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     :type: bool
     :param dcc_only: only create schemas for `dcc` (no sites)
     :return: True on success, False otherwise
+    :raises RuntimeError: if any of the sql statements cause an error
     """
-    logger.info({'msg': 'Starting prepdb for {0}.'.format(model_version)})
-    err = False
+    logger.info({'msg': 'starting database preparation',
+                'model': model_version})
+    starttime = time.time()
+
     database_name = _make_database_name(model_version)
 
     stmts = StatementList()
@@ -172,41 +183,32 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
         stmts.extend(
             [Statement(x) for x in _create_database_sql(database_name)])
 
-    stmts.extend([Statement(x) for x in _database_privileges_sql(database_name)])
+    stmts.extend(
+        [Statement(x) for x in _database_privileges_sql(database_name)])
 
     stmts.serial_execute(conn_str)
 
     for stmt in stmts:
-        if stmt.err:
-            err = True
-            break
+        check_stmt_err(stmt, 'database preparation')
 
-    if not err:
+    # Operate on the newly created database.
+    stmts = StatementList()
+    for site in _sites_and_dcc(dcc_only):
+        stmts.extend([Statement(x) for x in _site_sql(site)])
 
-        # Operate on the newly created database.
-        stmts = StatementList()
-        for site in _sites_and_dcc(dcc_only):
-            stmts.extend([Statement(x) for x in _site_sql(site)])
+    stmts.extend([Statement(x) for x in _other_sql()])
 
-        stmts.extend([Statement(x) for x in _other_sql()])
+    # Create new_conn_str to target the new database
+    new_conn_str = _conn_str_with_database(conn_str, database_name)
 
-        # Create new_conn_str to target the new database
-        new_conn_str = _conn_str_with_database(conn_str, database_name)
+    stmts.serial_execute(new_conn_str)
 
-        stmts.serial_execute(new_conn_str)
+    for stmt in stmts:
+        check_stmt_err(stmt, 'database preparation')
 
-        for stmt in stmts:
-            if stmt.err:
-                err = True
-                break
+    logger.info({
+        'msg': 'finished database preparation',
+        'model_version': model_version,
+        'elapsed': secs_since(starttime)})
 
-    if err:
-        logger.info({
-            'msg': 'Aborted database preparation for {0}.'.format(
-                model_version)})
-        return False
-    else:
-        logger.info({
-            'msg': 'Finished database preparation for {0}.'.format(
-                model_version)})
-        return True
+    return True
