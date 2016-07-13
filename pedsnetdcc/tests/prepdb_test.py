@@ -20,7 +20,7 @@ if not hasattr(re, 'fullmatch'):
     re.fullmatch = fullmatch
 
 
-def introspect_schemas(conn_str):
+def _introspect_schemas(conn_str):
     """Return list of schemas in the database
 
     A future version of this for more generic testing might produce
@@ -52,15 +52,6 @@ def introspect_schemas(conn_str):
             schemas.append(row[0])
 
     return schemas
-
-
-def exec_ddl(conn_str, sql, no_transaction=False):
-    with psycopg2.connect(conn_str) as conn:
-        if no_transaction:
-            conn.set_isolation_level(0)
-        with conn.cursor() as cursor:
-            cursor.execute(sql)
-    conn.close()
 
 
 def setUpModule():
@@ -142,7 +133,7 @@ class TestPrepareDatabase(unittest.TestCase):
         schema_list.extend(('vocabulary', 'public', 'dcc_ids'))
 
         expected_schemas = set(schema_list)
-        actual_schemas = set(introspect_schemas(conn_str))
+        actual_schemas = set(_introspect_schemas(conn_str))
         self.assertEqual(actual_schemas, expected_schemas)
 
     def check_conn_str(self):
@@ -164,19 +155,12 @@ class TestPrepareDatabase(unittest.TestCase):
             pass
         conn.close()
 
-    def drop_database(self):
-        """Drop the test database"""
-        sql = 'drop database {}'.format(self.dbname)
-        Statement(sql).execute(self.conn_str)
-
     def test_prep_db(self):
         """Test for sites + dcc"""
         prepare_database(self.model_version, self.conn_str)
         self.check()
-        self.drop_database()
 
     def test_prep_db_dcc_only(self):
         """Test with dcc_only=True"""
         prepare_database(self.model_version, self.conn_str, dcc_only=True)
         self.check(dcc_only=True)
-        self.drop_database()
