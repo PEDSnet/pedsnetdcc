@@ -126,6 +126,10 @@ class Statement(object):
         self.err and logged at debug level. After execution, regardless of
         errors, the connection is closed.
 
+        The statement is executed with an isolation level of 0 (autocommit),
+        so it is safe to execute statements like `CREATE DATABASE`, `DROP
+        DATABASE`, and `VACUUM`.
+
         :param str conn_str: connection string for the database
         :param Queue resq:   result queue to pass to `execute_on_conn`
         :param Queue logq:   logging queue to pass to `execute_on_conn`
@@ -140,6 +144,8 @@ class Statement(object):
 
         try:
             with psycopg2.connect(conn_str) as conn:
+                conn.set_isolation_level(
+                    psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
                 self.execute_on_conn(conn, resq, logq)
 
         # `execute_on_conn` handles its own errors, so this must be a
@@ -397,15 +403,19 @@ class StatementList(collections.MutableSequence):
 
         Statements are iterated over and executed. If `transaction` is True,
         a connection is created here and the lower level `execute_on_conn` is
-        called on each statement instead. The statments are modified in place
+        called on each statement instead. The statements are modified in place
         and thus the list is modified in place. The list itself is returned.
+
+        Some statements like `CREATE TABLE`, `DROP TABLE`, and `VACUUM`
+        can't be executed inside a transaction block. For such statements,
+        make sure to use the default `transaction` value of False.
 
         :param str conn_str:     connection string for the database
         :param bool transaction: whether to use a transaction or not
+        :param int isolation_level: PostgreSQL transaction isolation level
         :returns:                the StatementList itself
         :rtype:                  StatementList
         """
-
         conn_info = get_conn_info_dict(conn_str)
         msg_dict = combine_dicts({'msg': 'executing sql statement list'
                                   ' serially', 'len': len(self),
