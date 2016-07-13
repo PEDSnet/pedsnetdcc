@@ -22,6 +22,12 @@ class Statement(object):
     string or an open dbapi connection object. Will reset state on statement
     re-execution.
 
+    If any errors are encountered in the statement execution, they are stored
+    in the err attribute and logged at debug level. If data is not returned by
+    the statement, the data attribute remains None. **It is very important that
+    the calling function looks for and responds to any errors or missing
+    data.**
+
     :raises RuntimeError: if setting the id_ attribute is attempted
     """
 
@@ -116,8 +122,9 @@ class Statement(object):
 
         A new database connection is made using the passed connection string
         and the `execute_on_conn` method is called with that connections and
-        `resq` and `logq`. After execution, regardless of errors, the
-        connection is closed.
+        `resq` and `logq`. If a connection error occurs, it is stored in
+        self.err and logged at debug level. After execution, regardless of
+        errors, the connection is closed.
 
         :param str conn_str: connection string for the database
         :param Queue resq:   result queue to pass to `execute_on_conn`
@@ -142,7 +149,7 @@ class Statement(object):
             msg_dict = combine_dicts({'msg': 'connection error while {0}'.
                                       format(self.msg), 'err': str(err),
                                       'id': self.id_}, conn_info)
-            local_logger.error(msg_dict)
+            local_logger.debug(msg_dict)
 
         finally:
             if conn:
@@ -162,8 +169,8 @@ class Statement(object):
 
         If an error occurs while executing the statement, it is caught and
         stored in self.err and 'database error while `msg`', str(err), id_ and
-        conn_info are logged at error level. The error is not reraised.
-        The Statement object itself is returned.
+        conn_info are logged at debug level. The error is not reraised. The
+        Statement object itself is returned.
 
         If logq is given, a DictQueueHandler is created and the log messages
         are passed through that instead of the module level logger. If resq is
@@ -220,7 +227,7 @@ class Statement(object):
             msg_dict = combine_dicts({'msg': 'database error while {0}'.
                                       format(self.msg), 'err': str(err),
                                       'id': self.id_}, conn_info)
-            local_logger.error(msg_dict)
+            local_logger.debug(msg_dict)
 
         if resq:
             resq.put(self)
