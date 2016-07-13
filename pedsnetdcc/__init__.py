@@ -13,6 +13,8 @@ VOCAB_TABLES = (
     'source_to_concept_map'
 )
 
+DATA_MODELS_SERVICE = 'https://data-models-service.research.chop.edu/'
+
 serial = os.environ.get('BUILD_NUM') or '0'
 sha = os.environ.get('COMMIT_SHA1') or '0'
 sha = sha[0:8]

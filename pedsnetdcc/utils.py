@@ -1,9 +1,13 @@
+import dmsa
 import logging
 import re
 try:
     from urllib.parse import urlparse, parse_qs
 except ImportError:
     from urlparse import urlparse, parse_qs
+import sqlalchemy
+
+from pedsnetdcc import DATA_MODELS_SERVICE
 
 logger = logging.getLogger(__name__)
 
@@ -173,3 +177,16 @@ def check_stmt_err(stmt, caller_name=''):
                                                                    stmt.err))
         logger.error({'msg': 'exiting {0}'.format(caller_name), 'err': err})
         raise err
+
+
+def stock_metadata(model_version):
+    """Return stock PEDSnet SQLAlchemy MetaData for the given version.
+    :param model_version: pedsnet model version, e.g. 2.2.0
+    :type: str
+    :return: metadata
+    :rtype: sqlalchemy.schema.MetaData
+    """
+    metadata = sqlalchemy.MetaData()
+    return dmsa.make_model_from_service('pedsnet', model_version,
+                                        DATA_MODELS_SERVICE,
+                                        metadata)
