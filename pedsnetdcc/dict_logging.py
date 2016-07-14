@@ -156,7 +156,9 @@ class DictLogFilter(object):
                                                     secs_since(starttime),
                                                     record.msg.get('msg', ''))
 
-        # Pad to or truncate at 80 characters.
+        # Truncate at or pad to 80 characters.
+        if len(out) > 80:
+            out = out[:77] + '.. '
         out = '{0:<80}'.format(out)
 
         # Format into colorized k=v pairs

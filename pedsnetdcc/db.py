@@ -11,7 +11,39 @@ from pedsnetdcc.utils import get_conn_info_dict, combine_dicts
 logger = logging.getLogger(__name__)
 
 
-class Statement(object):
+class QueueLoggable(object):
+    # Keep a class constant reference to the module-level logger.
+    logger = logger
+
+    def _get_logger(self, logq):
+        """Setup and return a logger for the instance.
+
+        If not logq, this is just the module level logger via self.logger. If
+        logq, this is a QueueHandler logger for parallel process logging.
+
+        :param Queue logq: the queue to log on or None
+        :returns:          the logger to use
+        :rtype:            logging.Logger
+        """
+
+        if not logq:
+            return self.logger
+
+        else:
+            local_logger = logging.getLogger(str(self.id_))
+            local_logger.setLevel(logging.DEBUG)
+
+            # If this logger has been set up before, don't add handler again.
+            if not local_logger.handlers:
+                # See the DictQueueHandler docstring for the reason why the
+                # standard logging.handlers.QueueHandler can't be used here.
+                qh = DictQueueHandler(logq)
+                local_logger.addHandler(qh)
+
+            return local_logger
+
+
+class Statement(QueueLoggable):
     """An executable database statement object. Usable in parallel.
 
     Stores the executable sql as well as a msg describing the purpose of the
@@ -31,9 +63,6 @@ class Statement(object):
     :raises RuntimeError: if setting the id_ attribute is attempted
     """
 
-    # Keep a class constant reference to the module-level logger.
-    logger = logger
-
     def __init__(self, sql, msg='executing SQL', id_=None):
         """Populate defaults on a new Statement object.
 
@@ -46,7 +75,7 @@ class Statement(object):
         """
         self.sql = sql
         self.msg = msg
-        self._id_ = id_ or uuid.uuid4()
+        self._id_ = id_ or str(uuid.uuid4())
         self.data = None
         self.fields = []
         self.rowcount = None
@@ -69,12 +98,21 @@ class Statement(object):
         return hash(self.id_)
 
     def __repr__(self):
-        return 'Statement(sql={0}, msg={1}, id_={2})'.format(self.sql,
-                                                             self.msg,
-                                                             self.id_)
+        sql = self.sql
+        if len(sql) > 10:
+            sql = sql[:8] + '..'
+
+        msg = self.msg
+        if len(msg) > 10:
+            msg = msg[:8] + '..'
+
+        id_ = self.id_[:8] + '..'
+
+        return "Statement(sql='{0}', msg='{1}', id_='{2}')".\
+            format(sql, msg, id_)
 
     def __str__(self):
-        return 'Statement for {0}'.format(self.msg)
+        return self.sql
 
     @property
     def id_(self):
@@ -93,31 +131,7 @@ class Statement(object):
         """
         raise RuntimeError('Statement.id_ is immutable.')
 
-    def _get_logger(self, logq):
-        """Setup and return a logger for the instance.
-
-        If not logq, this is just the module level logger via self.logger. If
-        logq, this is a QueueHandler logger for parallel process logging.
-
-        :param Queue logq: the queue to log on or None
-        :returns:          the logger to use
-        :rtype:            logging.Logger
-        """
-
-        if not logq:
-            return self.logger
-
-        else:
-            # See the DictQueueHandler docstring for the reason why the
-            # standard logging.handlers.QueueHandler can't be used here.
-            local_logger = logging.getLogger(str(self.id_))
-            local_logger.setLevel(logging.DEBUG)
-            if not local_logger.handlers:
-                qh = DictQueueHandler(logq)
-                local_logger.addHandler(qh)
-            return local_logger
-
-    def execute(self, conn_str, resq=None, logq=None):
+    def execute(self, conn_str, logq=None, resq=None):
         """Execute the sql statement against a database. Usable in parallel.
 
         A new database connection is made using the passed connection string
@@ -146,7 +160,7 @@ class Statement(object):
             with psycopg2.connect(conn_str) as conn:
                 conn.set_isolation_level(
                     psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-                self.execute_on_conn(conn, resq, logq)
+                self.execute_on_conn(conn, logq, resq)
 
         # `execute_on_conn` handles its own errors, so this must be a
         # connection error.
@@ -157,18 +171,13 @@ class Statement(object):
                                       'id': self.id_}, conn_info)
             local_logger.debug(msg_dict)
 
-            # If there is a connection error, `execute_on_conn` will not run
-            # and self needs to be put on the queue.
-            if resq:
-                resq.put(self)
-
         finally:
             if conn:
                 conn.close()
 
         return self
 
-    def execute_on_conn(self, conn, resq=None, logq=None):
+    def execute_on_conn(self, conn, logq=None, resq=None):
         """Execute the sql statement on a connection. Usable in parallel.
 
         A new cursor is made using the passed database connection and the
@@ -246,7 +255,7 @@ class Statement(object):
         return self
 
 
-class StatementSet(collections.MutableSet):
+class StatementSet(QueueLoggable, collections.MutableSet):
     """A set of statements that can be executed in parallel.
 
     A collections.MutableSet class that adds a `parallel_execute` method that
@@ -263,8 +272,11 @@ class StatementSet(collections.MutableSet):
     should work (no type checking is done).
     """
 
-    def __init__(self, *data):
+    def __init__(self, data, msg='executing SQL'):
         self.data = set(data)
+        self.msg = msg
+        self.data = None
+        self.err = None
 
     def __contains__(self, elem):
         return elem in self.data
@@ -276,14 +288,19 @@ class StatementSet(collections.MutableSet):
     def __len__(self):
         return len(self.data)
 
+    def __repr__(self):
+        return '{' + ', '.join([repr(elem) for elem in self]) + '}'
+
+    def __str__(self):
+        return self.msg + ' StatementSet'
+
     def add(self, elem):
         return self.data.add(elem)
 
     def discard(self, elem):
         return self.data.discard(elem)
 
-    def parallel_execute(self, conn_str, pool_size=None, taskq=None, resq=None,
-                         logq=None):
+    def execute(self, conn_str, logq=None, resq=None, pool_size=None):
         """Execute all statements in parallel using pool_size num workers.
 
         Initialize pool_size number of worker processes (or one worker per
@@ -312,20 +329,22 @@ class StatementSet(collections.MutableSet):
 
         workers = []
         pool_size = pool_size or len(self)
-        taskq = taskq or multiprocessing.JoinableQueue()
-        resq = resq or multiprocessing.Queue()
+        taskq = multiprocessing.JoinableQueue()
+        resq = multiprocessing.Queue()
         logq = logq or multiprocessing.Queue()
 
+        local_logger = self._get_logger(logq)
         conn_info = get_conn_info_dict(conn_str)
         msg_dict = combine_dicts({'msg': 'executing sql statement set in'
                                   ' parallel', 'len': len(self),
-                                  'pool_size': pool_size}, conn_info)
-        logger.info(msg_dict)
+                                  'pool_size': pool_size, 'set': self},
+                                 conn_info)
+        local_logger.info(msg_dict)
 
         # Start the worker processes.
         for i in range(pool_size):
             wp = multiprocessing.Process(target=_worker_process,
-                                         args=(conn_str, taskq, resq, logq))
+                                         args=(conn_str, taskq, logq, resq))
             workers.append(wp)
             wp.start()
 
@@ -362,7 +381,7 @@ class StatementSet(collections.MutableSet):
         return self
 
 
-class StatementList(collections.MutableSequence):
+class StatementList(QueueLoggable, collections.MutableSequence):
     """A list of statements that can be executed in serial, guaranteeing order.
 
     A collections.MutableSequence class that adds a `serial_execute` method
@@ -378,8 +397,11 @@ class StatementList(collections.MutableSequence):
     the `obj.execute_on_conn(conn) -> obj` API must also be met.
     """
 
-    def __init__(self, *data):
+    def __init__(self, data, msg='executing SQL'):
         self.data = list(data)
+        self.msg = msg
+        self.data = None
+        self.err = None
 
     def __contains__(self, elem):
         return elem in self.data
@@ -400,10 +422,16 @@ class StatementList(collections.MutableSequence):
     def __delitem__(self, idx):
         del self.data[idx]
 
+    def __repr__(self):
+        return '[' + ', '.join([repr(elem) for elem in self]) + ']'
+
+    def __str__(self):
+        return self.msg + ' StatementList'
+
     def insert(self, idx, val):
         self.data[idx:idx] = [val]
 
-    def serial_execute(self, conn_str, transaction=False):
+    def execute(self, conn_str, logq=None, resq=None, transaction=False):
         """Serially execute each statement in the list in order.
 
         Statements are iterated over and executed. If `transaction` is True,
@@ -421,15 +449,18 @@ class StatementList(collections.MutableSequence):
         :returns:                the StatementList itself
         :rtype:                  StatementList
         """
+
+        local_logger = self._get_logger(logq)
         conn_info = get_conn_info_dict(conn_str)
         msg_dict = combine_dicts({'msg': 'executing sql statement list'
                                   ' serially', 'len': len(self),
-                                  'transaction': transaction}, conn_info)
-        logger.info(msg_dict)
+                                  'transaction': transaction, 'list': self},
+                                 conn_info)
+        local_logger.info(msg_dict)
 
         if not transaction:
             for each in self:
-                each.execute(conn_str)
+                each.execute(conn_str, logq)
 
         else:
 
@@ -440,16 +471,26 @@ class StatementList(collections.MutableSequence):
                 # exits without errors or `conn.rollback()` if hits errors.
                 with psycopg2.connect(conn_str) as conn:
                     for each in self:
-                        each.execute_on_conn(conn)
+                        try:
+                            each.execute_on_conn(conn)
+                        except AttributeError:
+                            msg_dict = combine_dicts({
+                                'msg': '{0} cannot be executed in'
+                                ' parallel'.format(each), 'list': self,
+                                'item': each}, conn_info)
+                            local_logger.debug(msg_dict)
 
             finally:
                 if conn:
                     conn.close()
 
+        if resq:
+            resq.put(self)
+
         return self
 
 
-def _worker_process(conn_str, taskq, resq=None, logq=None):
+def _worker_process(conn_str, taskq, logq=None, resq=None):
     """Calls task.execute(conn_str, resq, logq) on tasks in taskq.
 
     Marks tasks as complete with taskq.task_done(). Stops when None is
@@ -467,7 +508,7 @@ def _worker_process(conn_str, taskq, resq=None, logq=None):
         task = taskq.get()
         if task is None:
             break
-        task.execute(conn_str, resq, logq)
+        task.execute(conn_str, logq, resq)
         taskq.task_done()
 
 
