@@ -2,8 +2,13 @@ import collections
 import datetime
 import json
 import logging
-import logging.handlers
 import time
+
+# Python 2 compatibility
+try:
+    from logging.handlers import QueueHandler
+except ImportError:
+    from logutils.queue import QueueHandler
 
 nocolor = 0
 red = 31
@@ -190,7 +195,7 @@ class DictLogFilter(object):
         return True
 
 
-class DictQueueHandler(logging.handlers.QueueHandler):
+class DictQueueHandler(QueueHandler):
     """A logging QueueHandler that does *not* convert dict msgs to strings.
 
     In order to make the log record picklable, the logging QueueHandler calls
