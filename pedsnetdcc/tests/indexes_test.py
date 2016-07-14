@@ -1,9 +1,6 @@
-import os
 import unittest
 
-from pedsnetdcc.indexes import indexes_sql
-
-import pedsnetdcc
+from pedsnetdcc.indexes import _indexes_sql, add_indexes, drop_indexes
 
 class IndexesTest(unittest.TestCase):
 
@@ -11,7 +8,7 @@ class IndexesTest(unittest.TestCase):
         self.model_version = '2.2.0'
 
     def test_add_indexes(self):
-        sql = indexes_sql(self.model_version)
+        sql = _indexes_sql(self.model_version)
 
         sample_expected = (
             'CREATE INDEX obs_otcn_89a4742c38ecb8ba35_ix ON observation (observation_type_concept_name)',
@@ -28,7 +25,7 @@ class IndexesTest(unittest.TestCase):
             self.assertNotIn(sample, sql)
 
     def test_drop_indexes(self):
-        sql = indexes_sql(self.model_version, drop=True)
+        sql = _indexes_sql(self.model_version, drop=True)
 
         sample_expected = (
             'DROP INDEX obs_otcn_89a4742c38ecb8ba35_ix',
@@ -45,7 +42,7 @@ class IndexesTest(unittest.TestCase):
             self.assertNotIn(sample, sql)
 
     def test_add_indexes_for_vocabulary(self):
-        sql = indexes_sql(self.model_version, vocabulary=True)
+        sql = _indexes_sql(self.model_version, vocabulary=True)
 
         sample_expected = (
             'CREATE INDEX idx_concept_class_id ON concept (concept_class_id)',
