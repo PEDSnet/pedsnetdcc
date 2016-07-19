@@ -7,14 +7,14 @@ from pedsnetdcc.utils import make_conn_str, get_conn_info_dict
 class MakeConnTest(unittest.TestCase):
 
     def test_url_without_query(self):
-        """ Test adding search_path where query parameters do not exist"""
+        # Test adding search_path where query parameters do not exist.
         url = "postgresql://ahost/adb"
         cstr = make_conn_str(url, 'testschema')
         expected = "host=ahost dbname=adb options='-c search_path=testschema'"
         self.assertEqual(cstr, expected)
 
     def test_url_with_query_without_options(self):
-        """ Test adding search_path where query parameters exist"""
+        # Test adding search_path where query parameters exist.
         url = "postgresql://auser:apass@ahost:5433/adb?sslmode=disable" \
               "&connect_timeout=30"
         cstr = make_conn_str(url, 'testschema')
@@ -24,7 +24,7 @@ class MakeConnTest(unittest.TestCase):
         self.assertEqual(cstr, expected)
 
     def test_url_with_query_with_options(self):
-        """Test adding the search_path into a preexisting options value"""
+        # Test adding the search_path into a preexisting options value.
         url = "postgresql://auser:apass@ahost:5433/adb?sslmode=disable" \
               "&connect_timeout=30&options='-c geqo=off'"
         cstr = make_conn_str(url, 'testschema')
@@ -34,7 +34,6 @@ class MakeConnTest(unittest.TestCase):
         self.assertEqual(cstr, expected)
 
     def test_url_with_query_with_options_with_search_path(self):
-        """Test overriding the search_path"""
         url = "postgresql://auser:apass@ahost:5433/adb?sslmode=disable" \
               "&connect_timeout=30&options='-c search_path=to_be_overridden'"
         cstr = make_conn_str(url, 'testschema')
@@ -44,7 +43,6 @@ class MakeConnTest(unittest.TestCase):
         self.assertEqual(cstr, expected)
 
     def test_url_with_password(self):
-        """ Test password and no search_path"""
         url = "postgresql://auser@ahost/adb"
         cstr = make_conn_str(url, password='apass')
         expected = "host=ahost dbname=adb user=auser " \
@@ -52,14 +50,12 @@ class MakeConnTest(unittest.TestCase):
         self.assertEqual(cstr, expected)
 
     def test_url_no_password_no_search_path(self):
-        """ Test with password and no search_path"""
         url = "postgresql://auser@ahost/adb"
         cstr = make_conn_str(url)
         expected = "host=ahost dbname=adb user=auser"
         self.assertEqual(cstr, expected)
 
     def test_url_with_query_without_options_password_override(self):
-        """Test overriding the password"""
         url = "postgresql://auser:apass@ahost:5433/adb?sslmode=disable" \
               "&connect_timeout=30"
         cstr = make_conn_str(url, 'testschema', password='newpass')
@@ -87,7 +83,6 @@ class MakeConnTest(unittest.TestCase):
 class GetConnInfoDictTest(unittest.TestCase):
 
     def test_simple_conn_info(self):
-        """Test getting simple conn_info."""
         cstr = "host=ahost dbname=adb options='-c search_path=testschema'"
         conn_info = get_conn_info_dict(cstr)
         expected = {'search_path': 'testschema', 'host': 'ahost',
@@ -95,7 +90,6 @@ class GetConnInfoDictTest(unittest.TestCase):
         self.assertEqual(conn_info, expected)
 
     def test_conn_info_user_port(self):
-        """Test getting conn_info with user and port."""
         cstr = "host=ahost port=5433 dbname=adb user=auser " \
                "password=apass connect_timeout=30 options='-c " \
                "search_path=testschema' sslmode=disable"
@@ -105,7 +99,6 @@ class GetConnInfoDictTest(unittest.TestCase):
         self.assertEqual(conn_info, expected)
 
     def test_conn_info_with_options(self):
-        """Test getting conn_info with other options."""
         cstr = "host=ahost port=5433 dbname=adb user=auser " \
                "password=apass connect_timeout=30 options='-c geqo=off " \
                "-c search_path=testschema' sslmode=disable"
@@ -114,19 +107,8 @@ class GetConnInfoDictTest(unittest.TestCase):
                     'dbname': 'adb', 'port': '5433', 'user': 'auser'}
         self.assertEqual(conn_info, expected)
 
-    def test_conn_info_with_follow_options(self):
-        """Test getting conn_info with following options."""
-        cstr = "host=ahost port=5433 dbname=adb user=auser " \
-               "password=apass connect_timeout=30 " \
-               "options='-c search_path=testschema -c geqo=off' " \
-               "sslmode=disable"
-        conn_info = get_conn_info_dict(cstr)
-        expected = {'search_path': 'testschema', 'host': 'ahost',
-                    'dbname': 'adb', 'port': '5433', 'user': 'auser'}
-        self.assertEqual(conn_info, expected)
-
     def test_user_at_end(self):
-        """Test conn string with no search_path."""
+        # Test conn string with no search_path.
         cstr = "host=ahost dbname=adb user=auser"
         conn_info = get_conn_info_dict(cstr)
         expected = {'search_path': None, 'host': 'ahost',
