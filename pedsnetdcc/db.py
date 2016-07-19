@@ -157,6 +157,11 @@ class Statement(object):
                                       'id': self.id_}, conn_info)
             local_logger.debug(msg_dict)
 
+            # If there is a connection error, `execute_on_conn` will not run
+            # and self needs to be put on the queue.
+            if resq:
+                resq.put(self)
+
         finally:
             if conn:
                 conn.close()
