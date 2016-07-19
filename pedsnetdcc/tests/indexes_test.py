@@ -1,6 +1,35 @@
+import logging
 import unittest
 
+try:
+    from unittest import mock
+except ImportError:
+    import mock
+import psycopg2
+import sqlalchemy
+import testing.postgresql
+
 from pedsnetdcc.indexes import _indexes_sql, add_indexes, drop_indexes
+from pedsnetdcc.utils import make_conn_str, stock_metadata
+from pedsnetdcc import TRANSFORMS
+from pedsnetdcc.db import Statement
+
+
+logging.basicConfig(level=logging.DEBUG, filename="logfile")
+
+
+def setUpModule():
+    # Generate a Postgresql class which caches the init-ed database across
+    # multiple ephemeral database cluster instances.
+    global Postgresql
+    Postgresql = testing.postgresql.PostgresqlFactory(
+        cache_intialized_db=True)
+
+
+def tearDownModule():
+    # Clear cached init-ed database at end of tests.
+    Postgresql.clear_cache()
+
 
 class IndexesTest(unittest.TestCase):
 
@@ -57,3 +86,220 @@ class IndexesTest(unittest.TestCase):
         )
         for sample in sample_not_expected:
             self.assertNotIn(sample, sql)
+
+
+class IndexesDatabaseTest(unittest.TestCase):
+
+    def setUp(self):
+        # Create a postgres database in a temp directory.
+        self.postgresql = Postgresql()
+        self.dburi = self.postgresql.url()
+        self.conn_str = make_conn_str(self.dburi)
+        self.model_version = '2.2.0'
+        self.engine = sqlalchemy.create_engine(self.dburi)
+
+        # Create transformed pedsnet metadata
+        self.metadata = stock_metadata(self.model_version)
+        for t in TRANSFORMS:
+            self.metadata = t.modify_metadata(self.metadata)
+
+    def tearDown(self):
+        # Destroy the postgres database.
+        self.postgresql.stop()
+
+    def expected_measurement_index_names(self):
+        # Return a set of expected measurement (non-vocab) index names.
+        # This may need to be modified if the PEDSnet CDM or transformations
+        # change.
+        return {'idx_measurement_concept_id',
+                'idx_measurement_person_id',
+                'idx_measurement_visit_id',
+                'mea_pcn_74e171086ab53fdef03_ix',
+                'mea_maim_fafec5cb283b981155_ix',
+                'mea_mcn_2396c11b8e9dc80fad6_ix',
+                'mea_mraim_b3652804e85e68491_ix',
+                'mea_ucn_a1d8526ef0526700f9b_ix',
+                'mea_vacn_cdbccecc93bc04359c_ix',
+                'mea_mtcn_0512b6f39c80e05694_ix',
+                'mea_ocn_adee9ca63d3ce5cf5ca_ix',
+                'mea_mscn_a15f3175cfbed7967a_ix',
+                'mea_rlocn_49286b9222656be21_ix',
+                'mea_s_c389be51cb02c33ef7d70_ix',
+                'mea_rhocn_2ddf11b3636910434_ix',
+                }
+
+    def expected_concept_index_names(self):
+        # Return a set of expected concept (vocab) index names.
+        return {'idx_concept_class_id',
+                'idx_concept_code',
+                'idx_concept_domain_id',
+                'idx_concept_vocabluary_id',
+                }
+
+    def test_drop_strict(self):
+
+        # Instantiate the transformed pedsnet database structure.
+        self.metadata.create_all(self.engine)
+
+        # Grab the measurement table created
+        measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
+                                       autoload=True,
+                                       autoload_with=self.engine)
+        index_names = [i.name for i in measurement.indexes]
+
+        # Check that the measurement table has all extra indexes.
+        for idx in self.expected_measurement_index_names():
+            self.assertIn(idx, index_names)
+
+        # Drop indexes on the non-vocabulary tables.
+        drop_indexes(self.conn_str, self.model_version, error_mode='strict')
+
+        # Check that the measurement table has no indexes
+        measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
+                                       autoload=True,
+                                       autoload_with=self.engine)
+        self.assertEqual(len(measurement.indexes), 0)
+
+        # Check that vocab indexes were not dropped
+        concept = sqlalchemy.Table('concept', sqlalchemy.MetaData(),
+                                   autoload=True, autoload_with=self.engine)
+        concept_index_names = [i.name for i in concept.indexes]
+        self.assertNotEqual(self.expected_concept_index_names(),
+                            concept_index_names)
+
+        # Check that an exception is raised when double-dropping in strict mode
+        with self.assertRaises(psycopg2.ProgrammingError):
+            drop_indexes(self.conn_str, self.model_version,
+                         error_mode='strict')
+
+    def test_add_strict(self):
+
+        # Instantiate the transformed pedsnet database structure.
+        self.metadata.create_all(self.engine)
+
+        # Drop indexes on the non-vocabulary tables.
+        drop_indexes(self.conn_str, self.model_version, error_mode='strict')
+
+        # Drop indexes on vocabulary tables.
+        drop_indexes(self.conn_str, self.model_version, error_mode='strict',
+                     vocabulary=True)
+
+        # Verify that the measurement table has no indexes
+        measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
+                                       autoload=True,
+                                       autoload_with=self.engine)
+        self.assertEqual(len(measurement.indexes), 0)
+
+        # Verify that the concept table has no indexes
+        concept = sqlalchemy.Table('concept', sqlalchemy.MetaData(),
+                                   autoload=True, autoload_with=self.engine)
+        self.assertEqual(len(concept.indexes), 0)
+
+        # Create indexes on non-vocabulary tables.
+        add_indexes(self.conn_str, self.model_version, error_mode='strict')
+
+        # Check that the measurement table has the right indexes
+        measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
+                                       autoload=True,
+                                       autoload_with=self.engine)
+        self.assertEqual(self.expected_measurement_index_names(),
+                         set([i.name for i in measurement.indexes]))
+
+        # Check that the concept table has no indexes
+        concept = sqlalchemy.Table('concept', sqlalchemy.MetaData(),
+                                   autoload=True, autoload_with=self.engine)
+        self.assertEqual(len(concept.indexes), 0)
+
+        # Check that strict raises an exception if we double-add
+        with self.assertRaises(psycopg2.ProgrammingError):
+            add_indexes(self.conn_str, self.model_version, error_mode='strict')
+
+    def test_add_normal(self):
+
+        # Instantiate the transformed pedsnet database structure.
+        self.metadata.create_all(self.engine)
+
+        # Remove an index
+        Statement('DROP INDEX idx_measurement_concept_id').execute(
+            self.conn_str)
+
+        # Verify that this index is gone
+        measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
+                                       autoload=True,
+                                       autoload_with=self.engine)
+        self.assertNotIn('idx_measurement_concept_id',
+                         [i.name for i in measurement.indexes])
+
+        # Create indexes on non-vocabulary tables.
+        add_indexes(self.conn_str, self.model_version, error_mode='normal')
+
+        # Check that the measurement table has the right indexes
+        measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
+                                       autoload=True,
+                                       autoload_with=self.engine)
+        self.assertEqual(self.expected_measurement_index_names(),
+                         set([i.name for i in measurement.indexes]))
+
+    def test_drop_normal(self):
+
+        # Instantiate the transformed pedsnet database structure.
+        self.metadata.create_all(self.engine)
+
+        # Remove an index
+        Statement('DROP INDEX idx_measurement_concept_id').execute(
+            self.conn_str)
+
+        # Verify that this index is gone
+        measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
+                                       autoload=True,
+                                       autoload_with=self.engine)
+        self.assertNotIn('idx_measurement_concept_id',
+                         [i.name for i in measurement.indexes])
+
+        # Drop indexes on the non-vocabulary tables.
+        # This should not raise an exception.
+        drop_indexes(self.conn_str, self.model_version, error_mode='normal')
+
+    def test_add_force(self):
+
+        # Instantiate the transformed pedsnet database structure.
+        self.metadata.create_all(self.engine)
+
+        # Verify nominal success when cursor.execute experiences an unexpected
+        # non-connection exception. In most or all cases, this is not something
+        # the user would ever want to tolerate; the 'force' mode may not be
+        # useful.
+
+        # Drop a table beforehand. This will cause the "add
+        # index" to throw a 42P01 (undefined_table/relation does not exist).
+        Statement('drop table observation').execute(self.conn_str)
+        add_indexes(self.conn_str, self.model_version, error_mode='force')
+
+        # Verify failure when execute experiences a connection exception.
+        with mock.patch('psycopg2.connect') as mock_connect:
+            mock_connect.side_effect = psycopg2.OperationalError(
+                'Mock connection failure')
+            with self.assertRaises(psycopg2.OperationalError):
+                add_indexes(self.conn_str, self.model_version,
+                            error_mode='force')
+
+    def test_drop_force(self):
+        # Tests:
+        # 1) Verify nominal success when execute experiences an unexpected
+        # non-connection exception.
+        # 2) Very failure when execute experiences a connection error.
+
+        # Drop a table beforehand. This will cause the "drop
+        # index" to throw a 42P01 (undefined_table/relation does not exist).
+        Statement('drop table observation').execute(self.conn_str)
+        drop_indexes(self.conn_str, self.model_version, error_mode='force')
+
+        self.metadata.create_all(self.engine)   # Restore dropped table
+
+        # Verify failure when execute experiences a connection exception.
+        with mock.patch('psycopg2.connect') as mock_connect:
+            mock_connect.side_effect = psycopg2.OperationalError(
+                'Mock connection failure')
+            with self.assertRaises(psycopg2.OperationalError):
+                drop_indexes(self.conn_str, self.model_version,
+                             error_mode='force')
