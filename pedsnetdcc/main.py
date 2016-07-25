@@ -134,7 +134,7 @@ def prepdb(model_version, dcc_only, pwprompt, dburi):
     password = None
 
     if pwprompt:
-        password = click.prompt(hide_input=True)
+        password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, password=password)
     success = prepare_database(model_version, conn_str, update=False,
