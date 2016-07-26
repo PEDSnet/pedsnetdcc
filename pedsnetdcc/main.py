@@ -5,6 +5,7 @@ import sys
 from pedsnetdcc import __version__
 from pedsnetdcc.utils import make_conn_str
 from pedsnetdcc.dict_logging import DictLogFilter
+from pedsnetdcc.cleanup import cleanup_site_directories
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
@@ -144,7 +145,22 @@ def prepdb(model_version, dcc_only, pwprompt, dburi):
         sys.exit(1)
 
     sys.exit(0)
-    
+
+
+@pedsnetdcc.command()
+@click.option('--site-root', '-s',
+              help='Override default site data root directory')
+@click.argument('backup_dir', required=False)
+def cleanup(backup_dir, site_root):
+    """Backup and delete older site data directories"""
+
+    success = cleanup_site_directories(backup_dir, site_root)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
 
 if __name__ == '__main__':
     pedsnetdcc()
