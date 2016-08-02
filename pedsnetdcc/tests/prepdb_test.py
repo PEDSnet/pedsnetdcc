@@ -156,11 +156,9 @@ class TestPrepareDatabase(unittest.TestCase):
         conn.close()
 
     def test_prep_db(self):
-        """Test for sites + dcc"""
         prepare_database(self.model_version, self.conn_str)
         self.check()
 
     def test_prep_db_dcc_only(self):
-        """Test with dcc_only=True"""
         prepare_database(self.model_version, self.conn_str, dcc_only=True)
         self.check(dcc_only=True)
