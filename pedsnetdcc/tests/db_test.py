@@ -22,7 +22,7 @@ def setUpModule():
     # multiple ephemeral database cluster instances.
     global Postgresql
     Postgresql = testing.postgresql.PostgresqlFactory(
-            cache_initialized_db=True)
+        cache_initialized_db=True)
 
     # Configure the main logger to log into a handler.messages dict.
     global logger
@@ -85,6 +85,8 @@ class StatementSetTest(unittest.TestCase):
             self.assertEqual(message['msg'], 'executing SQL')
 
     def test_parallel_execute_vacuum(self):
+        # Test the ability to execute statements that can't be run in a
+        # transaction block.
         stmts = StatementSet()
         stmts.add(Statement('VACUUM'))
         stmts.parallel_execute(self.conn_str)
@@ -92,6 +94,14 @@ class StatementSetTest(unittest.TestCase):
         for stmt in stmts:
             if stmt.sql == 'VACUUM':
                 self.assertIsNone(stmt.err)
+
+    def test_connection_error(self):
+        stmts = StatementSet()
+        stmts.add(Statement('SELECT 1'))
+        stmts.parallel_execute("host=foo dbname=bar")
+        # Prior to fixing #32, the following would fail:
+        self.assertEqual(len(stmts), 1)
+
 
 class StatementListTest(unittest.TestCase):
 
@@ -170,7 +180,6 @@ class StatementListTestVacuum(unittest.TestCase):
         self.assertIsNone(stmts[0].err)
 
 
-
 class StatementTest(unittest.TestCase):
 
     def setUp(self):
@@ -210,7 +219,7 @@ class StatementTest(unittest.TestCase):
         stmt.execute("host=foo dbname=bar")
 
         self.assertTrue(stmt.err)
-        msg = json.loads(handler.messages['error'][0])
+        msg = json.loads(handler.messages['debug'][0])
         self.assertTrue(msg['msg'].startswith('connection error'))
         self.assertTrue('err' in msg)
 
@@ -292,8 +301,8 @@ class StatementTest(unittest.TestCase):
                 conn.close()
 
         self.assertTrue(stmt.err)
-        msg = json.loads(handler.messages['error'][0])
-        self.assertTrue(msg['msg'].startswith('database error'))
+        msg = json.loads(handler.messages['debug'][1])
+        self.assertEqual(msg['msg'], 'database error while executing SQL')
         self.assertTrue('err' in msg)
 
 
