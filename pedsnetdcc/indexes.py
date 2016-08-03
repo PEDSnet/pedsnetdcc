@@ -80,7 +80,17 @@ def _indexes_sql(model_version, vocabulary=False, drop=False):
         for x in indexes]
 
 
-def _check_stmt_err(stmt, error_mode):
+def _check_stmt_err(stmt, force):
+    """Check statement for errors.
+
+    If the error is benign and force is true, ignore the error.
+
+    :param pedsnetdcc.db.Statement stmt:
+    :param bool force:
+    :return: None
+    :raise: DatabaseError if error in a statement
+    :raise: psycopg2.OperationalError if connection error
+    """
     if stmt.err is None:
         return
 
@@ -98,21 +108,16 @@ def _check_stmt_err(stmt, error_mode):
         and stmt.err.pgcode
         and psycopg2_errorcodes.lookup(stmt.err.pgcode) == 'DUPLICATE_TABLE')
 
-    if dropping and error_mode == 'normal' and does_not_exist:
+    if dropping and force and does_not_exist:
         return
 
-    if creating and error_mode == 'normal' and already_exists:
-        return
-
-    if error_mode == 'force' and type(stmt.err).__name__ == 'ProgrammingError':
-        # ProgrammingError encompasses most post-connection errors
+    if creating and force and already_exists:
         return
 
     raise stmt.err
 
 
-def _process_indexes(conn_str, model_version, error_mode, vocabulary=False,
-                     drop=False,):
+def _process_indexes(conn_str, model_version, force, vocabulary, drop):
     """Execute ADD or DROP INDEX statements for a transformed PEDSnet schema.
 
     Depending on the value of the `drop` parameter, either ADD or DROP
@@ -124,14 +129,14 @@ def _process_indexes(conn_str, model_version, error_mode, vocabulary=False,
     the `pedsnet` data model).
 
     Errors are handled as per https://github.com/PEDSnet/pedsnetdcc/issues/10
-    depending on the value of `error_mode`.
+    depending on the value of `force`.
 
     :param conn_str: database connection string
     :type: str
     :param model_version: pedsnet model version
     :type: str
-    :param error_mode: error sensitivity: 'normal', 'strict', 'or 'force'
-    See https://github.com/PEDSnet/pedsnetdcc/issues/10
+    :param force: ignore benign errors if true; see
+    https://github.com/PEDSnet/pedsnetdcc/issues/10
     :type: str
     :param vocabulary: whether to make statements for vocabulary tables or
     non-vocabulary tables
@@ -144,10 +149,8 @@ def _process_indexes(conn_str, model_version, error_mode, vocabulary=False,
     """
 
     if not drop:
-        func = sqlalchemy.schema.CreateIndex
         operation = 'creation'
     else:
-        func = sqlalchemy.schema.DropIndex
         operation = 'removal'
 
     # Log start of the function and set the starting time.
@@ -166,12 +169,11 @@ def _process_indexes(conn_str, model_version, error_mode, vocabulary=False,
     # Check statements for any errors and raise exception if they are found.
     for stmt in stmts:
         try:
-            _check_stmt_err(stmt, error_mode)
+            _check_stmt_err(stmt, force)
         except Exception:
             conn_info = get_conn_info_dict(conn_str)
-            logger.error(combine_dicts({'msg': 'Fatal error for this '
-                                               'error_mode',
-                                        'error_mode': error_mode,
+            logger.error(combine_dicts({'msg': 'Fatal error',
+                                        'force': force,
                                         'sql': stmt.sql,
                                         'err': str(stmt.err)}, conn_info))
             logger.info({'msg': 'aborted index {op}'.format(op=operation),
@@ -186,8 +188,7 @@ def _process_indexes(conn_str, model_version, error_mode, vocabulary=False,
     return True
 
 
-def add_indexes(conn_str, model_version, error_mode='normal',
-                vocabulary=False):
+def add_indexes(conn_str, model_version, force=False, vocabulary=False):
     """Execute ADD INDEX statements for a transformed PEDSnet schema.
 
     Depending on the value of the `vocabulary` parameter, statements are
@@ -202,20 +203,19 @@ def add_indexes(conn_str, model_version, error_mode='normal',
     :param vocabulary: whether to make statements for vocabulary tables or
     non-vocabulary tables
     :type: bool
-    :param error_mode: error sensitivity: 'normal', 'strict', 'or 'force'
-    See https://github.com/PEDSnet/pedsnetdcc/issues/10
-    :type: str
+    :param force: ignore benign errors if true; see
+    https://github.com/PEDSnet/pedsnetdcc/issues/10
+    :type: bool
     :return: True
     :type: bool
     :raises DatabaseError: if any of the statement executions cause errors
     """
 
-    return _process_indexes(conn_str, model_version, error_mode, vocabulary,
+    return _process_indexes(conn_str, model_version, force, vocabulary,
                             drop=False)
 
 
-def drop_indexes(conn_str, model_version, vocabulary=False,
-                 error_mode='normal'):
+def drop_indexes(conn_str, model_version, vocabulary=False, force=False):
     """Execute ADD or DROP INDEX statements for a transformed PEDSnet schema.
 
     Depending on the value of the `vocabulary` parameter, statements are
@@ -230,13 +230,13 @@ def drop_indexes(conn_str, model_version, vocabulary=False,
     :param vocabulary: whether to make statements for vocabulary tables or
     non-vocabulary tables
     :type: bool
-    :param error_mode: error sensitivity: 'normal', 'strict', 'or 'force'
-    See https://github.com/PEDSnet/pedsnetdcc/issues/10
-    :type: str
+    :param force: ignore benign errors if true; see
+    https://github.com/PEDSnet/pedsnetdcc/issues/10
+    :type: bool
     :return: True
     :type: bool
     :raises DatabaseError: if any of the statement executions cause errors
     """
 
-    return _process_indexes(conn_str, model_version, error_mode, vocabulary,
+    return _process_indexes(conn_str, model_version, force, vocabulary,
                             drop=True)

@@ -132,7 +132,7 @@ class IndexesDatabaseTest(unittest.TestCase):
                 'idx_concept_vocabulary_id',
                 }
 
-    def test_drop_strict(self):
+    def test_drop(self):
 
         # Instantiate the transformed pedsnet database structure.
         self.metadata.create_all(self.engine)
@@ -148,7 +148,7 @@ class IndexesDatabaseTest(unittest.TestCase):
             self.assertIn(idx, index_names)
 
         # Drop indexes on the non-vocabulary tables.
-        drop_indexes(self.conn_str, self.model_version, error_mode='strict')
+        drop_indexes(self.conn_str, self.model_version)
 
         # Check that the measurement table has no indexes
         measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
@@ -163,22 +163,20 @@ class IndexesDatabaseTest(unittest.TestCase):
         self.assertNotEqual(self.expected_concept_index_names(),
                             concept_index_names)
 
-        # Check that an exception is raised when double-dropping in strict mode
+        # Check that an exception is raised when double-dropping
         with self.assertRaises(psycopg2.ProgrammingError):
-            drop_indexes(self.conn_str, self.model_version,
-                         error_mode='strict')
+            drop_indexes(self.conn_str, self.model_version)
 
-    def test_add_strict(self):
+    def test_add(self):
 
         # Instantiate the transformed pedsnet database structure.
         self.metadata.create_all(self.engine)
 
         # Drop indexes on the non-vocabulary tables.
-        drop_indexes(self.conn_str, self.model_version, error_mode='strict')
+        drop_indexes(self.conn_str, self.model_version)
 
         # Drop indexes on vocabulary tables.
-        drop_indexes(self.conn_str, self.model_version, error_mode='strict',
-                     vocabulary=True)
+        drop_indexes(self.conn_str, self.model_version, vocabulary=True)
 
         # Verify that the measurement table has no indexes
         measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
@@ -192,7 +190,7 @@ class IndexesDatabaseTest(unittest.TestCase):
         self.assertEqual(len(concept.indexes), 0)
 
         # Create indexes on non-vocabulary tables.
-        add_indexes(self.conn_str, self.model_version, error_mode='strict')
+        add_indexes(self.conn_str, self.model_version)
 
         # Check that the measurement table has the right indexes
         measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
@@ -206,37 +204,21 @@ class IndexesDatabaseTest(unittest.TestCase):
                                    autoload=True, autoload_with=self.engine)
         self.assertEqual(len(concept.indexes), 0)
 
-        # Check that strict raises an exception if we double-add
+        # Check that an exception is raised if we double-add
         with self.assertRaises(psycopg2.ProgrammingError):
-            add_indexes(self.conn_str, self.model_version, error_mode='strict')
+            add_indexes(self.conn_str, self.model_version)
 
-    def test_add_normal(self):
+    def test_add_force(self):
 
-        # Instantiate the transformed pedsnet database structure.
+        # Instantiate the transformed pedsnet database structure (including
+        # indexes)
         self.metadata.create_all(self.engine)
 
-        # Remove an index
-        Statement('DROP INDEX idx_measurement_concept_id').execute(
-            self.conn_str)
+        # Create indexes on non-vocabulary tables. This should not raise
+        # an exception, even though the indexes already exist.
+        add_indexes(self.conn_str, self.model_version, force=True)
 
-        # Verify that this index is gone
-        measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
-                                       autoload=True,
-                                       autoload_with=self.engine)
-        self.assertNotIn('idx_measurement_concept_id',
-                         [i.name for i in measurement.indexes])
-
-        # Create indexes on non-vocabulary tables.
-        add_indexes(self.conn_str, self.model_version, error_mode='normal')
-
-        # Check that the measurement table has the right indexes
-        measurement = sqlalchemy.Table('measurement', sqlalchemy.MetaData(),
-                                       autoload=True,
-                                       autoload_with=self.engine)
-        self.assertEqual(self.expected_measurement_index_names(),
-                         set([i.name for i in measurement.indexes]))
-
-    def test_drop_normal(self):
+    def test_drop_force(self):
 
         # Instantiate the transformed pedsnet database structure.
         self.metadata.create_all(self.engine)
@@ -254,45 +236,4 @@ class IndexesDatabaseTest(unittest.TestCase):
 
         # Drop indexes on the non-vocabulary tables.
         # This should not raise an exception.
-        drop_indexes(self.conn_str, self.model_version, error_mode='normal')
-
-    def test_add_force(self):
-
-        # Instantiate the transformed pedsnet database structure.
-        self.metadata.create_all(self.engine)
-
-        # Verify nominal success when cursor.execute experiences an unexpected
-        # non-connection exception. In most or all cases, this is not something
-        # the user would ever want to tolerate; the 'force' mode may not be
-        # useful.
-
-        # Drop a table beforehand. This will cause the "add
-        # index" to throw a 42P01 (undefined_table/relation does not exist).
-        Statement('drop table observation').execute(self.conn_str)
-        add_indexes(self.conn_str, self.model_version, error_mode='force')
-
-        # Verify failure when execute experiences a connection exception.
-        with self.assertRaises(psycopg2.OperationalError):
-            add_indexes('host=BAD_HOST', self.model_version,
-                        error_mode='force')
-
-    def test_drop_force(self):
-
-        # Instantiate the transformed pedsnet database structure.
-        self.metadata.create_all(self.engine)
-
-        # Tests:
-        # 1) Verify nominal success when execute experiences an unexpected
-        # non-connection exception.
-        # 2) Very failure when execute experiences a connection error.
-
-        # Drop a table beforehand. This will cause the "drop
-        # index" to throw a 42P01 (undefined_table/relation does not exist).
-        Statement('drop table observation').execute(self.conn_str)
-        drop_indexes(self.conn_str, self.model_version, error_mode='force')
-
-        self.metadata.create_all(self.engine)   # Restore dropped table
-
-        with self.assertRaises(psycopg2.OperationalError):
-            drop_indexes('host=BAD_HOST', self.model_version,
-                         error_mode='force')
+        drop_indexes(self.conn_str, self.model_version, force=True)
