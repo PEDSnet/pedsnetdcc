@@ -154,8 +154,11 @@ def _process_indexes(conn_str, model_version, force, vocabulary, drop):
         operation = 'removal'
 
     # Log start of the function and set the starting time.
-    logger.info({'msg': 'starting index {op}'.format(op=operation),
-                 'model_version': model_version, 'vocabulary': vocabulary})
+    log_dict = combine_dicts({'model_version': model_version,
+                              'vocabulary': vocabulary, 'force': force},
+                             get_conn_info_dict(conn_str))
+    logger.info(combine_dicts({'msg': 'starting index {op}'.format(
+        op=operation)}, log_dict))
     start_time = time.time()
 
     stmts = StatementSet()
@@ -171,18 +174,19 @@ def _process_indexes(conn_str, model_version, force, vocabulary, drop):
         try:
             _check_stmt_err(stmt, force)
         except Exception:
-            conn_info = get_conn_info_dict(conn_str)
             logger.error(combine_dicts({'msg': 'Fatal error',
-                                        'force': force,
                                         'sql': stmt.sql,
-                                        'err': str(stmt.err)}, conn_info))
-            logger.info({'msg': 'aborted index {op}'.format(op=operation),
-                         'elapsed': secs_since(start_time)})
+                                        'err': str(stmt.err)}, log_dict))
+            logger.info(combine_dicts(
+                {'msg': 'aborted index {op}'.format(op=operation),
+                 'elapsed': secs_since(start_time)},
+                log_dict))
             raise
 
     # Log end of function.
-    logger.info({'msg': 'finished index {op}'.format(op=operation),
-                 'elapsed': secs_since(start_time)})
+    logger.info(combine_dicts(
+        {'msg': 'finished index {op}'.format(op=operation),
+         'elapsed': secs_since(start_time)}, log_dict))
 
     # If reached without error, then success!
     return True
@@ -200,11 +204,11 @@ def add_indexes(conn_str, model_version, force=False, vocabulary=False):
     :type: str
     :param model_version: pedsnet model version
     :type: str
-    :param vocabulary: whether to make statements for vocabulary tables or
-    non-vocabulary tables
-    :type: bool
     :param force: ignore benign errors if true; see
     https://github.com/PEDSnet/pedsnetdcc/issues/10
+    :type: bool
+    :param vocabulary: whether to make statements for vocabulary tables or
+    non-vocabulary tables
     :type: bool
     :return: True
     :type: bool
@@ -215,7 +219,7 @@ def add_indexes(conn_str, model_version, force=False, vocabulary=False):
                             drop=False)
 
 
-def drop_indexes(conn_str, model_version, vocabulary=False, force=False):
+def drop_indexes(conn_str, model_version, force=False, vocabulary=False):
     """Execute ADD or DROP INDEX statements for a transformed PEDSnet schema.
 
     Depending on the value of the `vocabulary` parameter, statements are
@@ -227,11 +231,11 @@ def drop_indexes(conn_str, model_version, vocabulary=False, force=False):
     :type: str
     :param model_version: pedsnet model version
     :type: str
-    :param vocabulary: whether to make statements for vocabulary tables or
-    non-vocabulary tables
-    :type: bool
     :param force: ignore benign errors if true; see
     https://github.com/PEDSnet/pedsnetdcc/issues/10
+    :type: bool
+    :param vocabulary: whether to make statements for vocabulary tables or
+    non-vocabulary tables
     :type: bool
     :return: True
     :type: bool
