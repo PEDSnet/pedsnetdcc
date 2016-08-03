@@ -41,7 +41,17 @@ def _foreign_keys_from_model_version(model_version, vocabulary=False):
     return foreign_keys
 
 
-def _check_stmt_err(stmt, error_mode):
+def _check_stmt_err(stmt, force):
+    """Check statement for errors.
+
+    If the error is benign and force is true, ignore the error.
+
+    :param pedsnetdcc.db.Statement stmt:
+    :param bool force:
+    :return: None
+    :raise: DatabaseError if error in a statement
+    :raise: psycopg2.OperationalError if connection error
+    """     
     if stmt.err is None:
         return
 
@@ -60,21 +70,16 @@ def _check_stmt_err(stmt, error_mode):
         and stmt.err.pgcode
         and psycopg2_errorcodes.lookup(stmt.err.pgcode) == 'DUPLICATE_OBJECT')
 
-    if dropping and error_mode == 'normal' and does_not_exist:
+    if dropping and force and does_not_exist:
         return
 
-    if creating and error_mode == 'normal' and already_exists:
-        return
-
-    if error_mode == 'force' and type(stmt.err).__name__ == 'ProgrammingError':
-        # ProgrammingError encompasses most post-connection errors
+    if creating and force and already_exists:
         return
 
     raise stmt.err
 
 
-def add_foreign_keys(conn_str, model_version, error_mode='normal',
-                        vocabulary=False):
+def add_foreign_keys(conn_str, model_version, force=False, vocabulary=False):
     """Create foreign keys in the database.
 
     Execute CREATE statements to add foreign keys (on the vocabulary or data
@@ -82,17 +87,19 @@ def add_foreign_keys(conn_str, model_version, error_mode='normal',
 
     :param str conn_str:      database connection string
     :param str model_version: the model version of the PEDSnet database
-    :param error_mode: error sensitivity: 'normal', 'strict', 'or 'force'
-    See https://github.com/PEDSnet/pedsnetdcc/issues/10
+    :param bool force: ignore benign errors if true; see
+    https://github.com/PEDSnet/pedsnetdcc/issues/10
     :param bool vocabulary:   whether to create foreign keys on vocab tables
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
     """
     # Log start of the function and set the starting time.
-    logger.info({'msg': 'starting foreign key creation',
-                 'model_version': model_version, 'vocabulary': vocabulary,
-                 'error_mode': error_mode})
+    log_dict = combine_dicts({'model_version': model_version,
+                             'vocabulary': vocabulary, 'force': force},
+                             get_conn_info_dict(conn_str))
+    logger.info(combine_dicts({'msg': 'starting foreign key creation'},
+                              log_dict))
     start_time = time.time()
 
     # Get list of foreign keys for that need creation.
@@ -113,28 +120,25 @@ def add_foreign_keys(conn_str, model_version, error_mode='normal',
     # Check statements for any errors and raise exception if they are found.
     for stmt in stmts:
         try:
-            _check_stmt_err(stmt, error_mode)
+            _check_stmt_err(stmt, force)
         except:
-            conn_info = get_conn_info_dict(conn_str)
-            logger.error(combine_dicts({'msg': 'Fatal error for this '
-                                               'error_mode',
-                                        'error_mode': error_mode,
+            logger.error(combine_dicts({'msg': 'Fatal error',
                                         'sql': stmt.sql,
-                                        'err': str(stmt.err)}, conn_info))
-            logger.info({'msg': 'aborted foreign key creation',
-                         'elapsed': secs_since(start_time)})
+                                        'err': str(stmt.err)}, log_dict))
+            logger.info(combine_dicts({'msg': 'foreign key creation failed',
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
             raise
 
     # Log end of function.
-    logger.info({'msg': 'finished foreign key creation',
-                 'elapsed': secs_since(start_time)})
+    logger.info(combine_dicts({'msg': 'finished foreign key creation',
+                               'elapsed': secs_since(start_time)}, log_dict))
 
     # If reached without error, then success!
     return True
 
 
-def drop_foreign_keys(conn_str, model_version, error_mode='normal',
-                      vocabulary=False):
+def drop_foreign_keys(conn_str, model_version, force=False, vocabulary=False):
     """Drop foreign keys from the database.
 
     Execute DROP statements to remove foreign keys (on the vocabulary or data
@@ -142,17 +146,19 @@ def drop_foreign_keys(conn_str, model_version, error_mode='normal',
 
     :param str conn_str:      database connection string
     :param str model_version: the model version of the PEDSnet database
-    :param error_mode: error sensitivity: 'normal', 'strict', 'or 'force'
-    See https://github.com/PEDSnet/pedsnetdcc/issues/10
+    :param bool force: ignore benign errors if true; see
+    https://github.com/PEDSnet/pedsnetdcc/issues/10
     :param bool vocabulary:   whether to drop foreign keys from vocab tables
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
     """
     # Log start of the function and set the starting time.
-    logger.info({'msg': 'starting foreign key removal',
-                 'model_version': model_version, 'vocabulary': vocabulary,
-                 'error_mode': error_mode})
+    log_dict = combine_dicts({'model_version': model_version,
+                             'vocabulary': vocabulary, 'force': force},
+                             get_conn_info_dict(conn_str))
+    logger.info(combine_dicts({'msg': 'starting foreign key removal'},
+                              log_dict))
     start_time = time.time()
 
     # Get list of foreign keys for that need creation.
@@ -173,21 +179,19 @@ def drop_foreign_keys(conn_str, model_version, error_mode='normal',
     # Check statements for any errors and raise exception if they are found.
     for stmt in stmts:
         try:
-            _check_stmt_err(stmt, error_mode)
+            _check_stmt_err(stmt, force)
         except:
-            conn_info = get_conn_info_dict(conn_str)
-            logger.error(combine_dicts({'msg': 'Fatal error for this '
-                                               'error_mode',
-                                        'error_mode': error_mode,
+            logger.error(combine_dicts({'msg': 'Fatal error',
                                         'sql': stmt.sql,
-                                        'err': str(stmt.err)}, conn_info))
-            logger.info({'msg': 'aborted foreign key removal',
-                         'elapsed': secs_since(start_time)})
+                                        'err': str(stmt.err)}, log_dict))
+            logger.info(combine_dicts({'msg': 'foreign key removal failed',
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
             raise
 
     # Log end of function.
-    logger.info({'msg': 'finished foreign key removal',
-                 'elapsed': secs_since(start_time)})
+    logger.info(combine_dicts({'msg': 'finished foreign key removal',
+                               'elapsed': secs_since(start_time)}, log_dict))
 
     # If reached without error, then success!
     return True
