@@ -37,16 +37,25 @@ VOCAB_TABLES = (
     'source_to_concept_map'
 )
 
+# TODO: Generate this map dynamically at runtime from the distinct
+# fact_relationship.domain_concept_id_{1,2} values and the domain table.
+FACT_RELATIONSHIP_DOMAINS = {
+    'observation': 27,
+    'measurement': 21,
+    'visit_occurrence': 8
+}
+
 _dms_var = 'PEDSNETDCC_DMS_URL'
 if _dms_var in os.environ:
     DATA_MODELS_SERVICE = os.environ[_dms_var]
 else:
     DATA_MODELS_SERVICE = 'https://data-models-service.research.chop.edu/'
 
-from pedsnetdcc.age_transform import AgeTransform
-from pedsnetdcc.concept_name_transform import ConceptNameTransform
-from pedsnetdcc.site_name_transform import SiteNameTransform
+from pedsnetdcc.age_transform import AgeTransform                   # noqa
+from pedsnetdcc.concept_name_transform import ConceptNameTransform  # noqa
+from pedsnetdcc.site_name_transform import SiteNameTransform        # noqa
 
 TRANSFORMS = (AgeTransform, ConceptNameTransform, SiteNameTransform)
 
-__all__ = (__version__, VOCAB_TABLES, DATA_MODELS_SERVICE, TRANSFORMS)
+__all__ = (__version__, VOCAB_TABLES, DATA_MODELS_SERVICE, TRANSFORMS,
+           FACT_RELATIONSHIP_DOMAINS)
