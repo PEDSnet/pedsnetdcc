@@ -5,6 +5,7 @@ import sys
 from pedsnetdcc import __version__
 from pedsnetdcc.utils import make_conn_str
 from pedsnetdcc.dict_logging import DictLogFilter
+from pedsnetdcc.cleanup import cleanup_site_directories
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
@@ -105,6 +106,55 @@ def check_fact_relationship(searchpath, pwprompt, output, poolsize, dburi):
 
     conn_str = make_conn_str(dburi, searchpath, password)
     success = check_fact_relationship(conn_str, output, poolsize)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+    
+@pedsnetdcc.command()
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--dcc-only', type=bool, is_flag=True, default=False,
+              help='Only create schemas for the dcc.')
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.argument('dburi')
+def prepdb(model_version, dcc_only, pwprompt, dburi):
+    """Create a database and schemas.
+
+    The database should be specified using a model version and a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    from pedsnetdcc.prepdb import prepare_database
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, password=password)
+    success = prepare_database(model_version, conn_str, update=False,
+                               dcc_only=dcc_only)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--site-root', '-s',
+              help='Override default site data root directory')
+@click.argument('backup_dir', required=False)
+def cleanup(backup_dir, site_root):
+    """Backup and delete older site data directories"""
+
+    success = cleanup_site_directories(backup_dir, site_root)
 
     if not success:
         sys.exit(1)

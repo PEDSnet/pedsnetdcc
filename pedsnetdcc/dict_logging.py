@@ -10,6 +10,14 @@ try:
 except ImportError:
     from logutils.queue import QueueHandler
 
+
+# Python 2/3 hack for stringify, below
+try:
+    unicode
+except NameError:
+    unicode = str
+
+
 nocolor = 0
 red = 31
 green = 32
@@ -242,6 +250,8 @@ def stringify(obj):
     """Recursively str() an object, leaving mappings and sequences."""
     if isinstance(obj, str):
         new_obj = obj
+    elif  isinstance(obj, unicode):
+        new_obj = str(obj)
     elif isinstance(obj, collections.Mapping):
         new_obj = {str(k): stringify(v) for k, v in obj.items()}
     elif isinstance(obj, collections.Sequence):

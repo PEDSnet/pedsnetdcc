@@ -1,3 +1,4 @@
 click
+logutils
 psycopg2
 sqlalchemy
