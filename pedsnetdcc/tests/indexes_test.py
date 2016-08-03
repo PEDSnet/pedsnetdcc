@@ -1,10 +1,6 @@
 import logging
 import unittest
 
-try:
-    from unittest import mock
-except ImportError:
-    import mock
 import psycopg2
 import sqlalchemy
 import testing.postgresql
@@ -48,7 +44,7 @@ class IndexesTest(unittest.TestCase):
             self.assertIn(sample, sql)
 
         sample_not_expected = (
-            'CREATE INDEX idx_concept_vocabluary_id ON concept (vocabulary_id)',
+            'CREATE INDEX idx_concept_vocabulary_id ON concept (vocabulary_id)',
         )
         for sample in sample_not_expected:
             self.assertNotIn(sample, sql)
@@ -65,7 +61,7 @@ class IndexesTest(unittest.TestCase):
             self.assertIn(sample, sql)
 
         sample_not_expected = (
-            'CREATE INDEX idx_concept_vocabluary_id ON concept (vocabulary_id)',
+            'DROP INDEX idx_concept_vocabulary_id ON concept (vocabulary_id)',
         )
         for sample in sample_not_expected:
             self.assertNotIn(sample, sql)
@@ -95,10 +91,10 @@ class IndexesDatabaseTest(unittest.TestCase):
         self.postgresql = Postgresql()
         self.dburi = self.postgresql.url()
         self.conn_str = make_conn_str(self.dburi)
-        self.model_version = '2.2.0'
         self.engine = sqlalchemy.create_engine(self.dburi)
 
         # Create transformed pedsnet metadata
+        self.model_version = '2.2.0'
         self.metadata = stock_metadata(self.model_version)
         for t in TRANSFORMS:
             self.metadata = t.modify_metadata(self.metadata)
@@ -133,7 +129,7 @@ class IndexesDatabaseTest(unittest.TestCase):
         return {'idx_concept_class_id',
                 'idx_concept_code',
                 'idx_concept_domain_id',
-                'idx_concept_vocabluary_id',
+                'idx_concept_vocabulary_id',
                 }
 
     def test_drop_strict(self):
@@ -276,14 +272,15 @@ class IndexesDatabaseTest(unittest.TestCase):
         add_indexes(self.conn_str, self.model_version, error_mode='force')
 
         # Verify failure when execute experiences a connection exception.
-        with mock.patch('psycopg2.connect') as mock_connect:
-            mock_connect.side_effect = psycopg2.OperationalError(
-                'Mock connection failure')
-            with self.assertRaises(psycopg2.OperationalError):
-                add_indexes(self.conn_str, self.model_version,
-                            error_mode='force')
+        with self.assertRaises(psycopg2.OperationalError):
+            add_indexes('host=BAD_HOST', self.model_version,
+                        error_mode='force')
 
     def test_drop_force(self):
+
+        # Instantiate the transformed pedsnet database structure.
+        self.metadata.create_all(self.engine)
+
         # Tests:
         # 1) Verify nominal success when execute experiences an unexpected
         # non-connection exception.
@@ -296,10 +293,6 @@ class IndexesDatabaseTest(unittest.TestCase):
 
         self.metadata.create_all(self.engine)   # Restore dropped table
 
-        # Verify failure when execute experiences a connection exception.
-        with mock.patch('psycopg2.connect') as mock_connect:
-            mock_connect.side_effect = psycopg2.OperationalError(
-                'Mock connection failure')
-            with self.assertRaises(psycopg2.OperationalError):
-                drop_indexes(self.conn_str, self.model_version,
-                             error_mode='force')
+        with self.assertRaises(psycopg2.OperationalError):
+            drop_indexes('host=BAD_HOST', self.model_version,
+                         error_mode='force')

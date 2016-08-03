@@ -1,5 +1,5 @@
 click
-mock
+dmsa
 psycopg2
 sqlalchemy
 testing.postgresql

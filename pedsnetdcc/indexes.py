@@ -155,14 +155,9 @@ def _process_indexes(conn_str, model_version, error_mode, vocabulary=False,
                  'model_version': model_version, 'vocabulary': vocabulary})
     start_time = time.time()
 
-    indexes = _indexes_from_metadata(stock_metadata(model_version), TRANSFORMS,
-                                     vocabulary=vocabulary)
-
     stmts = StatementSet()
 
-    for stmt in [str(func(x).compile(
-            dialect=sqlalchemy.dialects.postgresql.dialect())).lstrip()
-            for x in indexes]:
+    for stmt in _indexes_sql(model_version, vocabulary, drop):
         stmts.add(Statement(stmt))
 
     # Execute the statements in parallel.
