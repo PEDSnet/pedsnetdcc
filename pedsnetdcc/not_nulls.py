@@ -2,17 +2,20 @@ import logging
 import time
 
 from pedsnetdcc import VOCAB_TABLES
-from pedsnetdcc.db import StatementSet
-from pedsnetdcc.utils import stock_metadata, check_stmt_err, secs_since
+from pedsnetdcc.db import StatementSet, Statement
+from pedsnetdcc.dict_logging import secs_since
+from pedsnetdcc.utils import stock_metadata, check_stmt_err
 
 logger = logging.getLogger(__name__)
 
-set_not_null = "ALTER TABLE {table} ALTER COLUMN {column} SET NOT NULL"
-drop_not_null = "ALTER TABLE {table} ALTER COLUMN {column} DROP NOT NULL"
+SET_NOT_NULL = "ALTER TABLE {table} ALTER COLUMN {column} SET NOT NULL"
+DROP_NOT_NULL = "ALTER TABLE {table} ALTER COLUMN {column} DROP NOT NULL"
 
 
 def _not_null_columns_from_model_version(model_version, vocabulary=False):
     """Return list of not nullable SQLAlchemy columns for the model version.
+
+    Columns that belong to primary keys are not included.
 
     :param str model_version: pedsnet model version
     :param bool vocabulary:   whether to return vocab or non-vocab columns
@@ -23,16 +26,12 @@ def _not_null_columns_from_model_version(model_version, vocabulary=False):
 
     columns = []
     for name, table in metadata.tables.items():
-        if vocabulary:
-            if name in VOCAB_TABLES:
-                for column in table.c.values():
-                    if not column.nullable:
-                        columns.append(column)
-        else:
-            if name not in VOCAB_TABLES:
-                for column in table.c.values():
-                    if not column.nullable:
-                        columns.append(column)
+        if ((vocabulary and name not in VOCAB_TABLES) or
+                (not vocabulary and name in VOCAB_TABLES)):
+            continue
+        for column in table.c.values():
+            if not column.nullable and not column.primary_key:
+                columns.append(column)
 
     return columns
 
@@ -63,7 +62,8 @@ def set_not_nulls(conn_str, model_version, vocabulary=False):
 
     # Add a not null setting statement to the set for each column.
     for column in columns:
-        stmts.add(set_not_null.format(table=column.table, column=column.name))
+        stmts.add(Statement(
+            SET_NOT_NULL.format(table=column.table, column=column.name)))
 
     # Execute the statements in parallel.
     stmts.parallel_execute(conn_str)
@@ -106,7 +106,8 @@ def drop_not_nulls(conn_str, model_version, vocabulary=False):
 
     # Add a not null dropping statement to the set for each column.
     for column in columns:
-        stmts.add(drop_not_null.format(table=column.table, column=column.name))
+        stmts.add(Statement(
+            DROP_NOT_NULL.format(table=column.table, column=column.name)))
 
     # Execute the statements in parallel.
     stmts.parallel_execute(conn_str)

@@ -8,6 +8,7 @@ except ImportError:
 import sqlalchemy
 
 from pedsnetdcc import DATA_MODELS_SERVICE
+from pedsnetdcc.dict_logging import secs_since
 
 logger = logging.getLogger(__name__)
 
@@ -164,18 +165,25 @@ def check_stmt_data(stmt, caller_name=''):
         raise err
 
 
-def check_stmt_err(stmt, caller_name=''):
+def check_stmt_err(stmt, caller_name='', start_time=None):
     """Log and raise an error if there is an error on the statement.
+
+    If start_time is not None, an `elapsed` key is added to the dictionary
+    sent to the logger.
 
     :param stmt: the statement to check
     :type stmt:  Statement
     :param str caller_name: a name for the calling function, used in logging
+    :param float start_time: optional start time, used for logging elapsed time
     :raises:     DatabaseError if stmt.err is not None
     """
     if stmt.err is not None:
-        err = DatabaseError('database error while {0}: {1}'.format(stmt.msg,
-                                                                   stmt.err))
-        logger.error({'msg': 'exiting {0}'.format(caller_name), 'err': err})
+        err = DatabaseError('database error while {0} ({1}): {2}'.format(
+            stmt.msg, stmt.sql, stmt.err))
+        log_dict = {'msg': 'exiting {0}'.format(caller_name), 'err': err}
+        if start_time:
+            log_dict['elapse'] = secs_since(start_time)
+        logger.error(log_dict)
         raise err
 
 
