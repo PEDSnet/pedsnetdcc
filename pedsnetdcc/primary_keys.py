@@ -7,7 +7,7 @@ import time
 from psycopg2 import errorcodes as psycopg2_errorcodes
 
 from pedsnetdcc import VOCAB_TABLES
-from pedsnetdcc.db import StatementList, Statement
+from pedsnetdcc.db import StatementSet, Statement
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import (stock_metadata, combine_dicts,
                               get_conn_info_dict)
@@ -46,9 +46,6 @@ def _check_stmt_err(stmt, force):
     Creating a constraint can produce a 'benign' error if it already exists.
     If `force` is true, such an error is ignored.
 
-    Dropping cannot produce benign errors because of the 'if exists'
-    clause, so we don't need to check for that.
-
     :param Statement stmt:
     :param bool force:
     :return: None
@@ -57,8 +54,6 @@ def _check_stmt_err(stmt, force):
     if stmt.err is None:
         return
 
-    creating = 'add constraint' in stmt.sql.lower()
-
     # Detect error 42P16: multiple primary keys ... are not allowed
     already_exists = (
         hasattr(stmt.err, 'pgcode')
@@ -66,22 +61,19 @@ def _check_stmt_err(stmt, force):
         and psycopg2_errorcodes.lookup(
             stmt.err.pgcode) == 'INVALID_TABLE_DEFINITION')
 
-    if creating and force and already_exists:
+    if force and already_exists:
         return
 
     raise stmt.err
 
 
-UPDATE_TABLE_PREFIX = 'update_tmp_'
+def add_primary_keys(conn_str, model_version, force=False):
+    """Add primary keys to post-transformation tables.
 
+    This will add the primary keys to an instance of the PEDSnet data model.
 
-def move_primary_keys(conn_str, model_version, force=False):
-    """Move primary keys to post-transformation tables.
-
-    This will move the primary keys from the pre-transformation tables to the
-    post-transformation tables. The post-transformation tables are named
-    by prepending UPDATE_TABLE_PREFIX to the original table name.
-
+    Make sure the search path is configured properly in the connection
+    string or in the runtime environment.
 
     :param str conn_str:      database connection string
     :param str model_version: the model version of the PEDSnet database
@@ -94,7 +86,7 @@ def move_primary_keys(conn_str, model_version, force=False):
     # Log start of the function and set the starting time.
     log_dict = combine_dicts({'model_version': model_version, 'force': force},
                              get_conn_info_dict(conn_str))
-    task = 'moving primary keys to transformed tables'
+    task = 'adding primary keys'
     logger.info({'msg': task}, log_dict)
     start_time = time.time()
 
@@ -102,25 +94,17 @@ def move_primary_keys(conn_str, model_version, force=False):
     primary_keys = _primary_keys_from_model_version(model_version)
 
     # Make a set of statements for parallel execution.
-    stmts = StatementList()
+    stmts = StatementSet()
 
     pg = sqlalchemy.dialects.postgresql.dialect()
 
     # Add statements for each pair of tables
     for pk in primary_keys:
-        orig_table = pk.table.name
-        tmp_table = UPDATE_TABLE_PREFIX + orig_table
-        drop_tpl = 'alter table {0} drop constraint if exists {1} cascade'
-        drop_sql = drop_tpl.format(orig_table, pk.name)
-        stmts.append(Statement(drop_sql))
         add_sql = str(sqlalchemy.schema.AddConstraint(pk).compile(dialect=pg))
-        add_sql = re.sub('ALTER TABLE ' + orig_table,
-                         'ALTER TABLE ' + tmp_table,
-                         add_sql)
-        stmts.append(Statement(add_sql))
+        stmts.add(Statement(add_sql))
 
     # Execute the statements in parallel.
-    stmts.serial_execute(conn_str)
+    stmts.parallel_execute(conn_str)
 
     # Check statements for any errors and raise exception if they are found.
     for stmt in stmts:

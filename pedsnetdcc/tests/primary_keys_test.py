@@ -4,9 +4,8 @@ import psycopg2
 import sqlalchemy
 import testing.postgresql
 
-from pedsnetdcc.move_primary_keys import (_primary_keys_from_model_version,
-                                          move_primary_keys,
-                                          UPDATE_TABLE_PREFIX)
+from pedsnetdcc.add_primary_keys import (_primary_keys_from_model_version,
+                                          add_primary_keys)
 
 from pedsnetdcc.utils import make_conn_str, stock_metadata
 from pedsnetdcc.db import Statement
@@ -25,7 +24,7 @@ def tearDownModule():
     Postgresql.clear_cache()
 
 
-class MovePrimaryKeysTest(unittest.TestCase):
+class AddPrimaryKeysTest(unittest.TestCase):
 
     def setUp(self):
         # Create a postgres database in a temp directory.
@@ -74,6 +73,8 @@ class MovePrimaryKeysTest(unittest.TestCase):
             self.assertIsNone(stmt.err)
 
     def test_move_primary_keys(self):
+        target_schema = 'target'
+
         self._make_update_tables()
         move_primary_keys(self.conn_str, self.model_version)
         with self.assertRaises(psycopg2.ProgrammingError):
