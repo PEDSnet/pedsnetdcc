@@ -1,21 +1,79 @@
-import dmsa
 import logging
 import re
 try:
     from urllib.parse import urlparse, parse_qs
 except ImportError:
     from urlparse import urlparse, parse_qs
-import sqlalchemy
-
-from pedsnetdcc import DATA_MODELS_SERVICE
-from pedsnetdcc.dict_logging import secs_since
+import shlex
 
 import dmsa
 import sqlalchemy
 
 from pedsnetdcc import DATA_MODELS_SERVICE
+from pedsnetdcc.dict_logging import secs_since
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_options(options):
+    """Parse an options value from a connection string.
+
+    :param str options: options string
+    :return: dictionary of options keys/values
+     :rtype: dict
+    """
+    o_dict = {}
+    options_val = options.strip("'")
+    options = [o.strip() for o in options_val.split('-c ')]
+    for option in options:
+        if not option:
+            continue
+        k, v = option.split('=', 1)
+        o_dict[k] = v
+    return o_dict
+
+
+def _make_options(o_dict):
+    """Join options dict back into a valid options string.
+
+    :param str options_dict:
+    :return: options string for use in connection string
+    :rtype: str
+    """
+    return ' '.join(
+        ["-c {}={}".format(k, o_dict[k]) for k in sorted(o_dict)])
+
+
+def _conn_str_sort_key(key):
+    """Provide pseudo-consistent ordering of components of a connection string.
+
+    This is of no value except to aid in debugging.
+
+    :param key: key
+    :return: numeric `key` value usable by e.g. `sorted`
+    """
+    if key == 'host':
+        return ' 1'
+    if key == 'port':
+        return ' 2'
+    if key == 'dbname':
+        return ' 3'
+    if key == 'user':
+        return ' 4'
+    if key == 'password':
+        return ' 5'
+    return key.lower()
+
+
+def _make_conn_str(parts):
+    """Stitch a conn str together from a dictionary"""
+    pairs = []
+    for parts_key in sorted(parts.keys(), key=_conn_str_sort_key):
+        parts_value = parts[parts_key]
+        if ' ' in parts_value:
+            parts_value = "'{0}'".format(parts_value)
+        pairs.append('{0}={1}'.format(parts_key, parts_value))
+    return ' '.join(pairs)
 
 
 def make_conn_str(uri, search_path=None, password=None):
@@ -34,6 +92,8 @@ def make_conn_str(uri, search_path=None, password=None):
 
     See https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
 
+    TODO: this and `conn_str_with_search_path` can be refactored further.
+
     :param str uri:     The base uri to build the conn string from.
     :param search_path: An optional search path to include.
     :type search_path:  str or None
@@ -41,54 +101,77 @@ def make_conn_str(uri, search_path=None, password=None):
     :type password:     str or None
     :returns:           The constructed conn string.
     :rtype:             str
-    :raises ValueError: if more than one 'options' query parameter is given in `uri`.
+    :raises ValueError: if more than one of any value is given in `uri`.
     """  # noqa
 
     components = urlparse(uri)
     params = parse_qs(components.query)
-    parts = []
+    parts = dict()
 
     if components.hostname:
-        parts.append('host=' + components.hostname)
+        parts['host'] = components.hostname
     if components.port:
-        parts.append('port=' + str(components.port))
+        parts['port'] = str(components.port)
     if components.path:
-        parts.append('dbname=' + components.path.lstrip('/'))
+        parts['dbname'] = components.path.lstrip('/')
     if components.username:
-        parts.append('user=' + components.username)
+        parts['user'] = components.username
     if password:
-        parts.append('password=' + password)
+        parts['password'] = password
     elif components.password:
-        parts.append('password=' + components.password)
+        parts['password'] = components.password
 
-    o_dict = {}
     if 'options' in params:
         if len(params['options']) > 1:
-            raise ValueError("More than one `options` query parameter in uri.")
-        options_val = params['options'][0].strip("'")
-        options = [o.strip() for o in options_val.split('-c ')]
-        for option in options:
-            if not option:
-                continue
-            k, v = option.split('=', 1)
-            o_dict[k] = v
+            raise ValueError("more than one `options` query parameter in uri")
+        o_dict = _parse_options(params['options'][0])
+    else:
+        o_dict = {}
 
     if search_path:
         o_dict['search_path'] = search_path
-
-    options_value = ' '.join(
-        ["-c {}={}".format(k, o_dict[k]) for k in sorted(o_dict)])  # noqa
+    options_value = _make_options(o_dict)
     if options_value:
-        params['options'] = [options_value]
+        parts['options'] = options_value
 
-    for k in sorted(params):
+    for k in params:
+        if k == 'options':
+            continue   # We already dealt with options
         values = params[k]
-        for value in values:
-            if ' ' in value:
-                value = "'{}'".format(value)
-            parts.append('{0}={1}'.format(k, value))
+        if len(values) > 1:
+            raise ValueError("more than one `k` query parameter in uri")
+        parts[k] = values[0]
 
-    return ' '.join(parts)
+    return _make_conn_str(parts)
+
+
+def conn_str_with_search_path(conn_str, search_path):
+    """Patch a libpq connection string with the specified search_path.
+
+    `search_path` is incorporated into the connection string
+    via the `options` parameter, overriding any existing search_path in the
+    connection string.
+
+    See https://www.postgresql.org/docs/current/static/libpq-connect.html#LIBPQ-CONNSTRING
+
+    :param str conn_str: The initial connection string.
+    :param str search_path: Search path to include.
+    :returns:           The patched connection string.
+    :rtype:             str
+    :raises ValueError: if more than one 'options' query parameter is given in `uri`.
+    """
+    pairs = shlex.split(conn_str)
+    pair_dict = dict()
+    for pair in pairs:
+        key, value = pair.split('=', 1)
+        pair_dict[key] = value
+    if 'options' not in pair_dict:
+        pair_dict['options'] = '-c search_path={0}'.format(search_path)
+    else:
+        o_dict = _parse_options(pair_dict['options'])
+        o_dict['search_path'] = search_path
+        pair_dict['options'] = _make_options(o_dict)
+    return _make_conn_str(pair_dict)
 
 
 def get_conn_info_dict(conn_str):
