@@ -18,7 +18,7 @@ class SiteNameTransform(Transform):
 
         if 'site' not in metadata.info:
             logger.critical({
-                'msg': 'Site name not passed for site name transform.'
+                'msg': 'metadata.info dict should have `site` entry'
             })
             raise RuntimeError
 
