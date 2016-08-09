@@ -4,73 +4,107 @@ import sqlalchemy.dialects.postgresql
 import unittest
 
 from pedsnetdcc.id_mapping_transform import IDMappingTransform
-from pedsnetdcc.tests.transform_test_utils import clean
-from pedsnetdcc.utils import make_conn_str
+from pedsnetdcc.utils import make_conn_str, stock_metadata
 
 
 class IDMappingTransformTest(unittest.TestCase):
 
     def setUp(self):
-        self.metadata = sqlalchemy.MetaData()
+        self.metadata = stock_metadata('2.2.0')
 
-        foo_id_col = sqlalchemy.Column('id', sqlalchemy.Integer,
-                                       primary_key=True)
-        bar_fk_col = sqlalchemy.Column('bar_id', sqlalchemy.Integer,
-                                       sqlalchemy.ForeignKey('bar.id'))
-        baz_fk_col = sqlalchemy.Column('baz_id', sqlalchemy.Integer,
-                                       sqlalchemy.ForeignKey('baz.id'),
-                                       nullable=False)
-        self.foo_tbl = sqlalchemy.Table('foo', self.metadata, foo_id_col,
-                                        bar_fk_col, baz_fk_col)
+    def test_modify_person_select(self):
 
-        bar_id_col = sqlalchemy.Column('id', sqlalchemy.Integer,
-                                       primary_key=True)
-        self.bar_tbl = sqlalchemy.Table('bar', self.metadata, bar_id_col)
+        person = self.metadata.tables['person']
 
-        baz_id_col = sqlalchemy.Column('id', sqlalchemy.Integer,
-                                       primary_key=True)
-        self.baz_tbl = sqlalchemy.Table('baz', self.metadata, baz_id_col)
+        s = sqlalchemy.select([person])
+        j = person
 
-    def test_modify_select(self):
+        s, j = IDMappingTransform.modify_select(self.metadata, 'person', s, j)
 
-        select_obj, join_obj = IDMappingTransform.modify_select(self.metadata,
-                                                                'foo')
+        s = s.select_from(j)
 
-        select_obj = select_obj.select_from(join_obj)
+        sql = str(s.compile(dialect=sqlalchemy.dialects.postgresql.dialect()))
 
-        new_sql = str(select_obj.compile(
-            dialect=sqlalchemy.dialects.postgresql.dialect()))
+        self.assertIn('person.person_id AS site_id', sql)
+        self.assertIn('person_ids.dcc_id AS person_id', sql)
+        self.assertIn('location_ids.dcc_id AS location_id', sql)
+        self.assertIn('care_site_ids.dcc_id AS care_site_id', sql)
+        self.assertIn('provider_ids.dcc_id AS provider_id', sql)
+        self.assertIn('JOIN person_ids ON person.person_id ='
+                      ' person_ids.site_id', sql)
+        self.assertIn('JOIN care_site_ids ON person.care_site_id ='
+                      ' care_site_ids.site_id', sql)
+        self.assertIn('LEFT OUTER JOIN provider_ids ON person.provider_id ='
+                      ' provider_ids.site_id', sql)
+        self.assertIn('LEFT OUTER JOIN location_ids ON person.location_id ='
+                      ' location_ids.site_id', sql)
 
-        # Two versions since ordering is not guaranteed.
-        expected1 = clean("""
-          SELECT foo_ids.dcc_id AS id,
-            bar_ids.dcc_id AS bar_id,
-            baz_ids.dcc_id AS baz_id
-          {NL}FROM foo
-            JOIN foo_ids ON foo.id = foo_ids.site_id
-            LEFT OUTER JOIN bar_ids ON foo.bar_id = bar_ids.site_id
-            JOIN baz_ids ON foo.baz_id = baz_ids.site_id
-          """)
+    def test_modify_fact_relationship_select(self):
 
-        expected2 = clean("""
-          SELECT foo_ids.dcc_id AS id,
-            bar_ids.dcc_id AS bar_id,
-            baz_ids.dcc_id AS baz_id
-          {NL}FROM foo
-            JOIN foo_ids ON foo.id = foo_ids.site_id
-            LEFT OUTER JOIN bar_ids ON foo.bar_id = bar_ids.site_id
-            JOIN baz_ids ON foo.baz_id = baz_ids.site_id
-          """)
+        fact_rel = self.metadata.tables['fact_relationship']
 
-        self.assertTrue(new_sql == expected1 or new_sql == expected2)
+        s = sqlalchemy.select([fact_rel])
+        j = fact_rel
+
+        s, j = IDMappingTransform.modify_select(self.metadata,
+                                                'fact_relationship', s, j)
+
+        s = s.select_from(j)
+
+        stmt = s.compile(dialect=sqlalchemy.dialects.postgresql.dialect())
+
+        sql = str(stmt) % stmt.params
+
+        self.assertIn('fact_relationship.fact_id_1 AS site_id_1', sql)
+        self.assertIn('fact_relationship.fact_id_2 AS site_id_2', sql)
+        self.assertIn('CASE fact_relationship.domain_concept_id_1'
+                      ' WHEN 8 THEN visit_occurrence_ids_1.dcc_id'
+                      ' WHEN 27 THEN observation_ids_1.dcc_id'
+                      ' WHEN 21 THEN measurement_ids_1.dcc_id'
+                      ' END AS fact_id_1', sql)
+        self.assertIn('CASE fact_relationship.domain_concept_id_2'
+                      ' WHEN 8 THEN visit_occurrence_ids_2.dcc_id'
+                      ' WHEN 27 THEN observation_ids_2.dcc_id'
+                      ' WHEN 21 THEN measurement_ids_2.dcc_id'
+                      ' END AS fact_id_2', sql)
+        self.assertIn('LEFT OUTER JOIN visit_occurrence_ids AS'
+                      ' visit_occurrence_ids_1 ON'
+                      ' fact_relationship.fact_id_1 ='
+                      ' visit_occurrence_ids_1.site_id AND'
+                      ' fact_relationship.domain_concept_id_1 = 8', sql)
+        self.assertIn('LEFT OUTER JOIN visit_occurrence_ids AS'
+                      ' visit_occurrence_ids_2 ON'
+                      ' fact_relationship.fact_id_2 ='
+                      ' visit_occurrence_ids_2.site_id AND'
+                      ' fact_relationship.domain_concept_id_2 = 8', sql)
+        self.assertIn('LEFT OUTER JOIN observation_ids AS'
+                      ' observation_ids_1 ON'
+                      ' fact_relationship.fact_id_1 ='
+                      ' observation_ids_1.site_id AND'
+                      ' fact_relationship.domain_concept_id_1 = 27', sql)
+        self.assertIn('LEFT OUTER JOIN observation_ids AS'
+                      ' observation_ids_2 ON'
+                      ' fact_relationship.fact_id_2 ='
+                      ' observation_ids_2.site_id AND'
+                      ' fact_relationship.domain_concept_id_2 = 27', sql)
+        self.assertIn('LEFT OUTER JOIN measurement_ids AS'
+                      ' measurement_ids_1 ON'
+                      ' fact_relationship.fact_id_1 ='
+                      ' measurement_ids_1.site_id AND'
+                      ' fact_relationship.domain_concept_id_1 = 21', sql)
+        self.assertIn('LEFT OUTER JOIN measurement_ids AS'
+                      ' measurement_ids_2 ON'
+                      ' fact_relationship.fact_id_2 ='
+                      ' measurement_ids_2.site_id AND'
+                      ' fact_relationship.domain_concept_id_2 = 21', sql)
 
     def test_modify_metadata(self):
         metadata = IDMappingTransform.modify_metadata(self.metadata)
-
-        self.assertTrue('site_id' in metadata.tables['foo'].c)
+        self.assertTrue('site_id' in metadata.tables['person'].c)
+        self.assertFalse('site_id' in metadata.tables['fact_relationship'].c)
 
     def test_pre_transform(self):
-
+        # TODO: run pre transform with test data to ensure it works
         dburi_var = 'PEDSNETDCC_TEST_DBURI'
         search_path_var = 'PEDSNETDCC_TEST_SEARCH_PATH'
         if (dburi_var not in os.environ and
@@ -81,8 +115,7 @@ class IDMappingTransformTest(unittest.TestCase):
                     dburi_var, search_path_var))
         conn_str = make_conn_str(uri=os.environ[dburi_var],
                                  search_path=os.environ[search_path_var])
-        IDMappingTransform.pre_transform(conn_str, self.metadata, 'foo')
-        # TODO: verify function creation via introspection
+        IDMappingTransform.pre_transform(conn_str, self.metadata)
 
     def test_with_data(self):
         # TODO: use test data and verify transformation results

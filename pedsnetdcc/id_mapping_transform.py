@@ -37,10 +37,6 @@ last_id_table_name_tmpl = "dcc_{table_name}_id"
 logger = logging.getLogger(__name__)
 
 
-class IDMappingPreTransformStatementList(StatementList):
-    pass
-
-
 class IDMappingTransform(Transform):
 
     @classmethod
