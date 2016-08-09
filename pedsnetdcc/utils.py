@@ -9,6 +9,7 @@ except ImportError:
 import shlex
 
 import dmsa
+from psycopg2 import errorcodes as psycopg2_errorcodes
 import sqlalchemy
 
 from pedsnetdcc import DATA_MODELS_SERVICE, VOCAB_TABLES
@@ -385,3 +386,21 @@ def vacuum(conn_str, model_version, analyze=False, vocabulary=False,
         if stmt.err:
             raise DatabaseError(
                 'setting tables to logged: {}: {}'.format(stmt.sql, stmt.err))
+
+
+def pg_error(stmt):
+    """Return the PostgresSQL condition name from a Statement result.
+
+    See https://www.postgresql.org/docs/9.5/static/errcodes-appendix.html.
+
+    If there is no error on the statement, an empty string will be returned.
+
+    :param Statement stmt: executed Statement
+    :return: PG condition name, or ''
+    :rtype: str
+    """
+    if hasattr(stmt.err, 'pgcode') and stmt.err.pgcode:
+        condition = psycopg2_errorcodes.lookup(stmt.err.pgcode)
+        if condition:
+            return condition
+    return ''

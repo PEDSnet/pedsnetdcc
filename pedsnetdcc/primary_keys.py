@@ -58,7 +58,7 @@ def _check_stmt_err(stmt, force):
     already_exists = (
         hasattr(stmt.err, 'pgcode')
         and stmt.err.pgcode
-        and psycopg2_errorcodes.lookup(
+        and psycopg2_errorcodes.c(
             stmt.err.pgcode) == 'INVALID_TABLE_DEFINITION')
 
     if force and already_exists:
