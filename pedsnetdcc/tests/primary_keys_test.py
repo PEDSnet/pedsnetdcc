@@ -1,13 +1,16 @@
 import unittest
+import urllib
 
 import psycopg2
 import sqlalchemy
 import testing.postgresql
 
-from pedsnetdcc.add_primary_keys import (_primary_keys_from_model_version,
-                                          add_primary_keys)
+from pedsnetdcc import VOCAB_TABLES
+from pedsnetdcc.primary_keys import (_primary_keys_from_model_version,
+                                     add_primary_keys)
 
-from pedsnetdcc.utils import make_conn_str, stock_metadata
+from pedsnetdcc.utils import (make_conn_str, stock_metadata,
+                              conn_str_with_search_path)
 from pedsnetdcc.db import Statement
 
 
@@ -63,20 +66,50 @@ class AddPrimaryKeysTest(unittest.TestCase):
         for pk in some_expected_pk_names:
             self.assertIn(pk, pk_names)
 
-    def _make_update_tables(self):
+    def _make_update_tables(self, conn_str):
         pks = [c for c in _primary_keys_from_model_version(self.model_version)
                if c]
         for pk in pks:
-            tpl = 'create table {pfx}{tbl} as select * from {tbl}'
-            sql = tpl.format(tbl=pk.table.name, pfx=UPDATE_TABLE_PREFIX)
-            stmt = Statement(sql).execute(self.conn_str)
+            tpl = 'create table {tbl} as select * from {tbl}'
+            sql = tpl.format(tbl=pk.table.name)
+            stmt = Statement(sql).execute(conn_str)
             self.assertIsNone(stmt.err)
 
-    def test_move_primary_keys(self):
-        target_schema = 'target'
+    def _check_primary_keys(self, dburi):
+        # Sadly, creating an engine in sqlalchemy requires a URL, not a
+        # connection string.
+        new_engine = sqlalchemy.create_engine(dburi)
+        for t in self.metadata.sorted_tables:
+            if t.name not in VOCAB_TABLES and t.primary_key:
+                tbl = sqlalchemy.Table(t.name, sqlalchemy.MetaData(),
+                                       autoload=True,
+                                       autoload_with=new_engine)
+                self.assertTrue(tbl.primary_key and tbl.primary_key.name ==
+                                t.primary_key.name)
 
-        self._make_update_tables()
-        move_primary_keys(self.conn_str, self.model_version)
+    def test_add_primary_keys(self):
+        target_schema = 'target'
+        stmt = Statement('create schema ' + target_schema).execute(
+            self.conn_str)
+        self.assertIsNone(stmt.err)
+
+        search_path = target_schema + ',' + 'public'
+        new_conn_str = conn_str_with_search_path(self.conn_str, search_path)
+
+        self._make_update_tables(new_conn_str)
+
+        add_primary_keys(new_conn_str, self.model_version)
+
+        new_dburi = self.dburi + '?' + urllib.quote_plus("options='-c search_path={0}'".format(
+            search_path))
+        self._check_primary_keys(new_dburi)
+
+    def test_double_add_primary_keys(self):
+        self.test_add_primary_keys()
+
+        target_schema = 'target'
+        search_path = target_schema + ',' + 'public'
+        new_conn_str = conn_str_with_search_path(self.conn_str, search_path)
+
         with self.assertRaises(psycopg2.ProgrammingError):
-            move_primary_keys(self.conn_str, self.model_version)
-        move_primary_keys(self.conn_str, self.model_version, force=True)
+            add_primary_keys(new_conn_str, self.model_version)

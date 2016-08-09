@@ -125,3 +125,6 @@ def add_primary_keys(conn_str, model_version, force=False):
 
     # If reached without error, then success!
     return True
+
+
+# TODO: write `drop_primary_keys`; but we don't need this now
