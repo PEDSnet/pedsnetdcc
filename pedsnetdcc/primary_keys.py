@@ -87,23 +87,21 @@ def add_primary_keys(conn_str, model_version, force=False):
     log_dict = combine_dicts({'model_version': model_version, 'force': force},
                              get_conn_info_dict(conn_str))
     task = 'adding primary keys'
-    logger.info({'msg': task}, log_dict)
+    logger.info(combine_dicts({'msg': 'starting {0}'.format(task)}, log_dict))
     start_time = time.time()
 
-    # Get list of primary keys for that need creation.
+    # Get list of primary keys that need to be created.
     primary_keys = _primary_keys_from_model_version(model_version)
 
-    # Make a set of statements for parallel execution.
+    # Make a set of statements and execute them in parallel.
     stmts = StatementSet()
 
     pg = sqlalchemy.dialects.postgresql.dialect()
 
-    # Add statements for each pair of tables
     for pk in primary_keys:
         add_sql = str(sqlalchemy.schema.AddConstraint(pk).compile(dialect=pg))
         stmts.add(Statement(add_sql))
 
-    # Execute the statements in parallel.
     stmts.parallel_execute(conn_str)
 
     # Check statements for any errors and raise exception if they are found.
@@ -111,9 +109,9 @@ def add_primary_keys(conn_str, model_version, force=False):
         try:
             _check_stmt_err(stmt, force)
         except:
-            logger.error(combine_dicts({'msg': 'Fatal error',
-                                        'sql': stmt.sql,
-                                        'err': str(stmt.err)}, log_dict))
+            logger.error(combine_dicts(
+                {'msg': 'Fatal error', 'sql': stmt.sql, 'err': str(stmt.err)},
+                log_dict))
             logger.info(combine_dicts({'msg': '{0} failed'.format(task),
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
