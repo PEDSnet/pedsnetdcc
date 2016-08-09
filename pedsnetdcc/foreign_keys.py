@@ -51,7 +51,7 @@ def _check_stmt_err(stmt, force):
     :return: None
     :raise: DatabaseError if error in a statement
     :raise: psycopg2.OperationalError if connection error
-    """     
+    """
     if stmt.err is None:
         return
 

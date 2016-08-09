@@ -2,6 +2,7 @@ import logging
 import re
 import time
 
+from pedsnetdcc import SITES
 from pedsnetdcc.db import (Statement, StatementList)
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_err
@@ -43,8 +44,7 @@ def _sites_and_dcc(dcc_only=False):
     if dcc_only:
         return 'dcc',
     else:
-        return ('dcc', 'chop', 'colorado', 'nationwide', 'nemours', 'seattle',
-                'stlouis')
+        return ('dcc',) + SITES
 
 
 def _version_to_shorthand(version):

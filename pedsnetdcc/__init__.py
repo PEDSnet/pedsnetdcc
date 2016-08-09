@@ -24,6 +24,8 @@ def get_version(short=False):
 
 __version__ = get_version()
 
+# TODO: This should be a function that takes the model version, since it
+# may change over time.
 VOCAB_TABLES = (
     'vocabulary',
     'concept',
@@ -44,6 +46,10 @@ FACT_RELATIONSHIP_DOMAINS = {
     'measurement': 21,
     'visit_occurrence': 8
 }
+
+SITE_ROOT = '/data/site_data'
+SITES = ('chop', 'colorado', 'nationwide', 'nemours', 'seattle', 'stlouis')
+BACKUP_ROOT = '/mnt/isilon/pedsnet/archives/ftp/'
 
 _dms_var = 'PEDSNETDCC_DMS_URL'
 if _dms_var in os.environ:
