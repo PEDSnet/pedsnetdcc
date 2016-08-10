@@ -35,10 +35,9 @@ class AgeTest(unittest.TestCase):
                             Column('person_id', Integer),
                             Column('time_of_birth', DateTime))
 
-        AgeTransform.columns = (
-            ('table1', 'foo_start_time'),
-            ('table1', 'bar_start_time')
-        )
+        AgeTransform.columns_by_table = {
+            'table1': ('foo_start_time', 'bar_start_time'),
+        }
 
     def test_modify_select(self):
 
@@ -47,7 +46,7 @@ class AgeTest(unittest.TestCase):
 
         select_obj, join_obj = AgeTransform.modify_select(
             self.metadata,
-            'user',
+            'table1',
             select_obj,
             join_obj)
 
@@ -65,6 +64,30 @@ class AgeTest(unittest.TestCase):
             AS bar_start_age_in_months
           {NL}FROM table1
             JOIN person ON person.person_id = table1.person_id
+          """)
+
+        self.maxDiff = None
+        self.assertEqual(new_sql, expected)
+
+    def test_modify_select_negative(self):
+
+        select_obj = select([self.table2])
+        join_obj = self.table2
+
+        select_obj, join_obj = AgeTransform.modify_select(
+            self.metadata,
+            'table2',
+            select_obj,
+            join_obj)
+
+        select_obj = select_obj.select_from(join_obj)
+
+        new_sql = str(select_obj.compile(dialect=postgresql.dialect()))
+
+        expected = clean("""
+          SELECT table2.baz_start_time,
+            table2.person_id
+          {NL}FROM table2
           """)
 
         self.maxDiff = None
