@@ -1,6 +1,5 @@
 import logging
 
-from psycopg2 import errorcodes as psycopg2_errorcodes
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 
@@ -18,7 +17,6 @@ from pedsnetdcc.utils import (DatabaseError, get_conn_info_dict, combine_dicts,
 
 
 logger = logging.getLogger(__name__)
-
 
 
 def _transform_select_sql(model_version, site, target_schema):
@@ -44,9 +42,13 @@ def _transform_select_sql(model_version, site, target_schema):
     metadata.info['site'] = site
     stmt_pairs = set()
     for table_name, table in metadata.tables.items():
+        if table_name in VOCAB_TABLES:
+            continue
+
+        select_obj = sqlalchemy.select([table])
+        join_obj = table
+
         for transform in TRANSFORMS:
-            select_obj = sqlalchemy.select([table])
-            join_obj = table
 
             select_obj, join_obj = transform.modify_select(
                 metadata,
@@ -54,17 +56,17 @@ def _transform_select_sql(model_version, site, target_schema):
                 select_obj,
                 join_obj)
 
-            select_obj = select_obj.select_from(join_obj)
+        final_select_obj = select_obj.select_from(join_obj)
 
-            table_sql = str(
-                select_obj.compile(
-                    dialect=sqlalchemy.dialects.postgresql.dialect()))
+        table_sql = str(
+            final_select_obj.compile(
+                dialect=sqlalchemy.dialects.postgresql.dialect()))
 
-            final_sql = 'CREATE UNLOGGED TABLE {0}.{1} AS {2}'.format(
-                target_schema, table_name, table_sql)
-            msg = 'creating transformed copy of table {}'.format(table_name)
+        final_sql = 'CREATE UNLOGGED TABLE {0}.{1} AS {2}'.format(
+            target_schema, table_name, table_sql)
+        msg = 'creating transformed copy of table {}'.format(table_name)
 
-            stmt_pairs.add((final_sql, msg))
+        stmt_pairs.add((final_sql, msg))
 
     return stmt_pairs
 
@@ -102,28 +104,22 @@ def _transform(conn_str, model_version, site, target_schema, force=False):
 
     :param str conn_str: pq connection string
     :param str model_version: pedsnet model version
-    :param str schema: original primary schema (where tables are sitting)
     :param str target_schema: temporary schema to hold transformed tables
     :return: list of SQL statement strings
     :raise: psycopg2.ProgrammingError (from pre_transform)
     """
-    # old_metadata = stock_metadata(model_version)
-    # new_metadata = stock_metadata(model_version)
-    # for transform in TRANSFORMS:
-    #     transform.pre_transform(conn_str)
-    #     new_metadata = transform.modify_metadata(new_metadata)
-
 
     for transform in TRANSFORMS:
         transform.pre_transform(conn_str)
 
-    stmts = StatementSet()
+    # TODO: revert to StatementSet/parallel below
+    stmts = StatementList()
     for sql, msg in _transform_select_sql(model_version, site, target_schema):
-        stmts.add(Statement(sql, msg))
+        stmts.append(Statement(sql, msg))
 
     # Execute creation of transformed tables in parallel.
     # Note that the target schema is embedded in the SQL statements.
-    stmts.parallel_execute(conn_str)
+    stmts.serial_execute(conn_str)
     for stmt in stmts:
         # TODO: should we log all the individual errors at ERROR level?
         if stmt.err:
@@ -156,7 +152,8 @@ def _move_tables_statements(model_version, from_schema, to_schema):
     return stmts
 
 
-def run_transformation(conn_str, model_version, site, search_path, force):
+def run_transformation(conn_str, model_version, site, search_path,
+                       force=False):
     """Run all transformations, backing up existing tables to a backup schema.
 
     * Create new schema FOO_transformed.
@@ -164,15 +161,17 @@ def run_transformation(conn_str, model_version, site, search_path, force):
     * If there is a FOO_backup schema, drop it.
     * Create the FOO_backup schema.
     * Move the PEDSnet core tables from FOO into FOO_backup schema.
-    * Move the transformed PEDSnet core tables from the FOO_transformed schema to the FOO schema.
+    * Move the transformed PEDSnet core tables from the FOO_transformed
+    schema to the FOO schema.
     * The previous two steps can be done in a transaction.
 
-    :param conn_str:
-    :param model_version:
-    :param site:
-    :param search_path:
-    :param force:
-    :return: True if successful
+    :param str conn_str: pq connection string
+    :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str site: site label, e.g. 'stlouis'
+    :param str search_path: PostgreSQL schema search path
+    :param bool force: if True, ignore benign errors
+    :return: True if no exception raised
+    :rtype: bool
     """
     task = 'running transformation'
     log_dict = combine_dicts({'model_version': model_version,
@@ -234,7 +233,8 @@ def run_transformation(conn_str, model_version, site, search_path, force):
     stmts.append(create_schema_statement(backup_schema))
     stmts.extend(_move_tables_statements(conn_str, schema, backup_schema))
     stmts.extend(_move_tables_statements(conn_str, tmp_schema, schema))
-    stmts.append(drop_schema_statement(tmp_schema, cascade=True))
+    stmts.append(
+        drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
     stmts.serial_execute(conn_str, transaction=True)
     for stmt in stmts:
         # Must check through all results to find the first (and last) real
@@ -242,7 +242,13 @@ def run_transformation(conn_str, model_version, site, search_path, force):
         if stmt.err:
             if pg_error(stmt) == 'IN_FAILED_SQL_TRANSACTION':
                 continue
-            tpl = 'moving '
-            logger.error(combine_dicts({'msg': 'error ' + task, 'err': stmt.err},
+            logger.error(combine_dicts({'msg': 'error ' + task,
+                                        'submsg': stmt.msg,
+                                        'err': stmt.err,
+                                        'sql': stmt.sql},
                                        log_dict))
-            raise DatabaseError()
+            tpl = 'moving tables after transformation ({sql}): {err}'
+            raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
+
+    # TODO: I think we should just return None if
+    return True

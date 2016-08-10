@@ -1,7 +1,7 @@
 from psycopg2 import errorcodes as psycopg2_errorcodes
 
 from pedsnetdcc.db import Statement, StatementList
-from pedsnetdcc.utils import DatabaseError
+from pedsnetdcc.utils import DatabaseError, pg_error
 
 
 def create_schema_statement(schema):
@@ -27,16 +27,12 @@ def create_schema(conn_str, schema, force=False):
     :rtype bool:
     :raise: DatabaseError
     """
-    stmt = create_schema_statement().execute(conn_str)
+    stmt = create_schema_statement(schema).execute(conn_str)
     if stmt.err:
-        already_exists = (
-            hasattr(stmt.err, 'pgcode')
-            and stmt.err.pgcode
-            and psycopg2_errorcodes.lookup(
-                stmt.err.pgcode) == 'DUPLICATE_SCHEMA')
-        if not already_exists:
-            tpl = 'failed to create schema `{0}`: {1}'
-            raise DatabaseError(tpl.format(schema, stmt.err))
+        if force and pg_error(stmt) == 'DUPLICATE_SCHEMA':
+            return True
+        tpl = 'failed to create schema `{0}`: {1}'
+        raise DatabaseError(tpl.format(schema, stmt.err))
     return True
 
 
@@ -98,3 +94,21 @@ def primary_schema(search_path):
     if not schemas:
         raise ValueError('search_path must be non-empty')
     return schemas[0].strip()
+
+
+def schema_exists(conn_str, schema):
+    """Return True if schema exists in database; False otherwise.
+
+    :param str conn_str: pq connection string
+    :param str schema: name of schema to check
+    :return: whether schema exists or not
+    :rtype: bool
+    """
+    sql = "select 1 from information_schema.schemata " \
+        "where schema_name = '{}'".format(schema)
+    stmt = Statement(sql)
+    stmt.execute(conn_str)
+    if stmt.err:
+        tpl = 'error detecting schema {sch} ({sql}): {err}'
+        raise DatabaseError(tpl.format(sch=schema, sql=stmt.sql, err=stmt.err))
+    return len(stmt.data) > 0
