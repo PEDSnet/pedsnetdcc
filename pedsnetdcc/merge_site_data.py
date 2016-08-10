@@ -6,8 +6,13 @@ from psycopg2 import errorcodes as psycopg2_errorcodes
 from pedsnetdcc import VOCAB_TABLES, SITES
 from pedsnetdcc.db import Statement, StatementSet
 from pedsnetdcc.dict_logging import secs_since
+from pedsnetdcc.foreign_keys import add_foreign_keys
+from pedsnetdcc.indexes import add_indexes
+from pedsnetdcc.not_nulls import set_not_nulls
+from pedsnetdcc.primary_keys import add_primary_keys
 from pedsnetdcc.utils import (combine_dicts, get_conn_info_dict,
-                              stock_metadata, conn_str_with_search_path)
+                              stock_metadata, conn_str_with_search_path,
+                              set_logged, vacuum)
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +124,18 @@ def merge_site_data(model_version, conn_str, force=False):
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
+
+    # Set tables logged.
+    set_logged(conn_str, model_version)
+
+    # Add primary keys, not nulls, indexes, foreign keys.
+    add_primary_keys(conn_str, model_version, force)
+    set_not_nulls(conn_str, model_version)
+    add_indexes(conn_str, model_version, force)
+    add_foreign_keys(conn_str, model_version, force)
+
+    # Vacuum analyze tables for piney freshness.
+    vacuum(conn_str, model_version, analyze=True)
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished {0}'.format(task),
