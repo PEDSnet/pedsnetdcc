@@ -9,7 +9,7 @@ import shlex
 import dmsa
 import sqlalchemy
 
-from pedsnetdcc import DATA_MODELS_SERVICE
+from pedsnetdcc import DATA_MODELS_SERVICE, VOCAB_TABLES
 from pedsnetdcc.dict_logging import secs_since
 
 logger = logging.getLogger(__name__)
@@ -159,7 +159,7 @@ def conn_str_with_search_path(conn_str, search_path):
     :returns:           The patched connection string.
     :rtype:             str
     :raises ValueError: if more than one 'options' query parameter is given in `uri`.
-    """
+    """  # noqa
     pairs = shlex.split(conn_str)
     pair_dict = dict()
     for pair in pairs:
@@ -286,3 +286,102 @@ def stock_metadata(model_version):
     return dmsa.make_model_from_service('pedsnet', model_version,
                                         DATA_MODELS_SERVICE,
                                         metadata)
+
+
+# TODO: I'm not sure this belongs in utils since it executes SQL.
+def set_logged(conn_str, model_version, vocabulary=False, tables=None):
+    """Set PEDSnet tables to logged.
+
+    `Logged` is the default state of PostgreSQL tables. Presumably for
+    performance reasons, tables are sometimes created as `unlogged` prior
+    to batch load. If the `tables` list of table names is given, those tables
+    are operated on. Otherwise, all non-vocabulary tables (or only the
+    vocabulary tables, depending on the `vocabulary` bool) in the model version
+    are operated on.
+
+    :param str conn_str:      pq connection string
+    :param str model_version: pedsnet model version
+    :param bool vocabulary:   whether to operate on vocabulary tables
+    :param list(str) tables:  list of table names to operate on (overrides)
+    :return:
+    :raises DatabaseError:    if any of the SQL statements cause an error
+    """
+
+    from pedsnetdcc.db import Statement, StatementSet
+
+    table_names = tables or []
+
+    if not table_names:
+        # TODO: Use transformed version of this?
+        metadata = stock_metadata(model_version)
+        if vocabulary:
+            table_names = list(VOCAB_TABLES)
+        else:
+            table_names = list(set(metadata.tables.keys()) - set(VOCAB_TABLES))
+
+    stmts = StatementSet()
+
+    sql_tpl = 'alter table {} set logged'
+    msg_tpl = 'setting table {} to logged'
+
+    for table in table_names:
+        stmts.add(Statement(sql_tpl.format(table), msg_tpl.format(table)))
+
+    stmts.parallel_execute(conn_str)
+
+    # TODO: Implement more consistent error handling. (With force?)
+    for stmt in stmts:
+        if stmt.err:
+            raise DatabaseError(
+                'setting tables to logged: {}: {}'.format(stmt.sql, stmt.err))
+
+
+# TODO: I'm not sure this belongs in utils since it executes SQL.
+def vacuum(conn_str, model_version, analyze=False, vocabulary=False,
+           tables=None):
+    """VACUUM (and optionally ANAYLZE) tables in a PEDSnet database
+
+    VACUUM (ANALYZE)s tables in a PEDSnet database of a particular version. If
+    the `tables` list of table names is given, those tables are operated on.
+    Otherwise, all non-vocabulary tables (or only the vocabulary tables,
+    depending on the `vocabulary` bool) in the model version are operated on.
+
+    :param str conn_str:      libpq connection string
+    :param str model_version: pedsnet model version
+    :param bool analyze:      whether to ANALYZE or not
+    :param bool vocabulary:   whether to operate on vocabulary tables
+    :param list(str) tables:  list of table names to operate on (overrides)
+    :return:
+    :raises DatabaseError:    if any of the SQL statements cause an error
+    """
+
+    from pedsnetdcc.db import Statement, StatementSet
+
+    table_names = tables or []
+
+    if not table_names:
+        # TODO: Use transformed version of this?
+        metadata = stock_metadata(model_version)
+        if vocabulary:
+            table_names = list(VOCAB_TABLES)
+        else:
+            table_names = list(set(metadata.tables.keys()) - set(VOCAB_TABLES))
+
+    stmts = StatementSet()
+
+    sql_tpl = 'VACUUM {0}'
+    if analyze:
+        sql_tpl = 'VACUUM ANALYZE {0}'
+
+    msg_tpl = 'vacuuming {0}'
+
+    for table in table_names:
+        stmts.add(Statement(sql_tpl.format(table), msg_tpl.format(table)))
+
+    stmts.parallel_execute(conn_str)
+
+    # TODO: Implement more consistent error handling.
+    for stmt in stmts:
+        if stmt.err:
+            raise DatabaseError(
+                'setting tables to logged: {}: {}'.format(stmt.sql, stmt.err))
