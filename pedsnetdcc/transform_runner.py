@@ -110,7 +110,7 @@ def _transform(conn_str, model_version, site, target_schema, force=False):
     """
 
     for transform in TRANSFORMS:
-        transform.pre_transform(conn_str)
+        transform.pre_transform(conn_str, stock_metadata(model_version))
 
     # TODO: revert to StatementSet/parallel below
     stmts = StatementList()

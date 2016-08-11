@@ -1,5 +1,4 @@
 import unittest
-import urllib
 
 import sqlalchemy
 import testing.postgresql
@@ -63,14 +62,17 @@ class TransformRunnerTest(unittest.TestCase):
                            'public')
 
         # Verify that the original tables exist in the `public_backup` schema.
-        self.assertEqual(self._expected_column_names(orig_metadata, 'measurement'),
-                         self._actual_column_names('public_backup', 'measurement'))
+        self.assertEqual(self._expected_column_names(orig_metadata,
+                                                     'measurement'),
+                         self._actual_column_names('public_backup',
+                                                   'measurement'))
 
         # Verify that the transformed tables exist in the `public` schema.
         trans_metadata = stock_metadata(self.model_version)
         for t in TRANSFORMS:
             trans_metadata = t.modify_metadata(trans_metadata)
-        self.assertEqual(self._expected_column_names(trans_metadata, 'measurement'),
+        self.assertEqual(self._expected_column_names(trans_metadata,
+                                                     'measurement'),
                          self._actual_column_names('public', 'measurement'))
 
         # Verify that the `public_transformed` schema does not exist.
