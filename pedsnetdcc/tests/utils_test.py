@@ -4,7 +4,7 @@ import unittest
 import sqlalchemy
 import testing.postgresql
 
-from pedsnetdcc.db import Statement, StatementList
+from pedsnetdcc.db import Statement
 from pedsnetdcc.utils import (make_conn_str, get_conn_info_dict,
                               conn_str_with_search_path, set_logged,
                               vacuum, stock_metadata)
@@ -226,13 +226,12 @@ class SetLoggedTest(unittest.TestCase):
 
         set_logged(self.conn_str, self.model_version, tables=['person'])
 
-        stmts = StatementList()
-        stmts.append(Statement('SELECT pg_is_in_recovery'))
-        stmts.append(Statement('SELECT * FROM person'))
+        # As per https://stackoverflow.com/questions/29899359/how-to-check-table-unlogged-with-postgresql  # noqa
+        stmt = Statement('SELECT relpersistence FROM pg_class WHERE relname ='
+                         ' \'person\'')
+        stmt.execute(self.conn_str)
 
-        stmts.serial_execute(self.conn_str, transaction=True)
-
-        self.assertTrue(stmts[1].err)
+        self.assertEqual(stmt.data[0][0], 'p')
 
 
 class VacuumTest(unittest.TestCase):

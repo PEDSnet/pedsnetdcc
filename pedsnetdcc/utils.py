@@ -339,7 +339,7 @@ def set_logged(conn_str, model_version, vocabulary=False, tables=None):
 # TODO: I'm not sure this belongs in utils since it executes SQL.
 def vacuum(conn_str, model_version, analyze=False, vocabulary=False,
            tables=None):
-    """VACUUM (and optionally ANAYLZE) tables in a PEDSnet database
+    """VACUUM (and optionally ANALYZE) tables in a PEDSnet database
 
     VACUUM (ANALYZE)s tables in a PEDSnet database of a particular version. If
     the `tables` list of table names is given, those tables are operated on.
@@ -357,15 +357,13 @@ def vacuum(conn_str, model_version, analyze=False, vocabulary=False,
 
     from pedsnetdcc.db import Statement, StatementSet
 
-    table_names = tables or []
-
-    if not table_names:
+    if not tables:
         # TODO: Use transformed version of this?
         metadata = stock_metadata(model_version)
         if vocabulary:
-            table_names = list(VOCAB_TABLES)
+            tables = list(VOCAB_TABLES)
         else:
-            table_names = list(set(metadata.tables.keys()) - set(VOCAB_TABLES))
+            tables = list(set(metadata.tables.keys()) - set(VOCAB_TABLES))
 
     stmts = StatementSet()
 
@@ -375,7 +373,7 @@ def vacuum(conn_str, model_version, analyze=False, vocabulary=False,
 
     msg_tpl = 'vacuuming {0}'
 
-    for table in table_names:
+    for table in tables:
         stmts.add(Statement(sql_tpl.format(table), msg_tpl.format(table)))
 
     stmts.parallel_execute(conn_str)
