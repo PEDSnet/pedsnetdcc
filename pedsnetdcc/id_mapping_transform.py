@@ -63,7 +63,7 @@ class IDMappingTransform(Transform):
             tpl_vars = {'table_name': table_name}
 
             # Error if the table has more than one primary key column.
-            if len(list(table.primary_key.columns.keys())) > 1:
+            if len(table.primary_key.columns) > 1:
                 err = ValueError('cannot generate IDs for multi-column primary'
                                  ' key on table {0}'.format(table_name))
                 logger.error({'msg': 'exiting ID mapping pre-transform',
@@ -71,7 +71,7 @@ class IDMappingTransform(Transform):
                 raise err
 
             # Error if the table has no primary key column (except death).
-            if len(list(table.primary_key.columns.keys())) == 0:
+            if len(table.primary_key.columns) == 0:
                 if table_name == 'death':
                     continue
                 err = ValueError('cannot generate IDs for table {0} with no'
@@ -156,13 +156,13 @@ class IDMappingTransform(Transform):
         table = metadata.tables[table_name]
 
         # Raise error if attempted on a multi-column primary key table.
-        if len(list(table.primary_key.columns.keys())) > 1:
+        if len(table.primary_key.columns) > 1:
             raise ValueError('cannot map IDs for multi-column primary key'
                              ' on table {0}'.format(table_name))
 
         # Skip primary key mapping if there is none (fact_relationship and pre
         # 2.3 death tables).
-        if not len(list(table.primary_key.columns.keys())) == 0:
+        if not len(table.primary_key.columns) == 0:
 
             # Get primary key name and mapping table name, defined by
             # convention.
@@ -315,12 +315,12 @@ class IDMappingTransform(Transform):
         See Transform.modify_table for signature.
         """
 
-        if len(list(table.primary_key.columns.keys())) == 1:
-            new_col = sqlalchemy.Column('site_id', sqlalchemy.String(32))
+        if len(table.primary_key.columns) == 1:
+            new_col = sqlalchemy.Column('site_id', sqlalchemy.Integer)
             table.append_column(new_col)
 
         if table.name == 'fact_relationship':
-            new_col_1 = sqlalchemy.Column('site_id_1', sqlalchemy.String(32))
-            new_col_2 = sqlalchemy.Column('site_id_2', sqlalchemy.String(32))
+            new_col_1 = sqlalchemy.Column('site_id_1', sqlalchemy.Integer)
+            new_col_2 = sqlalchemy.Column('site_id_2', sqlalchemy.Integer)
             table.append_column(new_col_1)
             table.append_column(new_col_2)
