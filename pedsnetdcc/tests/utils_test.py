@@ -1,8 +1,29 @@
 import os
 import unittest
 
+import sqlalchemy
+import testing.postgresql
+
+from pedsnetdcc.db import Statement
 from pedsnetdcc.utils import (make_conn_str, get_conn_info_dict,
-                              conn_str_with_search_path)
+                              conn_str_with_search_path, set_logged,
+                              vacuum, stock_metadata)
+
+Postgresql = None
+
+
+def setUpModule():
+
+    # Generate a Postgresql class which caches the init-ed database across
+    # multiple ephemeral database cluster instances.
+    global Postgresql
+    Postgresql = testing.postgresql.PostgresqlFactory(
+        cache_initialized_db=True)
+
+
+def tearDownModule(self):
+    # Clear cached init-ed database at end of tests.
+    Postgresql.clear_cache()
 
 
 class MakeConnTest(unittest.TestCase):
@@ -178,3 +199,63 @@ class GetConnInfoDictTest(unittest.TestCase):
         expected = {'search_path': None, 'host': 'ahost',
                     'dbname': 'adb', 'port': None, 'user': 'auser'}
         self.assertEqual(conn_info, expected)
+
+
+class SetLoggedTest(unittest.TestCase):
+
+    def setUp(self):
+        # Create a postgres database in a temp directory.
+        self.postgresql = Postgresql()
+        self.dburi = self.postgresql.url()
+        self.conn_str = make_conn_str(self.dburi)
+        self.model_version = '2.3.0'
+        self.engine = sqlalchemy.create_engine(self.dburi)
+        self.metadata = stock_metadata(self.model_version)
+
+    def tearDown(self):
+        # Destroy the postgres database.
+        self.postgresql.stop()
+
+    def test_set_logged(self):
+
+        self.metadata.tables['person'].create(self.engine)
+
+        stmt = Statement('ALTER TABLE person SET UNLOGGED')
+        stmt.execute(self.conn_str)
+        self.assertFalse(stmt.err)
+
+        set_logged(self.conn_str, self.model_version, tables=['person'])
+
+        # As per https://stackoverflow.com/questions/29899359/how-to-check-table-unlogged-with-postgresql  # noqa
+        stmt = Statement('SELECT relpersistence FROM pg_class WHERE relname ='
+                         ' \'person\'')
+        stmt.execute(self.conn_str)
+
+        self.assertEqual(stmt.data[0][0], 'p')
+
+
+class VacuumTest(unittest.TestCase):
+
+    def setUp(self):
+        # Create a postgres database in a temp directory.
+        self.postgresql = Postgresql()
+        self.dburi = self.postgresql.url()
+        self.conn_str = make_conn_str(self.dburi)
+        self.model_version = '2.3.0'
+        self.engine = sqlalchemy.create_engine(self.dburi)
+        self.metadata = stock_metadata(self.model_version)
+
+    def tearDown(self):
+        # Destroy the postgres database.
+        self.postgresql.stop()
+
+    def test_vacuum(self):
+
+        self.metadata.tables['person'].create(self.engine)
+        vacuum(self.conn_str, self.model_version, tables=['person'])
+
+    def test_vacuum_analyze(self):
+
+        self.metadata.tables['person'].create(self.engine)
+        vacuum(self.conn_str, self.model_version, analyze=True,
+               tables=['person'])

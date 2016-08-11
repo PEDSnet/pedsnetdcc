@@ -10,8 +10,9 @@ from pedsnetdcc.utils import make_conn_str, stock_metadata
 from pedsnetdcc import TRANSFORMS
 from pedsnetdcc.db import Statement
 
-
 logging.basicConfig(level=logging.DEBUG, filename="logfile")
+
+Postgresql = None
 
 
 def setUpModule():
@@ -36,15 +37,15 @@ class IndexesTest(unittest.TestCase):
         sql = _indexes_sql(self.model_version)
 
         sample_expected = (
-            'CREATE INDEX obs_otcn_89a4742c38ecb8ba35_ix ON observation (observation_type_concept_name)',
+            'CREATE INDEX obs_otcn_89a4742c38ecb8ba35_ix ON observation (observation_type_concept_name)',  # noqa
             'CREATE INDEX dea_s_4906dc6995505fc71431f_ix ON death (site)',
-            'CREATE INDEX vis_vsaim_f1537dca8da9ab914_ix ON visit_occurrence (visit_start_age_in_months)',
+            'CREATE INDEX vis_vsaim_f1537dca8da9ab914_ix ON visit_occurrence (visit_start_age_in_months)',  # noqa
         )
         for sample in sample_expected:
             self.assertIn(sample, sql)
 
         sample_not_expected = (
-            'CREATE INDEX idx_concept_vocabulary_id ON concept (vocabulary_id)',
+            'CREATE INDEX idx_concept_vocabulary_id ON concept (vocabulary_id)',  # noqa
         )
         for sample in sample_not_expected:
             self.assertNotIn(sample, sql)
@@ -71,14 +72,14 @@ class IndexesTest(unittest.TestCase):
 
         sample_expected = (
             'CREATE INDEX idx_concept_class_id ON concept (concept_class_id)',
-            'CREATE INDEX idx_concept_synonym_id ON concept_synonym (concept_id)'
+            'CREATE INDEX idx_concept_synonym_id ON concept_synonym (concept_id)'  # noqa
         )
         for sample in sample_expected:
             self.assertIn(sample, sql)
 
         sample_not_expected = (
-            'CREATE INDEX con_lcn_f7a508db6a172c78291_ix ON concept_synonym (language_concept_name)',
-            'CREATE INDEX con_s_d9ad76e415cb919c49e49_ix ON concept_class (site)'
+            'CREATE INDEX con_lcn_f7a508db6a172c78291_ix ON concept_synonym (language_concept_name)',  # noqa
+            'CREATE INDEX con_s_d9ad76e415cb919c49e49_ix ON concept_class (site)'  # noqa
         )
         for sample in sample_not_expected:
             self.assertNotIn(sample, sql)

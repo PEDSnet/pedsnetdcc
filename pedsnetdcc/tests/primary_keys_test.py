@@ -13,6 +13,8 @@ from pedsnetdcc.utils import (make_conn_str, stock_metadata,
                               conn_str_with_search_path)
 from pedsnetdcc.db import Statement
 
+Postgresql = None
+
 
 def setUpModule():
     # Generate a Postgresql class which caches the init-ed database across
@@ -100,8 +102,9 @@ class AddPrimaryKeysTest(unittest.TestCase):
 
         add_primary_keys(new_conn_str, self.model_version)
 
-        new_dburi = self.dburi + '?' + urllib.quote_plus("options='-c search_path={0}'".format(
-            search_path))
+        new_dburi = (self.dburi + '?' +
+                     urllib.quote_plus("options='-c search_path={0}'".format(
+                                       search_path)))
         self._check_primary_keys(new_dburi)
 
     def test_double_add_primary_keys(self):
