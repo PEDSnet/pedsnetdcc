@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 
+from pedsnetdcc import SITE_ROOT, SITES, BACKUP_ROOT
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +17,6 @@ logger = logging.getLogger(__name__)
 # (recursively) to the Isilon at the specified location.  If those
 # copies work without error (should probably do a fresh comparison
 # rather than relying on error codes), delete the timestamped directory.
-
-SITE_ROOT = '/data/site_data'
-SITES = ('chop', 'colorado', 'nationwide', 'nemours', 'seattle', 'stlouis')
-BACKUP_ROOT = '/mnt/isilon/pedsnet/archives/ftp/'
 
 
 def delete_csv_files(a_dir):
@@ -166,6 +163,7 @@ def backup_directory(site, site_dir, backup_dir):
             {'msg': 'Deleted {0}'.format(c_dir), 'dir': c_dir, 'site': site})
 
     return True
+
 
 def cleanup_site_directories(backup_root, site_root):
     """Entry point: backup and delete older site data directories"""
