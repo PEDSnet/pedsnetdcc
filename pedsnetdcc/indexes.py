@@ -97,6 +97,7 @@ def _check_stmt_err(stmt, force):
     dropping = stmt.sql.startswith('DROP')
     creating = stmt.sql.startswith('CREATE')
 
+    # Detect error 42P01 (doesn't exist); btw, an index is a table in PG
     does_not_exist = (
         hasattr(stmt.err, 'pgcode')
         and stmt.err.pgcode
