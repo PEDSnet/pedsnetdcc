@@ -89,14 +89,13 @@ def _transform(conn_str, model_version, site, target_schema, force=False):
     for transform in TRANSFORMS:
         transform.pre_transform(conn_str, stock_metadata(model_version))
 
-    # TODO: revert to StatementSet/parallel below
-    stmts = StatementList()
+    stmts = StatementSet()
     for sql, msg in _transform_select_sql(model_version, site, target_schema):
-        stmts.append(Statement(sql, msg))
+        stmts.add(Statement(sql, msg))
 
     # Execute creation of transformed tables in parallel.
     # Note that the target schema is embedded in the SQL statements.
-    stmts.serial_execute(conn_str)
+    stmts.parallel_execute(conn_str)
     for stmt in stmts:
         # TODO: should we log all the individual errors at ERROR level?
         if stmt.err:
