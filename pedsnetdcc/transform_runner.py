@@ -134,6 +134,7 @@ def _move_tables_statements(model_version, from_schema, to_schema):
 
     Vocabulary tables are ignored.
 
+    :param str model_version: pedsnet model version
     :param str from_schema: source schema
     :param str to_schema: destination schema
     :return: list of statements
@@ -231,8 +232,8 @@ def run_transformation(conn_str, model_version, site, search_path,
     stmts.append(
         drop_schema_statement(backup_schema, if_exists=True, cascade=True))
     stmts.append(create_schema_statement(backup_schema))
-    stmts.extend(_move_tables_statements(conn_str, schema, backup_schema))
-    stmts.extend(_move_tables_statements(conn_str, tmp_schema, schema))
+    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
+    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
     stmts.append(
         drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
     stmts.serial_execute(conn_str, transaction=True)
@@ -250,5 +251,4 @@ def run_transformation(conn_str, model_version, site, search_path,
             tpl = 'moving tables after transformation ({sql}): {err}'
             raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
 
-    # TODO: I think we should just return None if
     return True

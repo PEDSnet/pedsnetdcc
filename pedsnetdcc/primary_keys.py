@@ -54,11 +54,12 @@ def _check_stmt_err(stmt, force):
     if stmt.err is None:
         return
 
-    # Detect error 42P16: multiple primary keys ... are not allowed
+    # Detect error 42P16: multiple primary keys ... are not allowed.
+    # This error is produced when the primary key is applied redundantly.
     already_exists = (
         hasattr(stmt.err, 'pgcode')
         and stmt.err.pgcode
-        and psycopg2_errorcodes.c(
+        and psycopg2_errorcodes.lookup(
             stmt.err.pgcode) == 'INVALID_TABLE_DEFINITION')
 
     if force and already_exists:

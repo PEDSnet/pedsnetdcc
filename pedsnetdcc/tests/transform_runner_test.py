@@ -5,6 +5,7 @@ import sqlalchemy
 import testing.postgresql
 
 from pedsnetdcc import TRANSFORMS
+from pedsnetdcc.db import Statement
 from pedsnetdcc.schema import schema_exists
 from pedsnetdcc.transform_runner import run_transformation
 from pedsnetdcc.utils import stock_metadata, make_conn_str
@@ -37,22 +38,23 @@ class TransformRunnerTest(unittest.TestCase):
         # Destroy the postgres database.
         self.postgresql.stop()
 
-    def _expected_columns(self, metadata, table_name):
+    def _expected_column_names(self, metadata, table_name):
         """Return set of columns in table from metadata"""
-        return set(metadata.tables[table_name].columns)
+        return set(metadata.tables[table_name].columns.keys())
 
-    def _actual_columns(self, schema, table_name):
+    def _actual_column_names(self, schema, table_name):
         """Return set of columns in table in schema in database"""
-        uri_query = "options='-c search_path={}'".format(schema)
-        dburi = self.dburi + '?' + urllib.quote_plus(uri_query)
-        engine = sqlalchemy.create_engine(dburi)
-        table = sqlalchemy.Table(table_name, sqlalchemy.MetaData(),
-                                 autoload=True,
-                                 autoload_with=engine)
-        return set(table.columns)
+        tpl = "select column_name from information_schema.columns " \
+              "where table_schema = '{sch}' and table_name = '{tbl}'"
+        sql = tpl.format(sch=schema, tbl=table_name)
+        stmt = Statement(sql).execute(self.conn_str)
+        self.assertIsNone(stmt.err)
+        cols = set()
+        for row in stmt.data:
+            cols.add(row[0])
+        return cols
 
-    def trivial_test(self):
-
+    def test_without_data(self):
         # Instantiate the stock metadata
         orig_metadata = stock_metadata(self.model_version)
         orig_metadata.create_all(self.engine)
@@ -61,15 +63,17 @@ class TransformRunnerTest(unittest.TestCase):
                            'public')
 
         # Verify that the original tables exist in the `public_backup` schema.
-        self.assertEqual(self._expected_columns(orig_metadata, 'measurement'),
-                         self._actual_columns('public_backup', 'measurement'))
+        self.assertEqual(self._expected_column_names(orig_metadata, 'measurement'),
+                         self._actual_column_names('public_backup', 'measurement'))
 
         # Verify that the transformed tables exist in the `public` schema.
         trans_metadata = stock_metadata(self.model_version)
         for t in TRANSFORMS:
             trans_metadata = t.modify_metadata(trans_metadata)
-        self.assertEqual(self._expected_columns(trans_metadata, 'measurement'),
-                         self._actual_columns('public', 'measurement'))
+        self.assertEqual(self._expected_column_names(trans_metadata, 'measurement'),
+                         self._actual_column_names('public', 'measurement'))
 
         # Verify that the `public_transformed` schema does not exist.
         self.assertFalse(schema_exists(self.conn_str, 'public_transformed'))
+
+    # TODO: a test with test data would be nice
