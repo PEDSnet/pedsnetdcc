@@ -63,8 +63,10 @@ class AgeTransform(Transform):
                 column_name in cls.columns_by_table[table_name]
 
     @classmethod
-    def pre_transform(cls, conn_str):
-        """Define PL/SQL functions needed for the age transform
+    def pre_transform(cls, conn_str, metadata):
+        """Define PL/SQL functions needed for the age transform. The metadata
+        argument is accepted to conform to the abstract transformation class
+        definition but not needed or used for this transformation.
         See also Transform.pre_transform.
         """
         with psycopg2.connect(conn_str) as conn:

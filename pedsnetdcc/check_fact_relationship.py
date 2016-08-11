@@ -6,6 +6,9 @@ from pedsnetdcc.db import Statement, StatementSet
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_data, check_stmt_err, combine_dicts
 
+# TODO: Make below code dependent on the pedsnetdcc.FACT_RELATIONSHIP_DOMAINS
+# dictionary, allowing for easy addition of new domains to the table.
+
 # The below total fact_relationship record count statements assume that
 # domain_concept_id_1 defines a record as being in a domain.
 

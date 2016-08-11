@@ -1,5 +1,6 @@
 click
 dmsa
+logutils
 psycopg2
 sqlalchemy
 testing.postgresql

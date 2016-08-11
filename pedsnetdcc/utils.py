@@ -1,5 +1,7 @@
 import logging
 import re
+
+# Python 2 compatibility.
 try:
     from urllib.parse import urlparse, parse_qs
 except ImportError:
