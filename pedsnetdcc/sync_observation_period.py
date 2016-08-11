@@ -3,7 +3,7 @@ import time
 
 from pedsnetdcc.db import Statement, StatementList
 from pedsnetdcc.dict_logging import secs_since
-from pedsnetdcc.utils import check_stmt_err
+from pedsnetdcc.utils import check_stmt_err, vacuum
 
 create_date_table_sql = '''
 CREATE TEMP TABLE date_limit
@@ -111,6 +111,9 @@ def sync_observation_period(conn_str):
     for stmt in stmts:
         # Will raise RuntimeError if stmt.err is not None.
         check_stmt_err(stmt, 'observation period sync')
+
+    # Vacuum tables. (The model_version argument is required...)
+    vacuum(conn_str, '2.3.0', analyze=True, tables=['observation_period'])
 
     logger.info({'msg': 'finished observation period sync.',
                  'rowcount': stmts[3].rowcount,
