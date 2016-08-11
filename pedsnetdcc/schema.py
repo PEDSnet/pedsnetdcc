@@ -1,6 +1,4 @@
-from psycopg2 import errorcodes as psycopg2_errorcodes
-
-from pedsnetdcc.db import Statement, StatementList
+from pedsnetdcc.db import Statement
 from pedsnetdcc.utils import DatabaseError, pg_error
 
 
@@ -112,3 +110,24 @@ def schema_exists(conn_str, schema):
         tpl = 'error detecting schema {sch} ({sql}): {err}'
         raise DatabaseError(tpl.format(sch=schema, sql=stmt.sql, err=stmt.err))
     return len(stmt.data) > 0
+
+
+def tables_in_schema(conn_str, schema):
+    """Return set of tables in `schema`
+
+    :param str conn_str: pq connection string
+    :param str schema: name of schema to list tables for
+    :return: list of table names
+    :rtype: list(str)
+    """
+    sql = "select table_name from information_schema.tables " \
+        "where table_schema = '{}'".format(schema)
+    stmt = Statement(sql)
+    stmt.execute(conn_str)
+    if stmt.err:
+        tpl = 'error listing tables for schema {sch} ({sql}): {err}'
+        raise DatabaseError(tpl.format(sch=schema, sql=stmt.sql, err=stmt.err))
+    tables = set()
+    for row in stmt.data:
+        tables.add(row[0])
+    return tables

@@ -1,16 +1,19 @@
 import logging
+import time
 
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 
 from pedsnetdcc import TRANSFORMS, VOCAB_TABLES
 from pedsnetdcc.db import Statement, StatementSet, StatementList
-from pedsnetdcc.indexes import add_indexes
-from pedsnetdcc.foreign_keys import add_foreign_keys
+from pedsnetdcc.dict_logging import secs_since
+from pedsnetdcc.indexes import add_indexes, drop_indexes
+from pedsnetdcc.foreign_keys import add_foreign_keys, drop_foreign_keys
 from pedsnetdcc.primary_keys import add_primary_keys
 from pedsnetdcc.not_nulls import set_not_nulls
 from pedsnetdcc.schema import (create_schema_statement, create_schema,
-                               drop_schema_statement, primary_schema)
+                               drop_schema_statement, primary_schema,
+                               schema_exists, tables_in_schema)
 from pedsnetdcc.utils import (DatabaseError, get_conn_info_dict, combine_dicts,
                               stock_metadata, conn_str_with_search_path,
                               pg_error, set_logged)
@@ -127,6 +130,37 @@ def _move_tables_statements(model_version, from_schema, to_schema):
     return stmts
 
 
+def _drop_tables_statements(model_version, schema, if_exists=False):
+    """Return StatementList to drop pedsnet tables in the specified schema.
+
+    Vocabulary tables are ignored.  If `if_exists` is true, then the
+    `IF EXISTS` clause will be used to avoid errors if the tables don't
+    exist.
+
+    Foreign keys must have been dropped beforehand; otherwise, errors will
+    occur.
+
+    :param str model_version: pedsnet model version
+    :param str schema: schema name
+    :param bool if_exists: use IF EXISTS clause
+    :return: list of statements
+    :rtype: StatementList
+    """
+    stmts = StatementList()
+    metadata = stock_metadata(model_version)
+    move_tpl = 'DROP TABLE {if_exists} {sch}.{tbl}'
+    msg_tpl = 'dropping {tbl} in {sch}'
+
+    if_exists_clause = 'IF EXISTS' if if_exists else ''
+
+    for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
+        tpl_vals = {'sch': schema, 'tbl': table_name,
+                    'if_exists': if_exists_clause}
+        stmts.append(Statement(move_tpl.format(**tpl_vals),
+                               msg_tpl.format(**tpl_vals)))
+    return stmts
+
+
 def run_transformation(conn_str, model_version, site, search_path,
                        force=False):
     """Run all transformations, backing up existing tables to a backup schema.
@@ -147,37 +181,30 @@ def run_transformation(conn_str, model_version, site, search_path,
     :param bool force: if True, ignore benign errors
     :return: True if no exception raised
     :rtype: bool
+    :raise: various possible exceptions ...
     """
-    task = 'running transformation'
     log_dict = combine_dicts({'model_version': model_version,
                               'search_path': search_path, 'force': force},
                              get_conn_info_dict(conn_str))
 
-    try:
-        schema = primary_schema(search_path)
-    except ValueError as err:
-        logger.error(combine_dicts({'msg': 'error ' + task, 'err': err},
-                                   log_dict))
-        raise
+    task = 'running transformation'
+    start_time = time.time()
+    # TODO: define spec for computer readable log messages
+    # E.g. we might want both 'task' and 'msg' keys, maybe 'submsg'
+    logger.info(combine_dicts({'msg': 'started {}'.format(task)}, log_dict))
+
+    # TODO: should we catch all exceptions and perform logger.error?
+    # and a logger.info to record the elapsed time at abort.
+
+    # TODO: do we need to validate the primary schema at all?
+    schema = primary_schema(search_path)
 
     # Create the schema to hold the transformed tables.
     tmp_schema = schema + '_' + 'transformed'
-    try:
-        create_schema(conn_str, tmp_schema, force)
-    except Exception as err:
-        logger.error(combine_dicts({'msg': 'error ' + task, 'err': err},
-                                   log_dict))
-        raise
+    create_schema(conn_str, tmp_schema, force)
 
     # Perform the transformation.
-    try:
-        _transform(conn_str, model_version, site, tmp_schema, force)
-    except Exception as err:
-        logger.error(combine_dicts({'msg': 'error ' + task, 'err': err},
-                                   log_dict))
-        raise
-
-    # TODO: should we catch all exceptions and perform logger.error?
+    _transform(conn_str, model_version, site, tmp_schema, force)
 
     # Set up new connection string for manipulating the target schema
     new_search_path = ','.join((tmp_schema, schema))
@@ -222,7 +249,85 @@ def run_transformation(conn_str, model_version, site, search_path,
                                         'err': stmt.err,
                                         'sql': stmt.sql},
                                        log_dict))
+            logger.info(combine_dicts({'msg': 'aborted {}'.format(task),
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
             tpl = 'moving tables after transformation ({sql}): {err}'
             raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
 
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
     return True
+
+
+def undo_transformation(conn_str, model_version, search_path):
+    """Revert a transformation by restoring tables from the backup schema.
+
+    :param str conn_str: pq connection string
+    :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str search_path: PostgreSQL schema search path
+    :return: True if no exception raised
+    :rtype: bool
+    """
+    task = 'undoing transformation'
+    log_dict = combine_dicts({'model_version': model_version,
+                              'search_path': search_path},
+                             get_conn_info_dict(conn_str))
+
+    start_time = time.time()
+    logger.info(combine_dicts({'msg': 'started {}'.format(task)}, log_dict))
+
+    schema = primary_schema(search_path)
+
+    backup_schema = schema + '_' + 'backup'
+
+    # Verify existence of backup schema.
+    if not schema_exists(conn_str, backup_schema):
+        msg = 'Cannot undo transformation; schema `{}` missing'.format(
+            backup_schema)
+        raise RuntimeError(msg)
+
+    # Verify existence of data model tables names in backup schema.
+    metadata = stock_metadata(model_version)
+    backup_tables = tables_in_schema(conn_str, backup_schema)
+    expected_tables = set(metadata.tables.keys()) - set(VOCAB_TABLES)
+    if backup_tables != expected_tables:
+        msg = ('Cannot undo transformation; backup schema `{sch}` has '
+               'different tables ({b_tbls}) from data model ({e_tbls})')
+        raise RuntimeError(msg.format(sch=backup_schema, b_tbls=backup_tables,
+                                      e_tbls=expected_tables))
+
+    # A single transaction for everything would be better but we can't
+    # do that yet.
+    drop_foreign_keys(conn_str, model_version, force=True)
+    drop_indexes(conn_str, model_version, force=True)
+
+    stmts = StatementList()
+    stmts.extend(_drop_tables_statements(model_version, schema))
+    stmts.extend(_move_tables_statements(model_version, backup_schema, schema))
+    stmts.append(
+        drop_schema_statement(backup_schema, if_exists=False, cascade=True))
+    stmts.serial_execute(conn_str, transaction=True)
+    for stmt in stmts:
+        # Must check through all results to find the first (and last) real
+        # error that caused the transaction to fail.
+        if stmt.err:
+            if pg_error(stmt) == 'IN_FAILED_SQL_TRANSACTION':
+                continue
+            logger.error(combine_dicts({'msg': 'error ' + task,
+                                        'submsg': stmt.msg,
+                                        'err': stmt.err,
+                                        'sql': stmt.sql},
+                                       log_dict))
+            logger.info(combine_dicts({'msg': 'aborted {}'.format(task),
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            tpl = 'undoing transformation ({sql}): {err}'
+            raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+

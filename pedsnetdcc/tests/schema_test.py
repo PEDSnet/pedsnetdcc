@@ -3,7 +3,8 @@ import unittest
 import sqlalchemy
 import testing.postgresql
 
-from pedsnetdcc.schema import (create_schema, drop_schema, schema_exists)
+from pedsnetdcc.schema import (create_schema, drop_schema, schema_exists,
+                               tables_in_schema)
 from pedsnetdcc.utils import (make_conn_str, DatabaseError)
 from pedsnetdcc.db import Statement
 
@@ -60,12 +61,16 @@ class SchemaTest(unittest.TestCase):
         drop_schema(self.conn_str, self.schema, if_exists=True, cascade=False)
 
     def test_drop_cascading(self):
+        # and test tables_in_schema
         create_schema(self.conn_str, self.schema)
 
         sql = "create table {}.junk(junk int)".format(self.schema)
         stmt = Statement(sql)
         stmt.execute(self.conn_str)
         self.assertIsNone(stmt.err)
+
+        tables = tables_in_schema(self.conn_str, self.schema)
+        self.assertEqual({'junk'}, tables)
 
         with self.assertRaises(DatabaseError):
             drop_schema(self.conn_str, self.schema, if_exists=False,

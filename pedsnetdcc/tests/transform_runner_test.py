@@ -6,7 +6,7 @@ import testing.postgresql
 from pedsnetdcc import TRANSFORMS
 from pedsnetdcc.db import Statement
 from pedsnetdcc.schema import schema_exists
-from pedsnetdcc.transform_runner import run_transformation
+from pedsnetdcc.transform_runner import run_transformation, undo_transformation
 from pedsnetdcc.utils import stock_metadata, make_conn_str
 
 
@@ -58,8 +58,10 @@ class TransformRunnerTest(unittest.TestCase):
         orig_metadata = stock_metadata(self.model_version)
         orig_metadata.create_all(self.engine)
 
-        run_transformation(self.conn_str, self.model_version, 'testsite',
-                           'public')
+        site = 'testsite'
+        search_path = 'public'
+        run_transformation(self.conn_str, self.model_version, site,
+                           search_path)
 
         # Verify that the original tables exist in the `public_backup` schema.
         self.assertEqual(self._expected_column_names(orig_metadata,
@@ -77,5 +79,17 @@ class TransformRunnerTest(unittest.TestCase):
 
         # Verify that the `public_transformed` schema does not exist.
         self.assertFalse(schema_exists(self.conn_str, 'public_transformed'))
+
+        # Now perform undo/rollback
+        undo_transformation(self.conn_str, self.model_version, search_path)
+
+        # Verify that the original tables exist in the `public` schema
+        self.assertEqual(self._expected_column_names(orig_metadata,
+                                                     'measurement'),
+                         self._actual_column_names('public',
+                                                   'measurement'))
+
+        # Verify that the backup schema does not exist
+        self.assertFalse(schema_exists(self.conn_str, 'public_backup'))
 
     # TODO: a test with test data would be nice
