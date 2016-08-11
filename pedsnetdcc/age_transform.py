@@ -46,25 +46,21 @@ $$""",
 
 class AgeTransform(Transform):
     # Caller may override `columns`
-    columns = [
-        ('condition_occurrence', 'condition_start_time'),
-        ('death', 'death_time'),
-        ('drug_exposure', 'drug_exposure_start_time'),
-        ('measurement', 'measurement_time'),
-        ('measurement', 'measurement_result_time'),
-        ('procedure_occurrence', 'procedure_time'),
-        ('visit_occurrence', 'visit_start_time'),
-        ('observation', 'observation_time')
-    ]
+    columns_by_table = {
+        'condition_occurrence': ('condition_start_time',),
+        'death': ('death_time',),
+        'drug_exposure': ('drug_exposure_start_time',),
+        'measurement': ('measurement_time', 'measurement_result_time'),
+        'procedure_occurrence': ('procedure_time',),
+        'visit_occurrence': ('visit_start_time',),
+        'observation': ('observation_time',),
+    }
     AGE_COLUMN_TYPE = 'float'
 
     @classmethod
     def is_age_column(cls, column_name, table_name):
-        # Almost makes me want to change the data structure
-        for age_table, age_col in cls.columns:
-            if age_table == table_name and age_col == column_name:
-                return True
-        return False
+        return table_name in cls.columns_by_table and \
+                column_name in cls.columns_by_table[table_name]
 
     @classmethod
     def pre_transform(cls, conn_str):
@@ -86,12 +82,15 @@ class AgeTransform(Transform):
         which may be overridden by the user before invoking
         AgeTransform.modify_select().
         """
+        if not table_name in cls.columns_by_table:
+            return select, join
+
         person = metadata.tables['person']
 
         # Don't join person twice to the same table
         joined_already_for_table_name = {}
 
-        for table_name, col_name in AgeTransform.columns:
+        for col_name in cls.columns_by_table[table_name]:
 
             # Make sure table/column pair is valid
             if (not table_name in metadata.tables
@@ -127,11 +126,12 @@ class AgeTransform(Transform):
         """Helper function to apply the transformation to a table in place.
         See Transform.modify_table for signature.
         """
-        orig_columns = table.c
-        for col in orig_columns:
-            if cls.is_age_column(col.name, table.name):
-                new_col_name = col.name.replace('_time', '_age_in_months')
-                new_col = Column(new_col_name, DOUBLE_PRECISION)
-                table.append_column(new_col)
-                Index(Transform.make_index_name(table.name, new_col_name),
-                      new_col)
+        if table.name not in cls.columns_by_table:
+            return
+        for col_name in cls.columns_by_table[table.name]:
+            col = table.columns[col_name]
+            new_col_name = col.name.replace('_time', '_age_in_months')
+            new_col = Column(new_col_name, DOUBLE_PRECISION)
+            table.append_column(new_col)
+            Index(Transform.make_index_name(table.name, new_col_name),
+                  new_col)
