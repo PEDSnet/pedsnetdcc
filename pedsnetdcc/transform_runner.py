@@ -13,7 +13,7 @@ from pedsnetdcc.schema import (create_schema_statement, create_schema,
                                drop_schema_statement, primary_schema)
 from pedsnetdcc.utils import (DatabaseError, get_conn_info_dict, combine_dicts,
                               stock_metadata, conn_str_with_search_path,
-                              pg_error)
+                              pg_error, set_logged)
 
 
 logger = logging.getLogger(__name__)
@@ -69,32 +69,6 @@ def _transform_select_sql(model_version, site, target_schema):
         stmt_pairs.add((final_sql, msg))
 
     return stmt_pairs
-
-
-def _set_logged(conn_str, model_version):
-    """Set non-vocab pedsnet tables to logged.
-
-    TODO: this should probably be in utils.py or utils/db.py or something.
-
-    `Logged` is the default state of PostgreSQL tables. Presumably for
-    performance reasons, tables are sometimes created as `unlogged` prior
-    to batch load.
-
-    :param conn_str: pq connection string
-    :param model_version: pedsnet model version
-    :return:
-    """
-    metadata = stock_metadata(model_version)
-    stmts = StatementSet()
-    sql_tpl = 'alter table {} set logged'
-    msg_tpl = 'setting table {} to logged'
-    for table in (set(metadata.tables.keys()) - set(VOCAB_TABLES)):
-        stmts.add(Statement(sql_tpl.format(table), msg_tpl.format(table)))
-    stmts.parallel_execute(conn_str)
-    for stmt in stmts:
-        if stmt.err:
-            raise DatabaseError(
-                'setting tables to logged: {}: {}'.format(stmt.sql, stmt.err))
 
 
 def _transform(conn_str, model_version, site, target_schema, force=False):
@@ -210,7 +184,7 @@ def run_transformation(conn_str, model_version, site, search_path,
     new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
 
     # Set tables to logged
-    _set_logged(new_conn_str, model_version)
+    set_logged(new_conn_str, model_version)
 
     # Add primary keys to the transformed tables
     add_primary_keys(new_conn_str, model_version, force)
