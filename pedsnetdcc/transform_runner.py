@@ -329,4 +329,3 @@ def undo_transformation(conn_str, model_version, search_path):
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),
          'elapsed': secs_since(start_time)}, log_dict))
-
