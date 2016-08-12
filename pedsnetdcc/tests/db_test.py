@@ -84,6 +84,15 @@ class StatementSetTest(unittest.TestCase):
             message = json.loads(msg)
             self.assertEqual(message['msg'], 'executing SQL')
 
+    def test_parallel_errors(self):
+        stmts = StatementSet()
+        stmts.add(Statement('Invalid statement'))
+        stmts.add(Statement('Another invalid statement'))
+        stmts.parallel_execute(self.conn_str)
+
+        for stmt in stmts:
+            self.assertIsNotNone(stmt.err)
+
     def test_parallel_execute_vacuum(self):
         # Test the ability to execute statements that can't be run in a
         # transaction block.
