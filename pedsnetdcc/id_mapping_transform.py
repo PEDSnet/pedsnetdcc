@@ -54,6 +54,7 @@ class IDMappingTransform(Transform):
 
         for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
 
+            # Fact relationship table has no primary key to map.
             if table_name == 'fact_relationship':
                 continue
 
@@ -61,6 +62,12 @@ class IDMappingTransform(Transform):
             # used throughout for formatting SQL statements.
             table = metadata.tables[table_name]
             tpl_vars = {'table_name': table_name}
+
+            # In some versions the death table has a primary key constraint
+            # on the person_id column.
+            if (table_name == 'death' and
+                    'person_id' in table.primary_key.columns):
+                continue
 
             # Error if the table has more than one primary key column.
             if len(table.primary_key.columns) > 1:
@@ -72,6 +79,7 @@ class IDMappingTransform(Transform):
 
             # Error if the table has no primary key column (except death).
             if len(table.primary_key.columns) == 0:
+                # In some versions the death table has no primary key.
                 if table_name == 'death':
                     continue
                 err = ValueError('cannot generate IDs for table {0} with no'
@@ -161,19 +169,24 @@ class IDMappingTransform(Transform):
                              ' on table {0}'.format(table_name))
 
         # Skip primary key mapping if there is none (fact_relationship and pre
-        # 2.3 death tables).
-        if not len(table.primary_key.columns) == 0:
+        # 2.3 death tables). Also, in some versions, the death table has a
+        # primary key constraint on the person_id column.
+        if not (len(table.primary_key.columns) == 0 or (table_name == 'death'
+                and 'person_id' in table.primary_key.columns)):
 
             # Get primary key name and mapping table name, defined by
             # convention.
             pkey_name = list(table.primary_key.columns.keys())[0]
             map_table_name = map_table_name_tmpl.format(table_name=table_name)
 
-            # Construct table object for mapping table.
-            map_table = sqlalchemy.Table(
-                map_table_name, metadata,
-                sqlalchemy.Column('dcc_id', sqlalchemy.Integer),
-                sqlalchemy.Column('site_id', sqlalchemy.Integer))
+            # Construct table object for mapping table, if necessary.
+            if map_table_name not in metadata.tables:
+                map_table = sqlalchemy.Table(
+                    map_table_name, metadata,
+                    sqlalchemy.Column('dcc_id', sqlalchemy.Integer),
+                    sqlalchemy.Column('site_id', sqlalchemy.Integer))
+            else:
+                map_table = metadata.tables[map_table_name]
 
             join = join.join(map_table, table.c[pkey_name] ==
                              map_table.c['site_id'])
@@ -211,11 +224,14 @@ class IDMappingTransform(Transform):
             map_table_name = map_table_name_tmpl.\
                 format(table_name=ref_table_name)
 
-            # Construct table object for mapping table.
-            map_table = sqlalchemy.Table(
-                map_table_name, metadata,
-                sqlalchemy.Column('dcc_id', sqlalchemy.Integer),
-                sqlalchemy.Column('site_id', sqlalchemy.Integer))
+            # Construct table object for mapping table, if necessary.
+            if map_table_name not in metadata.tables:
+                map_table = sqlalchemy.Table(
+                    map_table_name, metadata,
+                    sqlalchemy.Column('dcc_id', sqlalchemy.Integer),
+                    sqlalchemy.Column('site_id', sqlalchemy.Integer))
+            else:
+                map_table = metadata.tables[map_table_name]
 
             # Make the join an outer join if the foreign key is nullable,
             # otherwise rows without this foreign key will not be included in
@@ -254,11 +270,14 @@ class IDMappingTransform(Transform):
                 map_table_name = map_table_name_tmpl.\
                     format(table_name=ref_table_name)
 
-                # Construct table object for mapping table.
-                map_table = sqlalchemy.Table(
-                    map_table_name, metadata,
-                    sqlalchemy.Column('dcc_id', sqlalchemy.Integer),
-                    sqlalchemy.Column('site_id', sqlalchemy.Integer))
+                # Construct table object for mapping table, if necessary.
+                if map_table_name not in metadata.tables:
+                    map_table = sqlalchemy.Table(
+                        map_table_name, metadata,
+                        sqlalchemy.Column('dcc_id', sqlalchemy.Integer),
+                        sqlalchemy.Column('site_id', sqlalchemy.Integer))
+                else:
+                    map_table = metadata.tables[map_table_name]
 
                 # Make two aliases of the mapping table for joining to each of
                 # the fact_id columns.
