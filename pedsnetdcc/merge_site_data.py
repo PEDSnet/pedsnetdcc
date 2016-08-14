@@ -3,7 +3,7 @@ import time
 
 from psycopg2 import errorcodes as psycopg2_errorcodes
 
-from pedsnetdcc import VOCAB_TABLES, SITES
+from pedsnetdcc import VOCAB_TABLES, SITES, TRANSFORMS
 from pedsnetdcc.db import Statement, StatementSet
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.foreign_keys import add_foreign_keys
@@ -21,13 +21,13 @@ VOCAB_SCHEMA = "vocabulary"
 
 _sql_schema_tmpl = "{site_name}_pedsnet"
 
-_sql_union_tmpl = """
-TABLE {site_schema}.{table_name}
+_sql_select_tmpl = """
+SELECT {fields} FROM {site_schema}.{table_name}
 UNION ALL
 """
 
 _sql_create_tmpl = """
-CREATE UNLOGGED TABLE IF NOT EXISTS {table_name} AS
+CREATE UNLOGGED TABLE {table_name} AS
     {unions}
 """
 
@@ -104,11 +104,17 @@ def merge_site_data(model_version, conn_str, force=False):
     # Initialize set of statements for parallel execution.
     stmts = StatementSet()
 
-    # Get metadata. TODO: Make this the result of the transformations.
+    # Get metadata.
     metadata = stock_metadata(model_version)
+    for t in TRANSFORMS:
+        metadata = t.modify_metadata(metadata)
 
     # Build a merge statement for each non-vocab table.
     for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
+
+        table = metadata.tables[table_name]
+
+        fields = ','.join(table.c.keys())
 
         unions = ''
 
@@ -117,10 +123,11 @@ def merge_site_data(model_version, conn_str, force=False):
 
             site_schema = _sql_schema_tmpl.format(site_name=site_name)
 
-            union = _sql_union_tmpl.format(site_schema=site_schema,
-                                           table_name=table_name)
+            select = _sql_select_tmpl.format(fields=fields,
+                                             site_schema=site_schema,
+                                             table_name=table_name)
 
-            unions = unions + union
+            unions = unions + select
 
         # Strip the final, unneeded, UNION ALL.
         i = unions.rfind('UNION ALL')

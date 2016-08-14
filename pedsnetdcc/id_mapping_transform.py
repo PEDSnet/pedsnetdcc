@@ -334,7 +334,9 @@ class IDMappingTransform(Transform):
         See Transform.modify_table for signature.
         """
 
-        if len(table.primary_key.columns) == 1:
+        if len(table.primary_key.columns) == 1 and not \
+                (table.name == 'death' and 'person_id' in
+                 table.primary_key.columns):
             new_col = sqlalchemy.Column('site_id', sqlalchemy.Integer)
             table.append_column(new_col)
 
