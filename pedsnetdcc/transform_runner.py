@@ -61,9 +61,10 @@ def _transform_select_sql(model_version, site, target_schema):
 
         final_select_obj = select_obj.select_from(join_obj)
 
-        table_sql = str(
-            final_select_obj.compile(
-                dialect=sqlalchemy.dialects.postgresql.dialect()))
+        table_sql_obj = final_select_obj.compile(
+                dialect=sqlalchemy.dialects.postgresql.dialect())
+
+        table_sql = str(table_sql_obj) % table_sql_obj.params
 
         final_sql = 'CREATE UNLOGGED TABLE {0}.{1} AS {2}'.format(
             target_schema, table_name, table_sql)
@@ -206,7 +207,7 @@ def run_transformation(conn_str, model_version, site, search_path,
     _transform(conn_str, model_version, site, tmp_schema, force)
 
     # Set up new connection string for manipulating the target schema
-    new_search_path = ','.join((tmp_schema, schema))
+    new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
     new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
 
     # Set tables to logged
@@ -329,4 +330,3 @@ def undo_transformation(conn_str, model_version, search_path):
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),
          'elapsed': secs_since(start_time)}, log_dict))
-
