@@ -92,8 +92,9 @@ def _database_privileges_sql(database_name):
     :return: a tuple of statements
     :rtype: tuple(str)
     """
-    return 'grant create on database {} to peds_staff'.format(database_name),
-
+    tmpl = 'grant create on database {db} to {usr}'
+    return (tmpl.format(db=database_name, usr='peds_staff'),
+            tmpl.format(db=database_name, usr='loading_user'))
 
 # SQL template for creating site schemas in an internal database instance.
 _sql_site_template = """
