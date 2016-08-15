@@ -63,7 +63,7 @@ def sync_observation_period(searchpath, pwprompt, dburi):
     password = None
 
     if pwprompt:
-        password = click.prompt(hide_input=True)
+        password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
     success = sync_observation_period(conn_str)
@@ -102,7 +102,7 @@ def check_fact_relationship(searchpath, pwprompt, output, poolsize, dburi):
     password = None
 
     if pwprompt:
-        password = click.prompt(hide_input=True)
+        password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
     success = check_fact_relationship(conn_str, output, poolsize)
@@ -149,7 +149,7 @@ def transform(pwprompt, searchpath, site, force, model_version, undo, dburi):
     password = None
 
     if pwprompt:
-        password = click.prompt(hide_input=True)
+        password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
 
@@ -191,7 +191,7 @@ def merge(pwprompt, force, model_version, undo, dburi):
     password = None
 
     if pwprompt:
-        password = click.prompt(hide_input=True)
+        password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, '', password)
 
