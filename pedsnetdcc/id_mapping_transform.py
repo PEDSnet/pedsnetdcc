@@ -146,10 +146,10 @@ class IDMappingTransform(Transform):
             # Execute new map generation statement and ensure it didn't error.
             insert_new_maps_stmt.execute(conn_str)
             check_stmt_err(insert_new_maps_stmt, 'id mapping pre-transform')
-            logging.info({'msg': 'generated new ID mappings',
-                          'table': table_name,
-                          'count': insert_new_maps_stmt.rowcount,
-                          'elapsed': secs_since(starttime)})
+            logger.info({'msg': 'generated new ID mappings',
+                         'table': table_name,
+                         'count': insert_new_maps_stmt.rowcount,
+                         'elapsed': secs_since(starttime)})
 
     @classmethod
     def modify_select(cls, metadata, table_name, select, join):
