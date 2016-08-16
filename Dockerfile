@@ -1,6 +1,6 @@
 FROM python:2
 
-RUN apt-get install libpq-dev
+RUN apt-get update && apt-get install -y apt-utils libpq-dev graphviz graphviz-dev pkg-config
 
 COPY . /app/
 
