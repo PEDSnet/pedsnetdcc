@@ -1,5 +1,5 @@
 click
 logutils
 psycopg2
-sqlalchemy
+sqlalchemy==1.0.5
 dmsa
