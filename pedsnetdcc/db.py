@@ -287,15 +287,15 @@ class StatementSet(collections.MutableSet):
         """Execute all statements in parallel using pool_size num workers.
 
         Initialize pool_size number of worker processes (or one worker per
-        statement, by default) running the `_worker_process` module method
-        with taskq, resq, and logq as task provisioning, result putting, and
-        log record putting queues as arguments. Place all of the Statements in
-        the set onto the task queue, start the `_logger_thread` module method
-        in a thread to receive log records on logq, and wait for all the tasks
-        on the task queue to finish. Stop all the workers, end the logging
-        thread, and collect the results by clearing the set and then adding
-        the now modified Statements on the result queue back into the set.
-        Return self.
+        statement up to 24, by default) running the `_worker_process` module
+        method with taskq, resq, and logq as task provisioning, result putting,
+        and log record putting queues as arguments. Place all of the Statements
+        in the set onto the task queue, start the `_logger_thread` module
+        method in a thread to receive log records on logq, and wait for all the
+        tasks on the task queue to finish. Stop all the workers, end the
+        logging thread, and collect the results by clearing the set and then
+        adding the now modified Statements on the result queue back into the
+        set. Return self.
 
         If taskq, resq, or logq are not given, fresh multiprocessing.Queues are
         used for resq and logq and a fresh multiprocessing.JoinableQueue is
@@ -311,7 +311,14 @@ class StatementSet(collections.MutableSet):
         """
 
         workers = []
-        pool_size = pool_size or len(self)
+        max_workers = 24
+
+        if not pool_size:
+            if len(self) <= max_workers:
+                pool_size = len(self)
+            else:
+                pool_size = max_workers
+
         taskq = taskq or multiprocessing.JoinableQueue()
         resq = resq or multiprocessing.Queue()
         logq = logq or multiprocessing.Queue()
