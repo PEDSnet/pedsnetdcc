@@ -4,7 +4,8 @@ import time
 from psycopg2 import errorcodes as psycopg2_errorcodes
 import sqlalchemy
 
-from pedsnetdcc import VOCAB_TABLES, TRANSFORMS
+from pedsnetdcc import VOCAB_TABLES
+import pedsnetdcc.transform_runner
 from pedsnetdcc.utils import stock_metadata, get_conn_info_dict, combine_dicts
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.db import Statement, StatementSet
@@ -73,7 +74,8 @@ def _indexes_sql(model_version, vocabulary=False, drop=False):
     else:
         func = sqlalchemy.schema.CreateIndex
 
-    indexes = _indexes_from_metadata(stock_metadata(model_version), TRANSFORMS,
+    indexes = _indexes_from_metadata(stock_metadata(model_version),
+                                     pedsnetdcc.transform_runner.TRANSFORMS,
                                      vocabulary=vocabulary)
     return [str(func(x).compile(
         dialect=sqlalchemy.dialects.postgresql.dialect())).lstrip()

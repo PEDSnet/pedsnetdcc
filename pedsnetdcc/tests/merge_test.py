@@ -3,7 +3,8 @@ import unittest
 
 import testing.postgresql
 
-from pedsnetdcc import SITES, VOCAB_TABLES, TRANSFORMS
+from pedsnetdcc import SITES, VOCAB_TABLES
+from pedsnetdcc.transform_runner import TRANSFORMS
 from pedsnetdcc.db import Statement
 from pedsnetdcc.merge_site_data import merge_site_data, clear_dcc_data
 from pedsnetdcc.utils import make_conn_str, stock_metadata
