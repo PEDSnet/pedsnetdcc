@@ -3,7 +3,8 @@ import time
 
 from psycopg2 import errorcodes as psycopg2_errorcodes
 
-from pedsnetdcc import VOCAB_TABLES, SITES, TRANSFORMS
+from pedsnetdcc import VOCAB_TABLES, SITES
+from pedsnetdcc.transform_runner import TRANSFORMS
 from pedsnetdcc.db import Statement, StatementSet
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.foreign_keys import add_foreign_keys

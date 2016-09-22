@@ -4,7 +4,7 @@ import sqlalchemy
 import testing.postgresql
 
 from pedsnetdcc.utils import (make_conn_str, stock_metadata)
-from pedsnetdcc import TRANSFORMS
+from pedsnetdcc.transform_runner import TRANSFORMS
 from pedsnetdcc.not_nulls import set_not_nulls, drop_not_nulls
 
 

@@ -3,7 +3,7 @@ import unittest
 import sqlalchemy
 import testing.postgresql
 
-from pedsnetdcc import TRANSFORMS
+from pedsnetdcc.transform_runner import TRANSFORMS
 from pedsnetdcc.db import Statement
 from pedsnetdcc.schema import schema_exists
 from pedsnetdcc.transform_runner import run_transformation, undo_transformation

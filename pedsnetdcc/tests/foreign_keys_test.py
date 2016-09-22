@@ -6,7 +6,7 @@ import testing.postgresql
 
 from pedsnetdcc.foreign_keys import (add_foreign_keys, drop_foreign_keys)
 from pedsnetdcc.utils import make_conn_str, stock_metadata
-from pedsnetdcc import TRANSFORMS
+from pedsnetdcc.transform_runner import TRANSFORMS
 from pedsnetdcc.db import Statement
 
 

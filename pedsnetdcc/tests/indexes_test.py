@@ -7,7 +7,7 @@ import testing.postgresql
 
 from pedsnetdcc.indexes import _indexes_sql, add_indexes, drop_indexes
 from pedsnetdcc.utils import make_conn_str, stock_metadata
-from pedsnetdcc import TRANSFORMS
+from pedsnetdcc.transform_runner import TRANSFORMS
 from pedsnetdcc.db import Statement
 
 logging.basicConfig(level=logging.DEBUG, filename="logfile")

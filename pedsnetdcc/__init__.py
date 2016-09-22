@@ -57,13 +57,5 @@ if _dms_var in os.environ:
 else:
     DATA_MODELS_SERVICE = 'https://data-models-service.research.chop.edu/'
 
-from pedsnetdcc.age_transform import AgeTransform                   # noqa
-from pedsnetdcc.concept_name_transform import ConceptNameTransform  # noqa
-from pedsnetdcc.site_name_transform import SiteNameTransform        # noqa
-from pedsnetdcc.id_mapping_transform import IDMappingTransform      # noqa
-
-TRANSFORMS = (AgeTransform, ConceptNameTransform, SiteNameTransform,
-              IDMappingTransform)
-
-__all__ = (__version__, VOCAB_TABLES, DATA_MODELS_SERVICE, TRANSFORMS,
+__all__ = (__version__, VOCAB_TABLES, DATA_MODELS_SERVICE,
            FACT_RELATIONSHIP_DOMAINS)

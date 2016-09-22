@@ -4,7 +4,7 @@ import time
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 
-from pedsnetdcc import TRANSFORMS, VOCAB_TABLES
+from pedsnetdcc import VOCAB_TABLES
 from pedsnetdcc.db import Statement, StatementSet, StatementList
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.indexes import add_indexes, drop_indexes
@@ -18,9 +18,16 @@ from pedsnetdcc.utils import (DatabaseError, get_conn_info_dict, combine_dicts,
                               stock_metadata, conn_str_with_search_path,
                               pg_error, set_logged)
 
+from pedsnetdcc.age_transform import AgeTransform
+from pedsnetdcc.concept_name_transform import ConceptNameTransform
+from pedsnetdcc.site_name_transform import SiteNameTransform
+from pedsnetdcc.id_mapping_transform import IDMappingTransform
 
 logger = logging.getLogger(__name__)
 
+
+TRANSFORMS = (AgeTransform, ConceptNameTransform, SiteNameTransform,
+              IDMappingTransform)
 
 def _transform_select_sql(model_version, site, target_schema):
     """Create SQL for `select` statement transformations.
