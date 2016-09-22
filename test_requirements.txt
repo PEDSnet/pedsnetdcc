@@ -1,6 +1,2 @@
-click
-dmsa
-logutils
-psycopg2
-sqlalchemy
+-r requirements.txt
 testing.postgresql
