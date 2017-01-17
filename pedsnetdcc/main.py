@@ -114,8 +114,10 @@ def check_fact_relationship(searchpath, pwprompt, output, poolsize, dburi):
 
 
 @pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
 @click.argument('dburi')
-def create_id_maps(dburi):
+def create_id_maps(dburi, pwprompt):
     """Create id map tables to map the relationship between site ids and the dcc ids
 
     Mapping between external site ids and dcc ids are neccessary to ensure data stays consistent
@@ -129,8 +131,34 @@ def create_id_maps(dburi):
 
     from pedsnetdcc.id_maps import create_id_map_tables
 
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
     conn_str = make_conn_str(dburi)
     create_id_map_tables(conn_str)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.argument('dburi')
+@click.argument('old_db')
+@click.argument('new_db')
+def copy_id_maps(dburi, old_db, new_db, pwprompt):
+
+    from pedsnetdcc.id_maps import copy_id_maps
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    old_conn_str = make_conn_str(dburi + old_db, password=password)
+    new_conn_str = make_conn_str(dburi + new_db, password=password)
+
+    copy_id_maps(old_conn_str, new_conn_str)
 
 
 @pedsnetdcc.command()

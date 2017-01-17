@@ -51,8 +51,12 @@ SITE_ROOT = '/data/site_data'
 SITES = ('chop', 'colorado', 'nationwide', 'nemours', 'seattle', 'stlouis')
 BACKUP_ROOT = '/mnt/isilon/pedsnet/archives/ftp/'
 
+CONSISTENT_ID_MAP_TABLES = (
+    'person',
+    'visit_occurrence'
+)
 
-ID_MAP_TABLES = (
+ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
     'care_site',
     'condition_occurrence',
     'death',
@@ -62,10 +66,8 @@ ID_MAP_TABLES = (
     'measurement_organism',
     'observation',
     'observation_period',
-    'person',
     'procedure_occurrence',
     'provider',
-    'visit_occurrence',
     'visit_payer'
 )
 
