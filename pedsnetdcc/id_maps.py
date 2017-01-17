@@ -7,7 +7,7 @@ from pedsnetdcc.db import (Statement, StatementList)
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_err
 
-import sh
+from sh import pg_dump
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +50,6 @@ def copy_id_maps(old_conn_str, new_conn_str):
 
     statements = StatementList()
     for site in SITES:
-        pg_dump = sh.Command('/usr/local/bin/pg_dump')
-
         output = pg_dump('--dbname=' + old_conn_str,
                          '--data-only',
                          '-t',
