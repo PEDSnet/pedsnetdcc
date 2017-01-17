@@ -114,6 +114,26 @@ def check_fact_relationship(searchpath, pwprompt, output, poolsize, dburi):
 
 
 @pedsnetdcc.command()
+@click.argument('dburi')
+def create_id_maps(dburi):
+    """Create id map tables to map the relationship between site ids and the dcc ids
+
+    Mapping between external site ids and dcc ids are neccessary to ensure data stays consistent
+    data cycles. This creates the tables neccessary for preserving that data.  Does not fill in any data.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    from pedsnetdcc.id_maps import create_id_map_tables
+
+    conn_str = make_conn_str(dburi)
+    create_id_map_tables(conn_str)
+
+
+@pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
 @click.option('--searchpath', '-s', help='Schema search path in database.')

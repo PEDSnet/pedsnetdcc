@@ -51,6 +51,24 @@ SITE_ROOT = '/data/site_data'
 SITES = ('chop', 'colorado', 'nationwide', 'nemours', 'seattle', 'stlouis')
 BACKUP_ROOT = '/mnt/isilon/pedsnet/archives/ftp/'
 
+
+ID_MAP_TABLES = (
+    'care_site',
+    'condition_occurrence',
+    'death',
+    'drug_exposure',
+    'location',
+    'measurement',
+    'measurement_organism',
+    'observation',
+    'observation_period',
+    'person',
+    'procedure_occurrence',
+    'provider',
+    'visit_occurrence',
+    'visit_payer'
+)
+
 _dms_var = 'PEDSNETDCC_DMS_URL'
 if _dms_var in os.environ:
     DATA_MODELS_SERVICE = os.environ[_dms_var]
