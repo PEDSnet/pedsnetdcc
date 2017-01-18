@@ -48,8 +48,8 @@ def copy_id_maps(old_conn_str, new_conn_str):
     logger.info({'msg': 'starting id map copying'})
     starttime = time.time()
 
-    statements = StatementList()
     for site in SITES:
+        # TODO automate the -t flags from CONSISTENT_ID_MAP_TABLES
         output = pg_dump('--dbname=' + old_conn_str,
                          '--data-only',
                          '-t',
@@ -57,12 +57,10 @@ def copy_id_maps(old_conn_str, new_conn_str):
                          '-t',
                          _id_map_table_sql.format(site, 'visit_occurrence'))
 
-        statements.extend(Statement(output))
+        statement = Statement(output)
+        statement.execute(new_conn_str)
 
-    statements.serial_execute(new_conn_str)
-
-    for statement in statements:
-        check_stmt_err(statement, 'id map data copying')
+        check_stmt_err(statement, 'id map data copying ' + site)
 
     logger.info({
         'msg', 'finished copying of id map table data',
