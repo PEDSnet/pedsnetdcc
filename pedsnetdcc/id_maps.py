@@ -50,12 +50,23 @@ def copy_id_maps(old_conn_str, new_conn_str):
 
     for site in SITES:
         # TODO automate the -t flags from CONSISTENT_ID_MAP_TABLES
+
+        logger.info({
+            'msg': 'dumping id_map tables from old database for ' + site + ' site.',
+            'elapsed': secs_since(starttime)
+        })
+
         output = pg_dump('--dbname=' + old_conn_str,
                          '--data-only',
                          '-t',
                          _id_map_table_sql.format(site, 'person'),
                          '-t',
                          _id_map_table_sql.format(site, 'visit_occurrence'))
+
+        logger.info({
+            'msg': 'inserting id_map dumps into new database for ' + site + ' site.',
+            'elapsed': secs_since(starttime)
+        })
 
         statement = Statement(output)
         statement.execute(new_conn_str)
