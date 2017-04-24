@@ -256,6 +256,25 @@ def cleanup(backup_dir, site_root):
 
     sys.exit(0)
 
+@pedsnetdcc.command()
+@click.argument('dburi', required=True)
+@click.argument('in_file', required=True)
+@click.argument('table_name', required=True)
+@click.option('--site', '-s',
+              help="Target site for load")
+@click.option('--out-file', '-o',
+              help='Output path for a csv file of results')
+def map_external_ids(dburi, in_file, site, out_file, table_name):
+
+    from external_id_mapper import map_external_ids
+
+    search_path = str(site) + '_id_maps,dcc_ids'
+
+    conn_str = make_conn_str(dburi,
+                             search_path=search_path)
+
+    map_external_ids(conn_str, str(in_file), str(out_file), str(table_name))
+
 
 if __name__ == '__main__':
     pedsnetdcc()
