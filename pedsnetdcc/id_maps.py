@@ -131,7 +131,7 @@ def _dump_and_restore_dcc_ids(old_conn_str, new_conn_str, starttime):
 
     pg_restore(_restore_args(new_conn_str, dump_file_path))
 
-
+    os.remove(dump_file_path)
     logger.info({
         'msg': 'finished restoring dcc_id tables into new database',
         'elapsed': secs_since(starttime)
@@ -154,6 +154,10 @@ def _dump_and_restore_id_maps(site, old_conn_str, new_conn_str, starttime):
     pg_restore(_restore_args(new_conn_str, dump_file_path))
 
     os.remove(dump_file_path)
+    logger.info({
+        'msg': 'finished restoring id_map dumps into new database for ' + site + ' site.',
+        'elapsed': secs_since(starttime)
+    })
 
 def copy_id_maps(old_conn_str, new_conn_str):
     """Using pg_dump, copy id_maps and dcc_ids tables from old database to new database
