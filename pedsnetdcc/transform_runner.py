@@ -22,6 +22,7 @@ from pedsnetdcc.age_transform import AgeTransform
 from pedsnetdcc.concept_name_transform import ConceptNameTransform
 from pedsnetdcc.site_name_transform import SiteNameTransform
 from pedsnetdcc.id_mapping_transform import IDMappingTransform
+from pedsnetdcc.permissions import grant_database_permissions, grant_schema_permissions, grant_vocabulary_permissions
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +232,11 @@ def run_transformation(conn_str, model_version, site, search_path,
 
     # Add constraints to the transformed tables
     add_foreign_keys(new_conn_str, model_version, force)
+
+    # Grant appropriate permissions to the transformed tables (these don't get copied over)
+    grant_schema_permissions(new_conn_str)
+    grant_vocabulary_permissions(new_conn_str)
+
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.

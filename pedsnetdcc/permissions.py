@@ -5,8 +5,10 @@ import re
 from pedsnetdcc.db import Statement, StatementList
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc import SITES_AND_DCC
-from pedsnetdcc.utils import check_stmt_err
+from pedsnetdcc.utils import check_stmt_err, combine_dicts, get_conn_info_dict
 
+
+logger = logging.getLogger(__name__)
 
 # SQL template for creating site schemas in an internal database instance.
 _permissions_sql_template = """
@@ -71,6 +73,12 @@ def grant_database_permissions(conn_str, database_name):
     """FILL IN
     """
 
+    log_dict = get_conn_info_dict(conn_str)
+
+    logger.info(combine_dicts({'msg': 'starting granting of database permissions'},
+                              log_dict))
+    start_time = time.time()
+
     stmnts = StatementList()
 
     stmnts.extend(
@@ -81,10 +89,21 @@ def grant_database_permissions(conn_str, database_name):
     for stmnt in stmnts:
         check_stmt_err(stmnt, 'granting database permissions')
 
+     # Log end of function.
+    logger.info(combine_dicts({'msg': 'finished granting of database permissions',
+                               'elapsed': secs_since(start_time)}, log_dict))
+
 
 def grant_schema_permissions(conn_str):
     """FILL IN
     """
+
+    log_dict = get_conn_info_dict(conn_str)
+
+    logger.info(combine_dicts({'msg': 'starting granting of schema permissions'},
+                              log_dict))
+    start_time = time.time()
+
 
     stmnts = StatementList()
     for site in SITES_AND_DCC:
@@ -95,9 +114,20 @@ def grant_schema_permissions(conn_str):
     for stmnt in stmnts:
         check_stmt_err(stmnt, 'granting schema permissions')
 
+     # Log end of function.
+    logger.info(combine_dicts({'msg': 'finished granting of schema permissions',
+                               'elapsed': secs_since(start_time)}, log_dict))
+
 def grant_vocabulary_permissions(conn_str):
     """FILL IN
     """
+
+    log_dict = get_conn_info_dict(conn_str)
+
+    logger.info(combine_dicts({'msg': 'starting granting of vocabulary permissions'},
+                              log_dict))
+    start_time = time.time()
+
 
     stmnts = StatementList()
     stmnts.extend([Statement(x) for x in _vocabulary_permissions_sql()])
@@ -106,6 +136,11 @@ def grant_vocabulary_permissions(conn_str):
 
     for stmnt in stmnts:
         check_stmt_err(stmnt, 'granting vocabulary permissions')
-    
+
+    # Log end of function.
+    logger.info(combine_dicts({'msg': 'finished granting of vocabulary permissions',
+                               'elapsed': secs_since(start_time)}, log_dict))
+
+
 
 
