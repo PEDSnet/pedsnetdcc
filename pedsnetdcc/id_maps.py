@@ -7,7 +7,7 @@ from pedsnetdcc.db import (Statement, StatementList)
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_err
 
-from sh import pg_dump
+from sh import pg_dump, pg_restore
 
 logger = logging.getLogger(__name__)
 
@@ -94,21 +94,27 @@ def copy_id_maps(old_conn_str, new_conn_str):
         })
 
         output = pg_dump('--dbname=' + old_conn_str,
+                         '-Fc',
+                         '-Z',
+                         '9',
                          '--data-only',
                          '-t',
                          _id_map_table_sql.format(site, 'person'),
                          '-t',
-                         _id_map_table_sql.format(site, 'visit_occurrence'))
+                         _id_map_table_sql.format(site, 'visit_occurrence'),
+                         '-f',
+                         site + "_temp_dump_file")
 
         logger.info({
             'msg': 'inserting id_map dumps into new database for ' + site + ' site.',
             'elapsed': secs_since(starttime)
         })
 
-        statement = Statement(output)
-        statement.execute(new_conn_str)
-
-        check_stmt_err(statement, 'id map data copying ' + site)
+        pg_restore('--dbname=' + new_conn_str,
+                   '-Fc',
+                   '-j',
+                   '8',
+                   site+"_temp_dump_file")
 
     logger.info({
         'msg', 'finished copying of id map table data',
