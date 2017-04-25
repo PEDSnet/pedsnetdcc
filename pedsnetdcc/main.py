@@ -122,7 +122,8 @@ def create_id_maps(dburi, pwprompt):
     """Create id map tables to map the relationship between site ids and the dcc ids
 
     Mapping between external site ids and dcc ids are neccessary to ensure data stays consistent
-    data cycles. This creates the tables neccessary for preserving that data.  Does not fill in any data.
+    data cycles. This creates the tables neccessary for preserving that data.  
+    Does not fill in any data.
 
     The database should be specified using a DBURI:
 
@@ -149,6 +150,12 @@ def create_id_maps(dburi, pwprompt):
 @click.argument('old_db')
 @click.argument('new_db')
 def copy_id_maps(dburi, old_db, new_db, pwprompt):
+    """Copy id map tables from the last data cycles database into the new data cycles database
+    The databases should be specified using DBURIs:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
 
     from pedsnetdcc.id_maps import copy_id_maps
 
