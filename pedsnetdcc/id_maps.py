@@ -36,7 +36,7 @@ def _dump_args(site, conn_str, dump_path):
     for table in CONSISTENT_ID_MAP_TABLES:
         dump_args += ('-t', _id_map_table_sql.format(site, table))
 
-    return dump_args + (dump_path,)
+    return dump_args + ('-f', dump_path)
 
 def _restore_args(conn_str, dump_path):
     return ('--dbname=' + conn_str,

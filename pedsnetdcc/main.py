@@ -137,7 +137,7 @@ def create_id_maps(dburi, pwprompt):
     if pwprompt:
         password = click.prompt('Database password', hide_input=True)
 
-    conn_str = make_conn_str(dburi)
+    conn_str = make_conn_str(dburi, password=password)
     create_dcc_ids_tables(conn_str)
     create_id_map_tables(conn_str)
 
