@@ -26,17 +26,31 @@ _temp_dump_file_templ = "{0}_dump"
 def _temp_dump_file(site):
     return _temp_dump_file_templ.format(site)
 
+def _base_dump_args(conn_str, dump_path):
+    return ('--dbname='+conn_str,
+            '-Fc',
+            '-Z',
+            '9',
+            '--data-only'
+            '-f',
+            dump_path)
+
 def _dump_args(site, conn_str, dump_path):
-    dump_args = ('--dbname='+conn_str,
-                 '-Fc',
-                 '-Z',
-                 '9',
-                 '--data-only')
+    dump_args = _base_dump_args(conn_str, dump_path)
 
     for table in CONSISTENT_ID_MAP_TABLES:
         dump_args += ('-t', _id_map_table_sql.format(site, table))
 
     return dump_args + ('-f', dump_path)
+
+def _dcc_dump_args(conn_str, dump_path):
+    dump_args = _base_dump_args(conn_str, dump_path)
+
+    for table in CONSISTENT_ID_MAP_TABLES:
+        dump_args += ('-t', _dcc_ids_table_sql.format(table))
+
+    return dump_args
+
 
 def _restore_args(conn_str, dump_path):
     return ('--dbname=' + conn_str,
@@ -105,31 +119,57 @@ def create_id_map_tables(conn_str):
         'elapsed', secs_since(starttime)
     })
 
+
+def _dump_and_restore_dcc_ids(old_conn_str, new_conn_str, starttime):
+    logger.info({
+        'msg': 'dumping dcc_id tables from old database',
+        'elapsed': secs_since(starttime)
+    })
+
+    dump_file_path = _temp_dump_file("dcc")
+    pg_dump(_dcc_dump_args(old_conn_str, dump_file_path))
+
+    pg_restore(_restore_args(new_conn_str, dump_file_path))
+
+
+    logger.info({
+        'msg': 'finished restoring dcc_id tables into new database',
+        'elapsed': secs_since(starttime)
+    })
+
+def _dump_and_restore_id_maps(site, old_conn_str, new_conn_str, starttime):
+    logger.info({
+        'msg': 'dumping id_map tables from old database for ' + site + ' site.',
+        'elapsed': secs_since(starttime)
+    })
+
+    dump_file_path = _temp_dump_file(site)
+    pg_dump(_dump_args(site, old_conn_str, dump_file_path))
+
+    logger.info({
+        'msg': 'inserting id_map dumps into new database for ' + site + ' site.',
+        'elapsed': secs_since(starttime)
+    })
+
+    pg_restore(_restore_args(new_conn_str, dump_file_path))
+
+    os.remove(dump_file_path)
+
 def copy_id_maps(old_conn_str, new_conn_str):
-    """FILL ME IN
+    """Using pg_dump, copy id_maps and dcc_ids tables from old database to new database
+
+    :param old_conn_str: connection string for old target database
+    :type: str
+    :param new_conn_str: connection string for new target database
+    :type: str
     """
 
     logger.info({'msg': 'starting id map copying'})
     starttime = time.time()
 
+    _dump_and_restore_dcc_ids(old_conn_str, new_conn_str, starttime)
     for site in SITES:
-
-        logger.info({
-            'msg': 'dumping id_map tables from old database for ' + site + ' site.',
-            'elapsed': secs_since(starttime)
-        })
-
-        dump_file_path = _temp_dump_file(site)
-        pg_dump(_dump_args(site, old_conn_str, dump_file_path))
-
-        logger.info({
-            'msg': 'inserting id_map dumps into new database for ' + site + ' site.',
-            'elapsed': secs_since(starttime)
-        })
-
-        pg_restore(_restore_args(new_conn_str, dump_file_path))
-
-        os.remove(dump_file_path)
+        _dump_and_restore_id_maps(site, old_conn_str, new_conn_str, starttime)
 
     logger.info({
         'msg', 'finished copying of id map table data',
