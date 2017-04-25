@@ -10,6 +10,7 @@ from pedsnetdcc.cleanup import cleanup_site_directories
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
+
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option('--logfmt', type=click.Choice(['tty', 'text', 'json']),
               help='Logging output format.')
@@ -129,7 +130,7 @@ def create_id_maps(dburi, pwprompt):
     postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
     """
 
-    from pedsnetdcc.id_maps import create_id_map_tables
+    from pedsnetdcc.id_maps import create_id_map_tables, create_dcc_ids_tables
 
     password = None
 
@@ -137,6 +138,7 @@ def create_id_maps(dburi, pwprompt):
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi)
+    create_dcc_ids_tables(conn_str)
     create_id_map_tables(conn_str)
 
 

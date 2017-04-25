@@ -11,10 +11,47 @@ from sh import pg_dump
 
 logger = logging.getLogger(__name__)
 
+_dcc_ids_table_sql = """dcc_ids.dcc_{0}_id"""
+
 _id_map_table_sql = """{0}_id_maps.{1}_ids"""
 
-_create_id_map_table_sql = """CREATE TABLE """ + _id_map_table_sql + """(dcc_id INTEGER NOT NULL, site_id INTEGER NOT NULL)"""
+_create_id_map_table_sql = """CREATE TABLE IF NOT EXISTS """ + _id_map_table_sql + """(dcc_id INTEGER NOT NULL, site_id INTEGER NOT NULL)"""
 
+_create_dcc_id_table_sql = """CREATE TABLE IF NOT EXISTS """ + _dcc_ids_table_sql + """(last_id INTEGER NOT NULL)"""
+_initialize_dcc_id_table_sql = """INSERT INTO """ + _dcc_ids_table_sql + """(last_id) values(1)"""
+
+def create_dcc_ids_tables(conn_str):
+    """Create tables (one per PEDSnet tables) for holding the last generated id for the dcc
+
+    :param conn_str: connection string for target database
+    :type: str
+    """
+
+    logger.info({'msg': 'starting dcc_ids table creation'})
+    starttime = time.time()
+
+    statements = StatementList()
+    for table in ID_MAP_TABLES:
+        statements.extend(
+            [Statement(_create_dcc_id_table_sql.format(table))]
+        )
+
+        if table not in CONSISTENT_ID_MAP_TABLES:
+            statements.extend(
+                [Statement(_initialize_dcc_id_table_sql.format(table))]
+            )
+
+    statements.serial_execute(conn_str)
+
+    for statement in statements:
+        check_stmt_err(statement, 'dcc_ids table creation')
+
+    logger.info({
+        'msg', 'finished creation of dcc_ids tables',
+        'elapsed', secs_since(starttime)
+    })
+        
+    
 
 def create_id_map_tables(conn_str):
     """Create a table (per site) for holding the id mappings between sites and the dcc
@@ -39,7 +76,7 @@ def create_id_map_tables(conn_str):
         check_stmt_err(statement, 'id map table creation')
 
     logger.info({
-        'msg', 'finished creation of id map tables',
+        'msg', 'finished creation of id_maps tables',
         'elapsed', secs_since(starttime)
     })
 

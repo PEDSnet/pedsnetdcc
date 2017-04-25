@@ -57,9 +57,13 @@ CONSISTENT_ID_MAP_TABLES = (
 )
 
 ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
+    'adt_occurrence',
     'care_site',
+    'condition_era',
     'condition_occurrence',
     'death',
+    'dose_era',
+    'drug_era',
     'drug_exposure',
     'location',
     'measurement',
