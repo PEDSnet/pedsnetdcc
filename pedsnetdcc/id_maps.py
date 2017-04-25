@@ -1,6 +1,7 @@
 import logging
 import re
 import time
+import os
 
 from pedsnetdcc import SITES, ID_MAP_TABLES, CONSISTENT_ID_MAP_TABLES
 from pedsnetdcc.db import (Statement, StatementList)
@@ -19,6 +20,30 @@ _create_id_map_table_sql = """CREATE TABLE IF NOT EXISTS """ + _id_map_table_sql
 
 _create_dcc_id_table_sql = """CREATE TABLE IF NOT EXISTS """ + _dcc_ids_table_sql + """(last_id INTEGER NOT NULL)"""
 _initialize_dcc_id_table_sql = """INSERT INTO """ + _dcc_ids_table_sql + """(last_id) values(1)"""
+
+
+_temp_dump_file_templ = "{0}_dump"
+def _temp_dump_file(site):
+    return _temp_dump_file_templ.format(site)
+
+def _dump_args(site, conn_str, dump_path):
+    dump_args = ('--dbname='+conn_str,
+                 '-Fc',
+                 '-Z',
+                 '9',
+                 '--data-only')
+
+    for table in CONSISTENT_ID_MAP_TABLES:
+        dump_args += ('-t', _id_map_table_sql.format(site, table))
+
+    return dump_args + (dump_path,)
+
+def _restore_args(conn_str, dump_path):
+    return ('--dbname=' + conn_str,
+            '-Fc',
+            '-j',
+            '8',
+            dump_path)
 
 def create_dcc_ids_tables(conn_str):
     """Create tables (one per PEDSnet tables) for holding the last generated id for the dcc
@@ -50,8 +75,8 @@ def create_dcc_ids_tables(conn_str):
         'msg', 'finished creation of dcc_ids tables',
         'elapsed', secs_since(starttime)
     })
-        
-    
+
+
 
 def create_id_map_tables(conn_str):
     """Create a table (per site) for holding the id mappings between sites and the dcc
@@ -80,41 +105,31 @@ def create_id_map_tables(conn_str):
         'elapsed', secs_since(starttime)
     })
 
-
 def copy_id_maps(old_conn_str, new_conn_str):
+    """FILL ME IN
+    """
+
     logger.info({'msg': 'starting id map copying'})
     starttime = time.time()
 
     for site in SITES:
-        # TODO automate the -t flags from CONSISTENT_ID_MAP_TABLES
 
         logger.info({
             'msg': 'dumping id_map tables from old database for ' + site + ' site.',
             'elapsed': secs_since(starttime)
         })
 
-        output = pg_dump('--dbname=' + old_conn_str,
-                         '-Fc',
-                         '-Z',
-                         '9',
-                         '--data-only',
-                         '-t',
-                         _id_map_table_sql.format(site, 'person'),
-                         '-t',
-                         _id_map_table_sql.format(site, 'visit_occurrence'),
-                         '-f',
-                         site + "_temp_dump_file")
+        dump_file_path = _temp_dump_file(site)
+        pg_dump(_dump_args(site, old_conn_str, dump_file_path))
 
         logger.info({
             'msg': 'inserting id_map dumps into new database for ' + site + ' site.',
             'elapsed': secs_since(starttime)
         })
 
-        pg_restore('--dbname=' + new_conn_str,
-                   '-Fc',
-                   '-j',
-                   '8',
-                   site+"_temp_dump_file")
+        pg_restore(_restore_args(new_conn_str, dump_file_path))
+
+        os.remove(dump_file_path)
 
     logger.info({
         'msg', 'finished copying of id map table data',
