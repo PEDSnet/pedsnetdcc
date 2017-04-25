@@ -31,7 +31,7 @@ def _base_dump_args(conn_str, dump_path):
             '-Fc',
             '-Z',
             '9',
-            '--data-only'
+            '--data-only',
             '-f',
             dump_path)
 
