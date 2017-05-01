@@ -321,9 +321,25 @@ def cleanup(backup_dir, site_root):
               help="Target site for load")
 @click.option('--out-file', '-o',
               help='Output path for a csv file of results')
-def map_external_ids(dburi, in_file, site, out_file, table_name):
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+def map_external_ids(dburi, in_file, site, out_file, table_name, pwprompt):
+    """Takes a CSV from an external site with IDS and creates and maps those IDS to a DCC_ID
+    Optionally outputs a csv file with mapping of ids
+
+    The database should be specified using a model version and a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
 
     from external_id_mapper import map_external_ids
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
 
     search_path = str(site) + '_id_maps,dcc_ids'
 
