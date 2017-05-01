@@ -10,6 +10,7 @@ from pedsnetdcc.cleanup import cleanup_site_directories
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
+
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option('--logfmt', type=click.Choice(['tty', 'text', 'json']),
               help='Logging output format.')
@@ -111,6 +112,62 @@ def check_fact_relationship(searchpath, pwprompt, output, poolsize, dburi):
         sys.exit(1)
 
     sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.argument('dburi')
+def create_id_maps(dburi, pwprompt):
+    """Create id map tables to map the relationship between site ids and the dcc ids
+
+    Mapping between external site ids and dcc ids are neccessary to ensure data stays consistent
+    data cycles. This creates the tables neccessary for preserving that data.  
+    Does not fill in any data.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    from pedsnetdcc.id_maps import create_id_map_tables, create_dcc_ids_tables
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, password=password)
+    create_dcc_ids_tables(conn_str)
+    create_id_map_tables(conn_str)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.argument('dburi')
+@click.argument('old_db')
+@click.argument('new_db')
+def copy_id_maps(dburi, old_db, new_db, pwprompt):
+    """Copy id map tables from the last data cycles database into the new data cycles database
+    The databases should be specified using DBURIs:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    from pedsnetdcc.id_maps import copy_id_maps
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    old_conn_str = make_conn_str(dburi + old_db, password=password)
+    new_conn_str = make_conn_str(dburi + new_db, password=password)
+
+    copy_id_maps(old_conn_str, new_conn_str)
 
 
 @pedsnetdcc.command()
