@@ -340,10 +340,16 @@ def map_external_ids(dburi, in_file, site, out_file, table_name, pwprompt):
     if pwprompt:
         password = click.prompt('Database password', hide_input=True)
 
+    if not out_file:
+        substring = in_file.split('.csv')[0]
+
+        out_file = substring + "_RESULTS.csv"
+
 
     search_path = str(site) + '_id_maps,dcc_ids'
 
     conn_str = make_conn_str(dburi,
+                             password=password,
                              search_path=search_path)
 
     map_external_ids(conn_str, str(in_file), str(out_file), str(table_name))

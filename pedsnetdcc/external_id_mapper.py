@@ -22,10 +22,9 @@ INSERT_NEW_MAPS_MSG = "inserting new {table_name} ID mappings into map table"
 MAP_TABLE_NAME_TMPL = "{table_name}_ids"
 LAST_ID_TABLE_NAME_TMPL = "dcc_{table_name}_id"
 
-def map_external_ids(conn_str, in_csv_file, out_csv_file, table_name):
-    """FILL IN
-    """
+SELECT_MAPPING_STATEMENT = """SELECT site_id, dcc_id FROM {map_table_name} WHERE site_id IN ({mapping_values})"""
 
+def map_external_ids(conn_str, in_csv_file, out_csv_file, table_name):
     starttime = time.time()
     logger.info({
         'msg': 'starting external id mapping',
@@ -72,28 +71,49 @@ def map_external_ids(conn_str, in_csv_file, out_csv_file, table_name):
             'new_last_id': tpl_vars['new_last_id']})
 
         dcc_id = int(tpl_vars['old_last_id']) + 1
+        # Return to the beginning of the file after taking the count previously
         f.seek(0)
+
+        site_mapping_values = []
+        for row in reader:
+            site_id = row[0]
+            insert_mapping_row(tpl_vars, site_id, dcc_id, conn_str)
+
+            site_mapping_values.append(str(site_id))
+
+            dcc_id += 1
+
+        ## Get mapping from database
+        tpl_vars['mapping_values'] = ",".join(site_mapping_values)
+
+        mapping_statement = Statement(SELECT_MAPPING_STATEMENT.format(**tpl_vars))
+
+        mapping_statement.execute(conn_str)
+        check_stmt_err(mapping_statement, 'id mapping select')
 
         with open(out_csv_file, 'wb') as out_csv:
             out_writer = csv.writer(out_csv, delimiter=',')
             out_writer.writerow(['site_id', 'dcc_id'])
-            for row in reader:
-                site_id = row[0]
 
-                tpl_vars['site_id'] = site_id
-                tpl_vars['dcc_id'] = dcc_id
-
-                insert_statement = Statement(INSERT_NEW_MAPS_SQL.format(**tpl_vars))
-
-                insert_statement.execute(conn_str)
-                check_stmt_err(insert_statement, 'id mapping pre-transform')
-
-                out_writer.writerow([site_id, dcc_id])
-                dcc_id += 1
+            for result in mapping_statement.data:
+                logger.info({
+                    'site_id': result[0],
+                    'dcc_id': result[1]
+                })
+                out_writer.writerow([result[0], result[1]])
 
     logger.info({
         'msg': "Finished mapping external ids",
         'table': table_name,
         'secs_elapsed': secs_since(starttime)
-    }
+    })
 
+
+def insert_mapping_row(tpl_vars, site_id, dcc_id, conn_str):
+    tpl_vars['site_id'] = site_id
+    tpl_vars['dcc_id'] = dcc_id
+
+    insert_statement = Statement(INSERT_NEW_MAPS_SQL.format(**tpl_vars))
+
+    insert_statement.execute(conn_str)
+    check_stmt_err(insert_statement, 'id mapping pre-transform')
