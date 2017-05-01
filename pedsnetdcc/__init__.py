@@ -52,6 +52,30 @@ SITES = ('chop', 'colorado', 'nationwide', 'nemours', 'seattle', 'stlouis')
 SITES_AND_DCC = SITES + ('dcc',)
 BACKUP_ROOT = '/mnt/isilon/pedsnet/archives/ftp/'
 
+CONSISTENT_ID_MAP_TABLES = (
+    'person',
+    'visit_occurrence'
+)
+
+ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
+    'adt_occurrence',
+    'care_site',
+    'condition_era',
+    'condition_occurrence',
+    'death',
+    'dose_era',
+    'drug_era',
+    'drug_exposure',
+    'location',
+    'measurement',
+    'measurement_organism',
+    'observation',
+    'observation_period',
+    'procedure_occurrence',
+    'provider',
+    'visit_payer'
+)
+
 _dms_var = 'PEDSNETDCC_DMS_URL'
 if _dms_var in os.environ:
     DATA_MODELS_SERVICE = os.environ[_dms_var]
