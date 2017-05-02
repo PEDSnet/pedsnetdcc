@@ -7,14 +7,15 @@ from pedsnetdcc.db import (Statement, StatementList)
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_err
 
-from pedsnetdcc.permissions import grant_database_permissions, grant_schema_permissions, grant_vocabulary_permissions
+from pedsnetdcc.permissions import (grant_database_permissions, grant_schema_permissions,
+                                    grant_vocabulary_permissions)
 
 logger = logging.getLogger(__name__)
 
 
-def _despace(s):
+def _despace(statement):
     """Return string with runs of spaces replaced with a single space"""
-    return re.sub(r' +', ' ', s)
+    return re.sub(r' +', ' ', statement)
 
 
 def _conn_str_with_database(conn_str, dbname):
@@ -87,13 +88,14 @@ def _create_database_sql(database_name):
     return tmpl.format(database_name),
 
 # SQL template for creating site schemas in an internal database instance.
-_sql_site_template = """
+SQL_SITE_TEMPLATE = """
 create schema if not exists {{.Site}}_pedsnet  authorization dcc_owner;
 create schema if not exists {{.Site}}_pcornet  authorization dcc_owner;
 create schema if not exists {{.Site}}_harvest  authorization dcc_owner;
 create schema if not exists {{.Site}}_achilles authorization dcc_owner;
-create schema if not exists {{.Site}}_id_maps  authorization dcc_owner;
 """
+
+SQL_ID_MAPS_TEMPLATE = """create schema if not exists {{.Site}}_id_maps authorization dcc_owner;"""
 
 
 
@@ -107,12 +109,20 @@ def _site_sql(site):
     :rtype: list(str)
     :raises: ValueError
     """
-    tmpl = _sql_site_template
+    tmpl = SQL_SITE_TEMPLATE
     sql = tmpl.replace('{{.Site}}', site)
-    return [_despace(x) for x in sql.split("\n") if x]
+
+    statements = [_despace(x) for x in sql.split("\n") if x]
+
+    if site != 'dcc':
+        id_maps_tmpl = SQL_ID_MAPS_TEMPLATE
+        id_maps_sql = id_maps_tmpl.replace('{{.Site}}', site)
+        statements.append(_despace(id_maps_sql))
+
+    return statements
 
 
-_sql_other = """
+SQL_OTHER = """
 create schema if not exists vocabulary authorization dcc_owner;
 create schema if not exists dcc_ids authorization dcc_owner;
 """
@@ -124,7 +134,7 @@ def _other_sql():
     :rtype: list(str)
     :raises: ValueError
     """
-    sql = _sql_other
+    sql = SQL_OTHER
     return [_despace(x) for x in sql.split("\n") if x]
 
 
@@ -148,7 +158,7 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     :raises RuntimeError: if any of the sql statements cause an error
     """
     logger.info({'msg': 'starting database preparation',
-                'model': model_version})
+                 'model': model_version})
     starttime = time.time()
 
     database_name = _make_database_name(model_version)

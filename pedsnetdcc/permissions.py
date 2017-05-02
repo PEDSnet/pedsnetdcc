@@ -11,7 +11,7 @@ from pedsnetdcc.utils import check_stmt_err, combine_dicts, get_conn_info_dict
 logger = logging.getLogger(__name__)
 
 # SQL template for creating site schemas in an internal database instance.
-_permissions_sql_template = """
+PERMISSIONS_SQL_TEMPLATE = """
 grant usage  on               schema {{.Site}}_pedsnet  to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
 grant select on all tables in schema {{.Site}}_pedsnet  to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
 grant all    on               schema {{.Site}}_pedsnet  to loading_user;
@@ -20,13 +20,16 @@ grant usage  on               schema {{.Site}}_pcornet  to peds_staff;
 grant select on all tables in schema {{.Site}}_pcornet  to peds_staff;
 grant all    on               schema {{.Site}}_harvest  to harvest_user;
 grant all    on               schema {{.Site}}_achilles to achilles_user;
-grant all    on               schema {{.Site}}_id_maps  to loading_user;
 alter default privileges for role loading_user in schema {{.Site}}_pedsnet grant select on tables to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
 alter default privileges for role loading_user in schema {{.Site}}_pcornet grant select on tables to peds_staff;
+"""
+
+ID_MAPS_SQL_TEMPLATE = """
+grant all    on               schema {{.Site}}_id_maps  to loading_user;
 alter default privileges for role loading_user in schema {{.Site}}_id_maps grant select on tables to peds_staff;
 """
 
-_vocabulary_permissions_sql_templ = """
+VOCABULARY_PERMISSIONS_SQL_TEMPL = """
 grant all                  on schema dcc_ids    to loading_user;
 grant all                  on schema vocabulary to loading_user;
 grant usage                on schema vocabulary to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
@@ -46,9 +49,9 @@ def _database_privileges_sql(database_name):
             tmpl.format(db=database_name, usr='loading_user'))
 
 
-def _despace(s):
+def _despace(statement):
     """Return string with runs of spaces replaced with a single space"""
-    return re.sub(r' +', ' ', s)
+    return re.sub(r' +', ' ', statement)
 
 
 def _permissions_sql(site):
@@ -60,12 +63,21 @@ def _permissions_sql(site):
     :rtype: list(str)
     :raises: ValueError
     """
-    tmpl = _permissions_sql_template
+    tmpl = PERMISSIONS_SQL_TEMPLATE
     sql = tmpl.replace('{{.Site}}', site)
-    return [_despace(x) for x in sql.split("\n") if x]
+
+    statements = [_despace(x) for x in sql.split("\n") if x]
+
+    if site != 'dcc':
+        id_maps_tmpl = ID_MAPS_SQL_TEMPLATE
+        id_maps_sql = id_maps_tmpl.replace('{{.Site}}', site)
+
+        statements = statements + [_despace(x) for x in id_maps_sql.split("\n") if x]
+
+    return statements
 
 def _vocabulary_permissions_sql():
-    sql = _vocabulary_permissions_sql_templ
+    sql = VOCABULARY_PERMISSIONS_SQL_TEMPL
     return [_despace(x) for x in sql.split("\n") if x]
 
 
