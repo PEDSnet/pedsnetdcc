@@ -54,6 +54,7 @@ BACKUP_ROOT = '/mnt/isilon/pedsnet/archives/ftp/'
 
 CONSISTENT_ID_MAP_TABLES = (
     'person',
+    'provider',
     'visit_occurrence'
 )
 
@@ -72,7 +73,6 @@ ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
     'observation',
     'observation_period',
     'procedure_occurrence',
-    'provider',
     'visit_payer'
 )
 
