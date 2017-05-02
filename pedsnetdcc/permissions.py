@@ -70,7 +70,12 @@ def _vocabulary_permissions_sql():
 
 
 def grant_database_permissions(conn_str, database_name):
-    """FILL IN
+    """Grant create permissions on a database for the appropriate PEDSnet users
+
+    :param conn_str: connection string to database
+    :type: str
+    :param database_name: name of newly created database to grant permissions on
+    :type: str
     """
 
     log_dict = get_conn_info_dict(conn_str)
@@ -95,7 +100,10 @@ def grant_database_permissions(conn_str, database_name):
 
 
 def grant_schema_permissions(conn_str):
-    """FILL IN
+    """Grant schema and table permissions on a database for the appropriate PEDSnet users
+
+    :param conn_str: connection string to database
+    :type: str
     """
 
     log_dict = get_conn_info_dict(conn_str)
