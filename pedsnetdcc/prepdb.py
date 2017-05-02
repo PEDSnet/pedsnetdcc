@@ -7,6 +7,8 @@ from pedsnetdcc.db import (Statement, StatementList)
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_err
 
+from pedsnetdcc.permissions import grant_database_permissions, grant_schema_permissions, grant_vocabulary_permissions
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,18 +86,6 @@ def _create_database_sql(database_name):
            "encoding = 'UTF8' lc_collate = 'C' lc_ctype = 'C'"
     return tmpl.format(database_name),
 
-
-def _database_privileges_sql(database_name):
-    """Return a tuple of statements granting privileges on the database.
-    :param database_name: Database name
-    :type: str
-    :return: a tuple of statements
-    :rtype: tuple(str)
-    """
-    tmpl = 'grant create on database {db} to {usr}'
-    return (tmpl.format(db=database_name, usr='peds_staff'),
-            tmpl.format(db=database_name, usr='loading_user'))
-
 # SQL template for creating site schemas in an internal database instance.
 _sql_site_template = """
 create schema if not exists {{.Site}}_pedsnet  authorization dcc_owner;
@@ -103,19 +93,9 @@ create schema if not exists {{.Site}}_pcornet  authorization dcc_owner;
 create schema if not exists {{.Site}}_harvest  authorization dcc_owner;
 create schema if not exists {{.Site}}_achilles authorization dcc_owner;
 create schema if not exists {{.Site}}_id_maps  authorization dcc_owner;
-grant usage  on               schema {{.Site}}_pedsnet  to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
-grant select on all tables in schema {{.Site}}_pedsnet  to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
-grant all    on               schema {{.Site}}_pedsnet  to loading_user;
-grant all    on               schema {{.Site}}_pcornet  to pcor_et_user;
-grant usage  on               schema {{.Site}}_pcornet  to peds_staff;
-grant select on all tables in schema {{.Site}}_pcornet  to peds_staff;
-grant all    on               schema {{.Site}}_harvest  to harvest_user;
-grant all    on               schema {{.Site}}_achilles to achilles_user;
-grant all    on               schema {{.Site}}_id_maps  to loading_user;
-alter default privileges for role loading_user in schema {{.Site}}_pedsnet grant select on tables to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
-alter default privileges for role loading_user in schema {{.Site}}_pcornet grant select on tables to peds_staff;
-alter default privileges for role loading_user in schema {{.Site}}_id_maps grant select on tables to peds_staff;
 """
+
+
 
 
 def _site_sql(site):
@@ -135,11 +115,6 @@ def _site_sql(site):
 _sql_other = """
 create schema if not exists vocabulary authorization dcc_owner;
 create schema if not exists dcc_ids authorization dcc_owner;
-grant all                  on schema dcc_ids    to loading_user;
-grant all                  on schema vocabulary to loading_user;
-grant usage                on schema vocabulary to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
-grant select on all tables in schema vocabulary to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
-alter default privileges for role loading_user in schema vocabulary grant select on tables to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
 """
 
 
@@ -184,14 +159,9 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
         stmts.extend(
             [Statement(x) for x in _create_database_sql(database_name)])
 
-    stmts.extend(
-        [Statement(x) for x in _database_privileges_sql(database_name)])
-
     stmts.serial_execute(conn_str)
 
-    for stmt in stmts:
-        check_stmt_err(stmt, 'database preparation')
-
+    grant_database_permissions(conn_str, database_name)
     # Operate on the newly created database.
     stmts = StatementList()
     for site in _sites_and_dcc(dcc_only):
@@ -203,6 +173,9 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     new_conn_str = _conn_str_with_database(conn_str, database_name)
 
     stmts.serial_execute(new_conn_str)
+
+    grant_schema_permissions(new_conn_str)
+    grant_vocabulary_permissions(new_conn_str)
 
     for stmt in stmts:
         check_stmt_err(stmt, 'database preparation')

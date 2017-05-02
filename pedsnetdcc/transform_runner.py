@@ -22,6 +22,7 @@ from pedsnetdcc.age_transform import AgeTransform
 from pedsnetdcc.concept_name_transform import ConceptNameTransform
 from pedsnetdcc.site_name_transform import SiteNameTransform
 from pedsnetdcc.id_mapping_transform import IDMappingTransform
+from pedsnetdcc.permissions import grant_database_permissions, grant_schema_permissions, grant_vocabulary_permissions
 
 logger = logging.getLogger(__name__)
 
@@ -261,6 +262,10 @@ def run_transformation(conn_str, model_version, site, search_path,
                                       log_dict))
             tpl = 'moving tables after transformation ({sql}): {err}'
             raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
+    
+    ## Regrant permissions after renaming schemas
+    grant_schema_permissions(new_conn_str)
+    grant_vocabulary_permissions(new_conn_str)
 
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),

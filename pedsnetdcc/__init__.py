@@ -49,6 +49,7 @@ FACT_RELATIONSHIP_DOMAINS = {
 
 SITE_ROOT = '/data/site_data'
 SITES = ('chop', 'colorado', 'nationwide', 'nemours', 'seattle', 'stlouis')
+SITES_AND_DCC = SITES + ('dcc',)
 BACKUP_ROOT = '/mnt/isilon/pedsnet/archives/ftp/'
 
 CONSISTENT_ID_MAP_TABLES = (

@@ -333,7 +333,7 @@ def map_external_ids(dburi, in_file, site, out_file, table_name, pwprompt):
     postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
     """
 
-    from external_id_mapper import map_external_ids
+    from pedsnetdcc.external_id_mapper import map_external_ids
 
     password = None
 
@@ -353,6 +353,32 @@ def map_external_ids(dburi, in_file, site, out_file, table_name, pwprompt):
                              search_path=search_path)
 
     map_external_ids(conn_str, str(in_file), str(out_file), str(table_name))
+
+@pedsnetdcc.command()
+@click.argument('dburi', required=True)
+@click.option('--pwprompt', '-p', is_flag=True, default=False)
+def grant_permissions(dburi, pwprompt):
+    """Grants the appropriate permissions for all schemas and tables, as well as vocabulary schemas and tables
+    
+    This is normally set during prepdb and transform, but this command can be used to manually set permissions if there is an issue
+
+    The database should be specified using a model version and a dburi
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+    
+    from pedsnetdcc.permissions import grant_schema_permissions, grant_vocabulary_permissions
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, password=password)
+
+    grant_schema_permissions(conn_str)
+    grant_vocabulary_permissions(conn_str)
 
 
 if __name__ == '__main__':
