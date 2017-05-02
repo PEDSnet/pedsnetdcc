@@ -90,3 +90,5 @@ ENV/
 
 # IntelliJ (pycharm) project settings
 .idea/
+
+*.DS_Store
