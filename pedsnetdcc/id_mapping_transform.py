@@ -162,7 +162,6 @@ class IDMappingTransform(Transform):
 
         # Get table object.
         table = metadata.tables[table_name]
-        table_alias = table.alias()
 
         # Raise error if attempted on a multi-column primary key table.
         if len(table.primary_key.columns) > 1:
@@ -190,7 +189,7 @@ class IDMappingTransform(Transform):
                 map_table = metadata.tables[map_table_name]
 
             map_table_alias = map_table.alias()
-            join = join.join(map_table_alias, table_alias.c[pkey_name] ==
+            join = join.join(map_table_alias, table.c[pkey_name] ==
                              map_table_alias.c['site_id'])
 
             # Create a new select object, because we need to replace the
@@ -242,7 +241,7 @@ class IDMappingTransform(Transform):
 
             map_table_alias = map_table.alias()
             # Add a join to the mapping table.)
-            join = join.join(map_table_alias, table_alias.c[fkey_name] ==
+            join = join.join(map_table_alias, table.c[fkey_name] ==
                              map_table_alias.c['site_id'], isouter=isouter)
 
             # Create a new select object, because we need to replace the
@@ -289,15 +288,15 @@ class IDMappingTransform(Transform):
 
                 # Add two joins to the mapping table
                 join = join.join(map_table_1, sqlalchemy.and_(
-                                     table_alias.c['fact_id_1'] ==
+                                     table.c['fact_id_1'] ==
                                      map_table_1.c['site_id'],
-                                     table_alias.c['domain_concept_id_1'] ==
+                                     table.c['domain_concept_id_1'] ==
                                      domain_concept_id),
                                  isouter=True)
                 join = join.join(map_table_2, sqlalchemy.and_(
-                                     table_alias.c['fact_id_2'] ==
+                                     table.c['fact_id_2'] ==
                                      map_table_2.c['site_id'],
-                                     table_alias.c['domain_concept_id_2'] ==
+                                     table.c['domain_concept_id_2'] ==
                                      domain_concept_id),
                                  isouter=True)
 
