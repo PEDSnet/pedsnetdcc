@@ -114,9 +114,11 @@ class AgeTransform(Transform):
                 )).label(new_col_name)
 
             if not joined_already_for_table_name.get(table_name, False):
-                join = join.join(person,
-                                 person.c.person_id
-                                 == table.c.person_id)
+                person_alias = person.alias()
+                table_alias = table.alias()
+                join = join.join(person_alias,
+                                 person_alias.c.person_id
+                                 == table_alias.c.person_id)
                 joined_already_for_table_name[table_name] = True
 
             select = select.column(new_col)
