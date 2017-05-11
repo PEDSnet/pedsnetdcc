@@ -357,30 +357,6 @@ def map_external_ids(dburi, in_file, site, out_file, table_name, pwprompt):
 @pedsnetdcc.command()
 @click.argument('dburi', required=True)
 @click.option('--pwprompt', '-p', is_flag=True, default=False)
-def generate_transform_statements(dburi, pwprompt):
-    
-    from pedsnetdcc.transform_runner import _transform_select_sql
-    from pedsnetdcc.schema import create_schema, primary_schema
-    if pwprompt:
-        password = click.prompt('Database password', hide_input=True)
-    
-    conn_str = make_conn_str(dburi, password=password)
-
-    # TODO: do we need to validate the primary schema at all?
-    schema = primary_schema('stlouis_pedsnet,stlouis_id_maps,dcc_ids,vocabulary')
-
-    # Create the schema to hold the transformed tables.
-    tmp_schema = schema + '_' + 'transformed'
-    create_schema(conn_str, tmp_schema, True)
-
-    for sql, msg in _transform_select_sql('2.5.0', 'stlouis', tmp_schema):
-        print("msg: " + sql)
-    
-    
-
-@pedsnetdcc.command()
-@click.argument('dburi', required=True)
-@click.option('--pwprompt', '-p', is_flag=True, default=False)
 def grant_permissions(dburi, pwprompt):
     """Grants the appropriate permissions for all schemas and tables, as well as vocabulary schemas and tables
     
