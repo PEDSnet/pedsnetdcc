@@ -202,7 +202,7 @@ class IDMappingTransform(Transform):
                     new_select.append_column(c)
 
             # Add the mapping table dcc_id column as the primary key column.
-            new_select.append_column(map_table.c['dcc_id'].label(pkey_name))
+            new_select.append_column(map_table_alias.c['dcc_id'].label(pkey_name))
 
             # Add the original site primary key as the site_id column.
             new_select.append_column(table.c[pkey_name].label('site_id'))
@@ -254,7 +254,7 @@ class IDMappingTransform(Transform):
                     new_select.append_column(c)
 
             # Add the mapping table dcc_id column as the foreign key column.
-            new_select.append_column(map_table.c['dcc_id'].label(fkey_name))
+            new_select.append_column(map_table_alias.c['dcc_id'].label(fkey_name))
 
             # Put the new select object back in the original var for next use.
             select = new_select
