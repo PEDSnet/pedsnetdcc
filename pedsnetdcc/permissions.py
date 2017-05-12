@@ -10,6 +10,12 @@ from pedsnetdcc.utils import check_stmt_err, combine_dicts, get_conn_info_dict
 
 logger = logging.getLogger(__name__)
 
+PREP_DB_SQL_TEMPLATE = """
+grant all on schema {{.Site}}_pcornet to loading_user with grant option;
+grant all on schema {{.Site}}_harvest to loading_user with grant option;
+grant all on schema {{.Site}}_achilles to loading_user with grant option;
+"""
+
 # SQL template for creating site schemas in an internal database instance.
 PERMISSIONS_SQL_TEMPLATE = """
 grant usage  on               schema {{.Site}}_pedsnet  to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
@@ -36,6 +42,21 @@ grant usage                on schema vocabulary to achilles_user, dqa_user, pcor
 grant select on all tables in schema vocabulary to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
 alter default privileges for role loading_user in schema vocabulary grant select on tables to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
 """
+
+def _loading_user_privileges_sql(site):
+    """Return a list of statements to set the correct permissions loading_user during prepdb.
+
+    :param site: site name, e.g. 'dcc' or 'stlouis'
+    :type: str
+    :return: SQL statements
+    :rtype: list(str)
+    :raises: ValueError
+    """
+
+    tmpl = PREP_DB_SQL_TEMPLATE
+    sql = tmpl.replace('{{.Site}}', site)
+
+    return [_despace(x) for x in sql.split("\n") if x]
 
 def _database_privileges_sql(database_name):
     """Return a tuple of statements granting privileges on the database.
@@ -80,6 +101,33 @@ def _vocabulary_permissions_sql():
     sql = VOCABULARY_PERMISSIONS_SQL_TEMPL
     return [_despace(x) for x in sql.split("\n") if x]
 
+def grant_loading_user_permissions(conn_str):
+    """Grant loading_user grant permissions for pcornet, achilles, harvest
+
+    :param conn_str: connection string to database
+    :type: str
+    """
+
+    log_dict = get_conn_info_dict(conn_str)
+    logger.info(combine_dicts({'msg': 'starting granting of loading_user permissions'},
+                              log_dict))
+    start_time = time.time()
+
+    stmnts = StatementList()
+
+    for site in SITES_AND_DCC:
+        stmnts.extend(
+            [Statement(x) for x in _loading_user_privileges_sql(site)]
+        )
+
+    stmnts.serial_execute(conn_str)
+
+    for stmnt in stmnts:
+        check_stmt_err(stmnt, 'granting loading permissions')
+
+     # Log end of function.
+    logger.info(combine_dicts({'msg': 'finished granting of loading permissions',
+                               'elapsed': secs_since(start_time)}, log_dict))
 
 def grant_database_permissions(conn_str, database_name):
     """Grant create permissions on a database for the appropriate PEDSnet users

@@ -188,8 +188,9 @@ class IDMappingTransform(Transform):
             else:
                 map_table = metadata.tables[map_table_name]
 
-            join = join.join(map_table, table.c[pkey_name] ==
-                             map_table.c['site_id'])
+            map_table_alias = map_table.alias()
+            join = join.join(map_table_alias, table.c[pkey_name] ==
+                             map_table_alias.c['site_id'])
 
             # Create a new select object, because we need to replace the
             # primary key column with the joined mapping table dcc_id column.
@@ -201,7 +202,7 @@ class IDMappingTransform(Transform):
                     new_select.append_column(c)
 
             # Add the mapping table dcc_id column as the primary key column.
-            new_select.append_column(map_table.c['dcc_id'].label(pkey_name))
+            new_select.append_column(map_table_alias.c['dcc_id'].label(pkey_name))
 
             # Add the original site primary key as the site_id column.
             new_select.append_column(table.c[pkey_name].label('site_id'))
@@ -238,9 +239,10 @@ class IDMappingTransform(Transform):
             # the final product.
             isouter = table.c[fkey_name].nullable
 
+            map_table_alias = map_table.alias()
             # Add a join to the mapping table.)
-            join = join.join(map_table, table.c[fkey_name] ==
-                             map_table.c['site_id'], isouter=isouter)
+            join = join.join(map_table_alias, table.c[fkey_name] ==
+                             map_table_alias.c['site_id'], isouter=isouter)
 
             # Create a new select object, because we need to replace the
             # foreign key column with the joined mapping table dcc_id column.
@@ -252,7 +254,7 @@ class IDMappingTransform(Transform):
                     new_select.append_column(c)
 
             # Add the mapping table dcc_id column as the foreign key column.
-            new_select.append_column(map_table.c['dcc_id'].label(fkey_name))
+            new_select.append_column(map_table_alias.c['dcc_id'].label(fkey_name))
 
             # Put the new select object back in the original var for next use.
             select = new_select

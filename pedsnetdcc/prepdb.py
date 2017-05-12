@@ -8,7 +8,7 @@ from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_err
 
 from pedsnetdcc.permissions import (grant_database_permissions, grant_schema_permissions,
-                                    grant_vocabulary_permissions)
+                                    grant_vocabulary_permissions, grant_loading_user_permissions)
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +184,7 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
 
     stmts.serial_execute(new_conn_str)
 
+    grant_loading_user_permissions(new_conn_str)
     grant_schema_permissions(new_conn_str)
     grant_vocabulary_permissions(new_conn_str)
 
