@@ -317,13 +317,13 @@ def cleanup(backup_dir, site_root):
 @click.argument('dburi', required=True)
 @click.argument('in_file', required=True)
 @click.argument('table_name', required=True)
-@click.option('--site', '-s',
+@click.option('--search-path', '-s',
               help="Target site for load")
 @click.option('--out-file', '-o',
               help='Output path for a csv file of results')
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
-def map_external_ids(dburi, in_file, site, out_file, table_name, pwprompt):
+def map_external_ids(dburi, in_file, search_path, out_file, table_name, pwprompt):
     """Takes a CSV from an external site with IDS and creates and maps those IDS to a DCC_ID
     Optionally outputs a csv file with mapping of ids
 
@@ -344,9 +344,6 @@ def map_external_ids(dburi, in_file, site, out_file, table_name, pwprompt):
         substring = in_file.split('.csv')[0]
 
         out_file = substring + "_RESULTS.csv"
-
-
-    search_path = str(site) + '_id_maps,dcc_ids'
 
     conn_str = make_conn_str(dburi,
                              password=password,
@@ -383,6 +380,30 @@ def grant_permissions(dburi, pwprompt, full):
 
     grant_schema_permissions(conn_str)
     grant_vocabulary_permissions(conn_str)
+
+@pedsnetdcc.command()		  
+@click.argument('dburi', required=True)		 
+@click.option('--pwprompt', '-p', is_flag=True, default=False)
+@click.option('--searchpath', '-s', required=True)
+@click.option('--site', required=True,
+              help='PEDSnet site name to add to tables.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+def generate_transform_statements(dburi, pwprompt, searchpath, model_version, site):		
+     		
+    from pedsnetdcc.transform_runner import _transform_select_sql		
+    from pedsnetdcc.schema import create_schema, primary_schema		
+    if pwprompt:		
+        password = click.prompt('Database password', hide_input=True)		
+        
+    conn_str = make_conn_str(dburi, password=password)		
+
+    # TODO: do we need to validate the primary schema at all?		
+    schema = primary_schema(searchpath)		
+	
+    tmp_schema = schema + '_' + 'transformed'			
+    for sql, msg in _transform_select_sql(model_version, site, tmp_schema):		
+        print("msg: " + sql)
 
 
 if __name__ == '__main__':
