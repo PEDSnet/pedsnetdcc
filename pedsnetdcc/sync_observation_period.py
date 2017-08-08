@@ -10,7 +10,7 @@ CREATE TEMP TABLE date_limit
     (person_id, table_name, min_datetime, max_datetime)
 AS
     SELECT person_id, 'visit_occurrence',
-           min(coalesce(visit_start_time, visit_start_date)),
+           min(coalesce(visit_start_datetime, visit_start_date)),
            max(coalesce(visit_end_time, visit_end_date))
     FROM visit_occurrence
     GROUP BY person_id
