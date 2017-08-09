@@ -52,7 +52,7 @@ class AgeTransform(Transform):
         'drug_exposure': ('drug_exposure_start_time',),
         'measurement': ('measurement_time', 'measurement_result_time'),
         'procedure_occurrence': ('procedure_time',),
-        'visit_occurrence': ('visit_start_time',),
+        'visit_occurrence': ('visit_start_datetime',),
         'observation': ('observation_time',),
     }
     AGE_COLUMN_TYPE = 'float'
