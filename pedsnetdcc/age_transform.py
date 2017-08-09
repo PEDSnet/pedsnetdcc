@@ -47,13 +47,13 @@ $$""",
 class AgeTransform(Transform):
     # Caller may override `columns`
     columns_by_table = {
-        'condition_occurrence': ('condition_start_time',),
-        'death': ('death_time',),
-        'drug_exposure': ('drug_exposure_start_time',),
-        'measurement': ('measurement_time', 'measurement_result_time'),
-        'procedure_occurrence': ('procedure_time',),
+        'condition_occurrence': ('condition_start_datetime',),
+        'death': ('death_datetime',),
+        'drug_exposure': ('drug_exposure_start_datetime',),
+        'measurement': ('measurement_datetime', 'measurement_result_datetime'),
+        'procedure_occurrence': ('procedure_datetime',),
         'visit_occurrence': ('visit_start_datetime',),
-        'observation': ('observation_time',),
+        'observation': ('observation_datetime',),
     }
     AGE_COLUMN_TYPE = 'float'
 
@@ -106,7 +106,7 @@ class AgeTransform(Transform):
                 raise ValueError(
                     "Table {0} has no `person_id` column".format(table_name))
 
-            new_col_name = col_name.replace('_time', '_age_in_months')
+            new_col_name = col_name.replace('_datetime', '_age_in_months')
 
             new_col = literal_column(
                 'months_in_interval(person.time_of_birth, {tbl}.{col})'.format(
@@ -132,7 +132,7 @@ class AgeTransform(Transform):
             return
         for col_name in cls.columns_by_table[table.name]:
             col = table.columns[col_name]
-            new_col_name = col.name.replace('_time', '_age_in_months')
+            new_col_name = col.name.replace('_datetime', '_age_in_months')
             new_col = Column(new_col_name, DOUBLE_PRECISION)
             table.append_column(new_col)
             Index(Transform.make_index_name(table.name, new_col_name),

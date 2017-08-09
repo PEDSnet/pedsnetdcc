@@ -11,43 +11,43 @@ CREATE TEMP TABLE date_limit
 AS
     SELECT person_id, 'visit_occurrence',
            min(coalesce(visit_start_datetime, visit_start_date)),
-           max(coalesce(visit_end_time, visit_end_date))
+           max(coalesce(visit_end_datetime, visit_end_date))
     FROM visit_occurrence
     GROUP BY person_id
 UNION ALL
     SELECT person_id, 'procedure_occurrence',
-           min(coalesce(procedure_time, procedure_date)),
-           max(coalesce(procedure_time, procedure_date))
+           min(coalesce(procedure_datetime, procedure_date)),
+           max(coalesce(procedure_datetime, procedure_date))
     FROM procedure_occurrence
     GROUP BY person_id
 UNION ALL
     SELECT person_id, 'condition_occurrence',
-           min(coalesce(condition_start_time, condition_start_date)),
-           max(coalesce(condition_end_time, condition_end_date))
+           min(coalesce(condition_start_datetime, condition_start_date)),
+           max(coalesce(condition_end_datetime, condition_end_date))
     FROM condition_occurrence
     GROUP BY person_id
 UNION ALL
     SELECT person_id, 'drug_exposure',
-           min(coalesce(drug_exposure_start_time, drug_exposure_start_date)),
-           max(coalesce(drug_exposure_end_time, drug_exposure_end_date))
+           min(coalesce(drug_exposure_start_datetime, drug_exposure_start_date)),
+           max(coalesce(drug_exposure_end_datetime, drug_exposure_end_date))
     FROM drug_exposure
     GROUP BY person_id
 UNION ALL
     SELECT person_id, 'observation',
-           min(coalesce(observation_time, observation_date)),
-           max(coalesce(observation_time, observation_date))
+           min(coalesce(observation_datetime, observation_date)),
+           max(coalesce(observation_datetime, observation_date))
     FROM observation
     GROUP BY person_id
 UNION ALL
     SELECT person_id, 'measurement',
-           min(coalesce(measurement_time, measurement_date)),
-           max(coalesce(measurement_time, measurement_date))
+           min(coalesce(measurement_datetime, measurement_date)),
+           max(coalesce(measurement_datetime, measurement_date))
     FROM measurement
     GROUP BY person_id
 UNION ALL
     SELECT person_id, 'death',
-           min(coalesce(death_time, death_date)),
-           max(coalesce(death_time, death_date))
+           min(coalesce(death_datetime, death_date)),
+           max(coalesce(death_datetime, death_date))
     FROM death
     GROUP BY person_id
 '''
