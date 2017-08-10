@@ -109,7 +109,7 @@ class AgeTransform(Transform):
             new_col_name = col_name.replace('_datetime', '_age_in_months')
 
             new_col = literal_column(
-                'months_in_interval(person.time_of_birth, {tbl}.{col})'.format(
+                'months_in_interval(person.birth_datetime, {tbl}.{col})'.format(
                     tbl=table_name, col=col_name
                 )).label(new_col_name)
 
