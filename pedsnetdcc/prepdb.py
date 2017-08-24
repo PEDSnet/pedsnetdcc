@@ -182,14 +182,19 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     # Create new_conn_str to target the new database
     new_conn_str = _conn_str_with_database(conn_str, database_name)
 
-    stmts.serial_execute(new_conn_str)
+    logger.info({
+        'msg': 'creating schemas',
+        'model_version': model_version,
+        'elapsed': secs_since(starttime)})
 
+    stmts.serial_execute(new_conn_str)
+    
+    for stmt in stmts:
+       check_stmt_err(stmt, 'database preparation')
+   
     grant_loading_user_permissions(new_conn_str)
     grant_schema_permissions(new_conn_str)
     grant_vocabulary_permissions(new_conn_str)
-
-    for stmt in stmts:
-        check_stmt_err(stmt, 'database preparation')
 
     logger.info({
         'msg': 'finished database preparation',
