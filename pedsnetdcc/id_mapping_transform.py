@@ -156,7 +156,7 @@ class IDMappingTransform(Transform):
             index_stmt = Statement(CREATE_ID_MAP_INDEX_SQL.format(table))
             index_stmt.execute(conn_str)
             check_stmt_err(index_stmt, 'id mapping indexes')
-            logger.info({'msg': 'create ID mapping indexes',
+            logger.info({'msg': 'created ID mapping indexes',
                          'table': table_name,
                          'elapsed': secs_since(starttime)})
 
