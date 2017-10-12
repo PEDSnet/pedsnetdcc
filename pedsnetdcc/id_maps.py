@@ -17,7 +17,7 @@ DCC_IDS_TABLE_SQL = """dcc_ids.dcc_{0}_id"""
 ID_MAP_TABLE_SQL = """{0}_id_maps.{1}_ids"""
 
 CREATE_ID_MAP_TABLE_SQL = """CREATE TABLE IF NOT EXISTS """ + ID_MAP_TABLE_SQL + """(dcc_id INTEGER NOT NULL, site_id INTEGER NOT NULL)"""
-CREATE_ID_MAP_INDEX_SQL = """CREATE INDEX {0}_maps_idx_site ON """ + ID_MAP_TABLE_SQL + """(site_id)"""
+CREATE_ID_MAP_INDEX_SQL = """CREATE INDEX {0}_{1}_maps_idx_site ON """ + ID_MAP_TABLE_SQL + """(site_id)"""
 
 CREATE_DCC_ID_TABLE_SQL = """CREATE TABLE IF NOT EXISTS """ + DCC_IDS_TABLE_SQL + """(last_id INTEGER NOT NULL)"""
 INITIALIZE_DCC_ID_TABLE_SQL = """INSERT INTO """ + DCC_IDS_TABLE_SQL + """(last_id) values(1)"""
