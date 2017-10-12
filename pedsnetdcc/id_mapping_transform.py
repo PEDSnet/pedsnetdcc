@@ -34,6 +34,8 @@ insert_new_maps_msg = "inserting new {table_name} ID mappings into map table"
 map_table_name_tmpl = "{table_name}_ids"
 last_id_table_name_tmpl = "dcc_{table_name}_id"
 
+CREATE_ID_MAP_INDEX_SQL = """CREATE INDEX {0}_maps_idx_site ON {0}_ids (site_id)"""
+
 logger = logging.getLogger(__name__)
 
 
@@ -150,6 +152,14 @@ class IDMappingTransform(Transform):
                          'table': table_name,
                          'count': insert_new_maps_stmt.rowcount,
                          'elapsed': secs_since(starttime)})
+
+            index_stmt = Statement(CREATE_ID_MAP_INDEX_SQL.format(table))
+            index_stmt.execute(conn_str)
+            check_stmt_err(index_stmt, 'id mapping indexes')
+            logger.info({'msg': 'create ID mapping indexes',
+                         'table': table_name,
+                         'elapsed': secs_since(starttime)})
+
 
     @classmethod
     def modify_select(cls, metadata, table_name, select, join):
