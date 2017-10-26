@@ -56,6 +56,10 @@ def _transform_select_sql(model_version, site, target_schema, target_table, enti
     table_list = metadata.tables.items()
 
     if target_table:
+
+        table = metadata.tables.get(entity)
+
+        table.name = target_table
         table_list = [(target_table, metadata.tables.get(entity))]
         print(table_list)
 
