@@ -56,11 +56,18 @@ class IDMappingTransform(Transform):
 
         table_set = set(metadata.tables.keys()) - set(VOCAB_TABLES)
 
+
+
         if target_table:
             table_set = {target_table}
             logger.info({'table_set', str(table_set)})
 
         for table_name in table_set:
+
+            entity_table = table_name
+
+            if entity:
+                entity_table = entity
 
             # Fact relationship table has no primary key to map.
             if table_name == 'fact_relationship':
@@ -70,7 +77,6 @@ class IDMappingTransform(Transform):
             # used throughout for formatting SQL statements.
             table = metadata.tables[entity]
             tpl_vars = {'table_name': table_name}
-            logger.info({'table_name', table_name})
 
             # In some versions the death table has a primary key constraint
             # on the person_id column.
@@ -101,9 +107,9 @@ class IDMappingTransform(Transform):
             # The mapping table and last id tracking table names are defined
             # by convention.
             tpl_vars['pkey_name'] = list(table.primary_key.columns.keys())[0]
-            tpl_vars['map_table_name'] = map_table_name_tmpl.format(**tpl_vars)
+            tpl_vars['map_table_name'] = map_table_name_tmpl.format(entity_table)
             tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.\
-                format(**tpl_vars)
+                format(entity_table)
 
             # Build the statement to count how many new ID mappings are needed.
             new_id_count_stmt = Statement(new_id_count_sql.format(**tpl_vars),
