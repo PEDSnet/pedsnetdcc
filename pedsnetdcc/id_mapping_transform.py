@@ -107,9 +107,9 @@ class IDMappingTransform(Transform):
             # The mapping table and last id tracking table names are defined
             # by convention.
             tpl_vars['pkey_name'] = list(table.primary_key.columns.keys())[0]
-            tpl_vars['map_table_name'] = map_table_name_tmpl.format(entity_table)
+            tpl_vars['map_table_name'] = map_table_name_tmpl.format({'table_name': entity_table})
             tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.\
-                format(entity_table)
+                format({'table_name': entity_table})
 
             # Build the statement to count how many new ID mappings are needed.
             new_id_count_stmt = Statement(new_id_count_sql.format(**tpl_vars),
