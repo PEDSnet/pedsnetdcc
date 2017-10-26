@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 class IDMappingTransform(Transform):
 
     @classmethod
-    def pre_transform(cls, conn_str, metadata, target_table):
+    def pre_transform(cls, conn_str, metadata, target_table, entity):
         """Generate DCC IDs in the database.
 
         See also Transform.pre_transform.
@@ -54,7 +54,7 @@ class IDMappingTransform(Transform):
         logger.info({'msg': 'starting ID mapping pre-transform'})
         starttime = time.time()
 
-        table_set =  set(metadata.tables.keys()) - set(VOCAB_TABLES)
+        table_set = set(metadata.tables.keys()) - set(VOCAB_TABLES)
 
         if target_table:
             table_set = set(target_table)
@@ -67,7 +67,7 @@ class IDMappingTransform(Transform):
 
             # Get table object and start to build tpl_vars map, which will be
             # used throughout for formatting SQL statements.
-            table = metadata.tables[table_name]
+            table = metadata.tables[entity]
             tpl_vars = {'table_name': table_name}
 
             # In some versions the death table has a primary key constraint

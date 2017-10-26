@@ -28,7 +28,7 @@ class Transform(object):
     __metaclass__ = ABCMeta
 
     @classmethod
-    def pre_transform(cls, conn_str, metadata, target_table):
+    def pre_transform(cls, conn_str, metadata, target_table, entity):
         """Execute statements required before a transform.
 
         A Transform can override this method to execute prerequisite

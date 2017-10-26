@@ -102,7 +102,7 @@ def _transform(conn_str, model_version, site, target_schema, force=False, target
     """
 
     for transform in TRANSFORMS:
-        transform.pre_transform(conn_str, stock_metadata(model_version), target_table)
+        transform.pre_transform(conn_str, stock_metadata(model_version), target_table, entity)
 
     stmts = StatementSet()
     for sql, msg in _transform_select_sql(model_version, site, target_schema, target_table, entity):
