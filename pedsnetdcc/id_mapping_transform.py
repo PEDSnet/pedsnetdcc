@@ -40,7 +40,6 @@ logger = logging.getLogger(__name__)
 
 
 class IDMappingTransform(Transform):
-
     @classmethod
     def pre_transform(cls, conn_str, metadata, target_table, entity):
         """Generate DCC IDs in the database.
@@ -55,8 +54,6 @@ class IDMappingTransform(Transform):
         starttime = time.time()
 
         table_set = set(metadata.tables.keys()) - set(VOCAB_TABLES)
-
-
 
         if target_table:
             table_set = {target_table}
@@ -81,7 +78,7 @@ class IDMappingTransform(Transform):
             # In some versions the death table has a primary key constraint
             # on the person_id column.
             if (table_name == 'death' and
-                    'person_id' in table.primary_key.columns):
+                        'person_id' in table.primary_key.columns):
                 continue
 
             # Error if the table has more than one primary key column.
@@ -108,7 +105,7 @@ class IDMappingTransform(Transform):
             # by convention.
             tpl_vars['pkey_name'] = list(table.primary_key.columns.keys())[0]
             tpl_vars['map_table_name'] = map_table_name_tmpl.format(**{'table_name': entity_table})
-            tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.\
+            tpl_vars['last_id_table_name'] = last_id_table_name_tmpl. \
                 format(**{'table_name': entity_table})
 
             # Build the statement to count how many new ID mappings are needed.
@@ -174,7 +171,6 @@ class IDMappingTransform(Transform):
                              'table': table_name,
                              'elapsed': secs_since(starttime)})
 
-
     @classmethod
     def modify_select(cls, metadata, table_name, select, join):
         """Alter foreign key columns to get mapped DCC IDs.
@@ -196,7 +192,7 @@ class IDMappingTransform(Transform):
         # 2.3 death tables). Also, in some versions, the death table has a
         # primary key constraint on the person_id column.
         if not (len(table.primary_key.columns) == 0 or (table_name == 'death'
-                and 'person_id' in table.primary_key.columns)):
+                                                        and 'person_id' in table.primary_key.columns)):
 
             # Get primary key name and mapping table name, defined by
             # convention.
@@ -246,7 +242,7 @@ class IDMappingTransform(Transform):
             # Get foreign key name and mapping table name, defined by
             # convention.
             fkey_name = fkey.column_keys[0]
-            map_table_name = map_table_name_tmpl.\
+            map_table_name = map_table_name_tmpl. \
                 format(table_name=ref_table_name)
 
             # Construct table object for mapping table, if necessary.
@@ -293,7 +289,7 @@ class IDMappingTransform(Transform):
                     FACT_RELATIONSHIP_DOMAINS.items():
 
                 # Get mapping table name, by convention.
-                map_table_name = map_table_name_tmpl.\
+                map_table_name = map_table_name_tmpl. \
                     format(table_name=ref_table_name)
 
                 # Construct table object for mapping table, if necessary.
@@ -312,16 +308,16 @@ class IDMappingTransform(Transform):
 
                 # Add two joins to the mapping table
                 join = join.join(map_table_1, sqlalchemy.and_(
-                                     table.c['fact_id_1'] ==
-                                     map_table_1.c['site_id'],
-                                     table.c['domain_concept_id_1'] ==
-                                     domain_concept_id),
+                    table.c['fact_id_1'] ==
+                    map_table_1.c['site_id'],
+                    table.c['domain_concept_id_1'] ==
+                    domain_concept_id),
                                  isouter=True)
                 join = join.join(map_table_2, sqlalchemy.and_(
-                                     table.c['fact_id_2'] ==
-                                     map_table_2.c['site_id'],
-                                     table.c['domain_concept_id_2'] ==
-                                     domain_concept_id),
+                    table.c['fact_id_2'] ==
+                    map_table_2.c['site_id'],
+                    table.c['domain_concept_id_2'] ==
+                    domain_concept_id),
                                  isouter=True)
 
                 # Add conditions to the case dictionary constructs.
@@ -340,10 +336,10 @@ class IDMappingTransform(Transform):
             # Add the case constructs as the new fact_id columns.
             new_select.append_column(sqlalchemy.case(
                 case_1, value=table.c['domain_concept_id_1']).
-                label('fact_id_1'))
+                                     label('fact_id_1'))
             new_select.append_column(sqlalchemy.case(
                 case_2, value=table.c['domain_concept_id_2']).
-                label('fact_id_2'))
+                                     label('fact_id_2'))
 
             # Add the original fact_id columns as the site_id columns.
             new_select.append_column(table.c['fact_id_1'].label('site_id_1'))
@@ -362,7 +358,7 @@ class IDMappingTransform(Transform):
 
         if len(table.primary_key.columns) == 1 and not \
                 (table.name == 'death' and 'person_id' in
-                 table.primary_key.columns):
+                    table.primary_key.columns):
             new_col = sqlalchemy.Column('site_id', sqlalchemy.Integer)
             table.append_column(new_col)
 
