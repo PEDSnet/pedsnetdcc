@@ -58,7 +58,7 @@ class IDMappingTransform(Transform):
 
         if target_table:
             table_set = set(str(target_table))
-            logger.info({'table_set', table_set})
+            logger.info({'table_set', str(table_set)})
 
         for table_name in table_set:
 
