@@ -166,12 +166,13 @@ class IDMappingTransform(Transform):
                          'count': insert_new_maps_stmt.rowcount,
                          'elapsed': secs_since(starttime)})
 
-            index_stmt = Statement(CREATE_ID_MAP_INDEX_SQL.format(table))
-            index_stmt.execute(conn_str)
-            check_stmt_err(index_stmt, 'id mapping indexes')
-            logger.info({'msg': 'created ID mapping indexes',
-                         'table': table_name,
-                         'elapsed': secs_since(starttime)})
+            if not target_table:
+                index_stmt = Statement(CREATE_ID_MAP_INDEX_SQL.format(table))
+                index_stmt.execute(conn_str)
+                check_stmt_err(index_stmt, 'id mapping indexes')
+                logger.info({'msg': 'created ID mapping indexes',
+                             'table': table_name,
+                             'elapsed': secs_since(starttime)})
 
 
     @classmethod
