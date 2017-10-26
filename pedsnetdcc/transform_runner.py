@@ -206,6 +206,7 @@ def run_transformation(conn_str, model_version, site, search_path,
     # TODO: define spec for computer readable log messages
     # E.g. we might want both 'task' and 'msg' keys, maybe 'submsg'
     logger.info(combine_dicts({'msg': 'started {}'.format(task)}, log_dict))
+    logger.info({'target_table': target_table, 'entity': entity})
 
     # TODO: should we catch all exceptions and perform logger.error?
     # and a logger.info to record the elapsed time at abort.
