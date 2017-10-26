@@ -69,7 +69,7 @@ def _transform_select_sql(model_version, site, target_schema, target_table, enti
         for transform in TRANSFORMS:
             select_obj, join_obj = transform.modify_select(
                 metadata,
-                table_name,
+                entity,
                 select_obj,
                 join_obj)
 
