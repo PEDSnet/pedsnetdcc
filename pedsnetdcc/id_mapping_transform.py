@@ -57,8 +57,8 @@ class IDMappingTransform(Transform):
         table_set = set(metadata.tables.keys()) - set(VOCAB_TABLES)
 
         if target_table:
-            table_set = set(target_table)
-            print table_set
+            table_set = set(str(target_table))
+            logger.info({'table_set', table_set})
 
         for table_name in table_set:
 
@@ -70,6 +70,7 @@ class IDMappingTransform(Transform):
             # used throughout for formatting SQL statements.
             table = metadata.tables[entity]
             tpl_vars = {'table_name': table_name}
+            logger.info({'table_name', table_name})
 
             # In some versions the death table has a primary key constraint
             # on the person_id column.

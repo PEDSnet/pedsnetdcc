@@ -56,7 +56,7 @@ def _transform_select_sql(model_version, site, target_schema, target_table, enti
     table_list = metadata.tables.items()
 
     if target_table:
-        table_list = [target_table, metadata.tables.items[entity]]
+        table_list = [str(target_table), metadata.tables.items[entity]]
         print(table_list)
 
     for table_name, table in table_list:
