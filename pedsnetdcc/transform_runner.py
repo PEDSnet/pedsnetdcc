@@ -57,6 +57,7 @@ def _transform_select_sql(model_version, site, target_schema, target_table, enti
 
     if target_table:
         table_list = [target_table, metadata.tables.items[entity]]
+        print(table_list)
 
     for table_name, table in table_list:
         if table_name in VOCAB_TABLES:
@@ -101,7 +102,7 @@ def _transform(conn_str, model_version, site, target_schema, force=False, target
     """
 
     for transform in TRANSFORMS:
-        transform.pre_transform(conn_str, stock_metadata(model_version))
+        transform.pre_transform(conn_str, stock_metadata(model_version), target_table)
 
     stmts = StatementSet()
     for sql, msg in _transform_select_sql(model_version, site, target_schema, target_table, entity):

@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 class IDMappingTransform(Transform):
 
     @classmethod
-    def pre_transform(cls, conn_str, metadata):
+    def pre_transform(cls, conn_str, metadata, target_table):
         """Generate DCC IDs in the database.
 
         See also Transform.pre_transform.
@@ -54,7 +54,12 @@ class IDMappingTransform(Transform):
         logger.info({'msg': 'starting ID mapping pre-transform'})
         starttime = time.time()
 
-        for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
+        table_set =  set(metadata.tables.keys()) - set(VOCAB_TABLES)
+
+        if target_table:
+            table_set = set(target_table)
+
+        for table_name in table_set:
 
             # Fact relationship table has no primary key to map.
             if table_name == 'fact_relationship':
