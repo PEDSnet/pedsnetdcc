@@ -52,11 +52,14 @@ def _transform_select_sql(model_version, site, target_schema, target_table, enti
     metadata = stock_metadata(model_version)
     metadata.info['site'] = site
     stmt_pairs = set()
-    for table_name, table in metadata.tables.items():
-        if table_name in VOCAB_TABLES:
-            continue
 
-        if target_table is not None and table_name is not target_table or table_name is not entity:
+    table_list = metadata.tables.items()
+
+    if target_table:
+        table_list = [target_table, metadata.tables.items[entity]]
+
+    for table_name, table in table_list:
+        if table_name in VOCAB_TABLES:
             continue
 
         select_obj = sqlalchemy.select([table])
