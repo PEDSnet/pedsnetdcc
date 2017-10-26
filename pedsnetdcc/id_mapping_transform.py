@@ -172,7 +172,7 @@ class IDMappingTransform(Transform):
                              'elapsed': secs_since(starttime)})
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join):
+    def modify_select(cls, metadata, table_name, select, join, target_table):
         """Alter foreign key columns to get mapped DCC IDs.
 
         The primary key and each foreign key which points at a data table

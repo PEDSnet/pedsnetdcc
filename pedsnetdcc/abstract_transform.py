@@ -43,7 +43,7 @@ class Transform(object):
 
     @classmethod
     @abstractmethod
-    def modify_select(cls, metadata, table_name, select, join):
+    def modify_select(cls, metadata, table_name, select, join, target_table):
         """Transform a Select object into a new Select object.
 
         Also transform a corresponding Join object by chaining any

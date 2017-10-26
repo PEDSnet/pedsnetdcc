@@ -76,7 +76,7 @@ class AgeTransform(Transform):
         conn.close()
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join):
+    def modify_select(cls, metadata, table_name, select, join, target_table):
         """Add age columns for some time columns.
 
         Not all time columns in the PEDSnet model are transformed. There is
@@ -92,6 +92,10 @@ class AgeTransform(Transform):
         # Don't join person twice to the same table
         joined_already_for_table_name = {}
 
+        final_table_name = table_name
+        if target_table:
+            final_table_name = target_table
+
         for col_name in cls.columns_by_table[table_name]:
 
             # Make sure table/column pair is valid
@@ -101,6 +105,7 @@ class AgeTransform(Transform):
                     'Invalid column: {0}.{1}'.format(table_name, col_name))
 
             table = metadata.tables[table_name]
+            table.name = final_table_name
             # Make sure table has `person_id` column
             if not 'person_id' in table.c:
                 raise ValueError(
@@ -110,7 +115,7 @@ class AgeTransform(Transform):
 
             new_col = literal_column(
                 'months_in_interval(person.birth_datetime, {tbl}.{col})'.format(
-                    tbl=table_name, col=col_name
+                    tbl=final_table_name, col=col_name
                 )).label(new_col_name)
 
             if not joined_already_for_table_name.get(table_name, False):

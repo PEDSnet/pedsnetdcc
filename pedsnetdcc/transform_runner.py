@@ -75,7 +75,8 @@ def _transform_select_sql(model_version, site, target_schema, target_table, enti
                 metadata,
                 entity,
                 select_obj,
-                join_obj)
+                join_obj,
+                target_table)
 
         final_select_obj = select_obj.select_from(join_obj)
 
