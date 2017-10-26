@@ -234,51 +234,52 @@ def run_transformation(conn_str, model_version, site, search_path,
     # Set tables to logged
     set_logged(new_conn_str, model_version)
 
-    # Add primary keys to the transformed tables
-    add_primary_keys(new_conn_str, model_version, force)
+    if not target_table:
+        # Add primary keys to the transformed tables
+        add_primary_keys(new_conn_str, model_version, force)
 
-    # Add NOT NULL constraints to the transformed tables (no force option)
-    set_not_nulls(new_conn_str, model_version)
+        # Add NOT NULL constraints to the transformed tables (no force option)
+        set_not_nulls(new_conn_str, model_version)
 
-    # Add indexes to the transformed tables
-    add_indexes(new_conn_str, model_version, force)
+        # Add indexes to the transformed tables
+        add_indexes(new_conn_str, model_version, force)
 
-    # Add constraints to the transformed tables
-    add_foreign_keys(new_conn_str, model_version, force)
+        # Add constraints to the transformed tables
+        add_foreign_keys(new_conn_str, model_version, force)
 
-    # Move the old tables to a backup schema and move the new ones into
-    # the original schema; then drop the temporary schema.
-    backup_schema = schema + '_backup'
+        # Move the old tables to a backup schema and move the new ones into
+        # the original schema; then drop the temporary schema.
+        backup_schema = schema + '_backup'
 
-    stmts = StatementList()
-    stmts.append(
-        drop_schema_statement(backup_schema, if_exists=True, cascade=True))
-    stmts.append(create_schema_statement(backup_schema))
-    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
-    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
-    stmts.append(
-        drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
-    stmts.serial_execute(conn_str, transaction=True)
-    for stmt in stmts:
-        # Must check through all results to find the first (and last) real
-        # error that caused the transaction to fail.
-        if stmt.err:
-            if pg_error(stmt) == 'IN_FAILED_SQL_TRANSACTION':
-                continue
-            logger.error(combine_dicts({'msg': 'error ' + task,
-                                        'submsg': stmt.msg,
-                                        'err': stmt.err,
-                                        'sql': stmt.sql},
-                                       log_dict))
-            logger.info(combine_dicts({'msg': 'aborted {}'.format(task),
-                                       'elapsed': secs_since(start_time)},
-                                      log_dict))
-            tpl = 'moving tables after transformation ({sql}): {err}'
-            raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
+        stmts = StatementList()
+        stmts.append(
+            drop_schema_statement(backup_schema, if_exists=True, cascade=True))
+        stmts.append(create_schema_statement(backup_schema))
+        stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
+        stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
+        stmts.append(
+            drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
+        stmts.serial_execute(conn_str, transaction=True)
+        for stmt in stmts:
+            # Must check through all results to find the first (and last) real
+            # error that caused the transaction to fail.
+            if stmt.err:
+                if pg_error(stmt) == 'IN_FAILED_SQL_TRANSACTION':
+                    continue
+                logger.error(combine_dicts({'msg': 'error ' + task,
+                                            'submsg': stmt.msg,
+                                            'err': stmt.err,
+                                            'sql': stmt.sql},
+                                           log_dict))
+                logger.info(combine_dicts({'msg': 'aborted {}'.format(task),
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                tpl = 'moving tables after transformation ({sql}): {err}'
+                raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
 
-    ## Regrant permissions after renaming schemas
-    grant_schema_permissions(new_conn_str)
-    grant_vocabulary_permissions(new_conn_str)
+        ## Regrant permissions after renaming schemas
+        grant_schema_permissions(new_conn_str)
+        grant_vocabulary_permissions(new_conn_str)
 
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),
