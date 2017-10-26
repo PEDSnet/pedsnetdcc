@@ -30,7 +30,7 @@ TRANSFORMS = (AgeTransform, ConceptNameTransform, SiteNameTransform,
               IDMappingTransform)
 
 
-def _transform_select_sql(model_version, site, target_schema, target_table):
+def _transform_select_sql(model_version, site, target_schema, target_table, entity):
     """Create SQL for `select` statement transformations.
 
     The `search_path` only needs to contain the source schema; the target
@@ -56,7 +56,7 @@ def _transform_select_sql(model_version, site, target_schema, target_table):
         if table_name in VOCAB_TABLES:
             continue
 
-        if target_table is not None and table_name is not target_table:
+        if target_table is not None and table_name is not target_table or table_name is not entity:
             continue
 
         select_obj = sqlalchemy.select([table])
@@ -85,7 +85,7 @@ def _transform_select_sql(model_version, site, target_schema, target_table):
     return stmt_pairs
 
 
-def _transform(conn_str, model_version, site, target_schema, force=False):
+def _transform(conn_str, model_version, site, target_schema, force=False, target_table=None, entity=None):
     """Run transformations.
 
     TODO: Check whether exception handling is consistent e.g. DatabaseError.
@@ -101,7 +101,7 @@ def _transform(conn_str, model_version, site, target_schema, force=False):
         transform.pre_transform(conn_str, stock_metadata(model_version))
 
     stmts = StatementSet()
-    for sql, msg in _transform_select_sql(model_version, site, target_schema):
+    for sql, msg in _transform_select_sql(model_version, site, target_schema, target_table, entity):
         stmts.add(Statement(sql, msg))
 
     # Execute creation of transformed tables in parallel.
@@ -214,7 +214,7 @@ def run_transformation(conn_str, model_version, site, search_path,
     create_schema(conn_str, tmp_schema, force)
 
     # Perform the transformation.
-    _transform(conn_str, model_version, site, tmp_schema, force, target_table)
+    _transform(conn_str, model_version, site, tmp_schema, force, target_table, entity)
 
     # Set up new connection string for manipulating the target schema
     new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
