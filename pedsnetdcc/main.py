@@ -182,8 +182,12 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt):
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
+@click.option('--target', '-t', default=None,
+              help="Target table to run transformation on")
+@click.option('--entity', '-e', default=None,
+              help="The type of entity that target is referencing")
 @click.argument('dburi')
-def transform(pwprompt, searchpath, site, force, model_version, undo, dburi):
+def transform(pwprompt, searchpath, site, force, model_version, undo, dburi, target, entity):
     """Transform PEDSnet data into the DCC format.
 
     Using the hard-coded set of transformations in this tool, transform data
@@ -213,7 +217,7 @@ def transform(pwprompt, searchpath, site, force, model_version, undo, dburi):
     if not undo:
         from pedsnetdcc.transform_runner import run_transformation
         success = run_transformation(conn_str, model_version, site, searchpath,
-                                     force)
+                                     force, target, entity)
     else:
         from pedsnetdcc.transform_runner import undo_transformation
         success = undo_transformation(conn_str, model_version, searchpath)

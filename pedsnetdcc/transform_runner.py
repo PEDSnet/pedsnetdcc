@@ -26,11 +26,11 @@ from pedsnetdcc.permissions import grant_database_permissions, grant_schema_perm
 
 logger = logging.getLogger(__name__)
 
-
 TRANSFORMS = (AgeTransform, ConceptNameTransform, SiteNameTransform,
               IDMappingTransform)
 
-def _transform_select_sql(model_version, site, target_schema):
+
+def _transform_select_sql(model_version, site, target_schema, target_table):
     """Create SQL for `select` statement transformations.
 
     The `search_path` only needs to contain the source schema; the target
@@ -56,11 +56,13 @@ def _transform_select_sql(model_version, site, target_schema):
         if table_name in VOCAB_TABLES:
             continue
 
+        if target_table is not None and table_name is not target_table:
+            continue
+
         select_obj = sqlalchemy.select([table])
         join_obj = table
 
         for transform in TRANSFORMS:
-
             select_obj, join_obj = transform.modify_select(
                 metadata,
                 table_name,
@@ -70,7 +72,7 @@ def _transform_select_sql(model_version, site, target_schema):
         final_select_obj = select_obj.select_from(join_obj)
 
         table_sql_obj = final_select_obj.compile(
-                dialect=sqlalchemy.dialects.postgresql.dialect())
+            dialect=sqlalchemy.dialects.postgresql.dialect())
 
         table_sql = str(table_sql_obj) % table_sql_obj.params
 
@@ -170,7 +172,7 @@ def _drop_tables_statements(model_version, schema, if_exists=False):
 
 
 def run_transformation(conn_str, model_version, site, search_path,
-                       force=False):
+                       force=False, target_table=None, entity=None):
     """Run all transformations, backing up existing tables to a backup schema.
 
     * Create new schema FOO_transformed.
@@ -212,7 +214,7 @@ def run_transformation(conn_str, model_version, site, search_path,
     create_schema(conn_str, tmp_schema, force)
 
     # Perform the transformation.
-    _transform(conn_str, model_version, site, tmp_schema, force)
+    _transform(conn_str, model_version, site, tmp_schema, force, target_table)
 
     # Set up new connection string for manipulating the target schema
     new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
@@ -262,7 +264,7 @@ def run_transformation(conn_str, model_version, site, search_path,
                                       log_dict))
             tpl = 'moving tables after transformation ({sql}): {err}'
             raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
-    
+
     ## Regrant permissions after renaming schemas
     grant_schema_permissions(new_conn_str)
     grant_vocabulary_permissions(new_conn_str)
