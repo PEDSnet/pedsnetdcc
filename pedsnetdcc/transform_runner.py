@@ -101,6 +101,7 @@ def _transform(conn_str, model_version, site, target_schema, force=False, target
     :raise: psycopg2.ProgrammingError (from pre_transform)
     """
 
+    logger.info({'target_table': target_table, 'entity': entity})
     for transform in TRANSFORMS:
         transform.pre_transform(conn_str, stock_metadata(model_version), target_table, entity)
 

@@ -57,7 +57,7 @@ class IDMappingTransform(Transform):
         table_set = set(metadata.tables.keys()) - set(VOCAB_TABLES)
 
         if target_table:
-            table_set = set(str(target_table))
+            table_set = {target_table}
             logger.info({'table_set', str(table_set)})
 
         for table_name in table_set:
