@@ -58,6 +58,7 @@ class IDMappingTransform(Transform):
 
         if target_table:
             table_set = set(target_table)
+            print table_set
 
         for table_name in table_set:
 
