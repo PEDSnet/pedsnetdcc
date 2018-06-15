@@ -8,6 +8,11 @@ logger = logging.getLogger(__name__)
 
 
 class SiteNameTransform(Transform):
+    ignore_index_by_table = {
+        'drug_exposure': ('site',),
+        'fact_relationship': ('site',),
+        'measurement': ('site',),
+    }
 
     @classmethod
     def modify_select(cls, metadata, table_name, select, join):
@@ -36,4 +41,6 @@ class SiteNameTransform(Transform):
 
         new_col = Column('site', String)
         table.append_column(new_col)
+        if table.name in cls.ignore_index_by_table:
+            return
         Index(Transform.make_index_name(table.name, 'site'), new_col)
