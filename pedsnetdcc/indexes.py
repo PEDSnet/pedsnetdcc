@@ -274,7 +274,6 @@ def drop_unneeded_indexes(conn_str, model_version, force=False, vocabulary=False
         :raises DatabaseError: if any of the statement executions cause errors
         """
 
-    drop = True
     operation = 'removal'
 
     # Log start of the function and set the starting time.
@@ -287,7 +286,7 @@ def drop_unneeded_indexes(conn_str, model_version, force=False, vocabulary=False
 
     stmts = StatementSet()
 
-    for stmt in _special_indexes_sql(model_version, vocabulary, drop):
+    for stmt in _special_drop_indexes_sql(model_version, vocabulary):
         stmts.add(Statement(stmt))
 
     # Execute the statements in parallel.
@@ -316,11 +315,10 @@ def drop_unneeded_indexes(conn_str, model_version, force=False, vocabulary=False
     return True
 
 
-def _special_indexes_sql(model_version, vocabulary=False, drop=True):
+def _special_drop_indexes_sql(model_version, vocabulary=False):
     """Return ADD or DROP INDEX statements for a transformed PEDSnet schema.
 
-    Depending on the value of the `drop` parameter, either ADD or DROP
-    statements are produced.
+    DROP statements are produced.
 
     Depending on the value of the `vocabulary` parameter, statements are
     produced either for a site schema (i.e. non-vocabulary tables in the
@@ -338,22 +336,18 @@ def _special_indexes_sql(model_version, vocabulary=False, drop=True):
     :type: list(str)
     """
 
-    if drop:
-        func = sqlalchemy.schema.DropIndex
-        TRANSFORMS = (DropIndexTransform,)
-    else:
-        func = sqlalchemy.schema.CreateIndex
-        TRANSFORMS = (AddIndexTransform,)
+    func = sqlalchemy.schema.DropIndex
+    TRANSFORMS = (DropIndexTransform,)
 
-    indexes = _special_indexes_from_metadata(stock_metadata(model_version),
-                                             TRANSFORMS,
-                                             vocabulary=vocabulary)
+    indexes = _special_drop_indexes_from_metadata(stock_metadata(model_version),
+                                                  TRANSFORMS,
+                                                  vocabulary=vocabulary)
     return [str(func(x).compile(
         dialect=sqlalchemy.dialects.postgresql.dialect())).lstrip()
             for x in indexes]
 
 
-def _special_indexes_from_metadata(metadata, transforms, vocabulary=False):
+def _special_drop_indexes_from_metadata(metadata, transforms, vocabulary=False):
     """Return list of SQLAlchemy index objects for the transformed metadata.
 
     Given the stock metadata, for each transform `T` we invoke:
