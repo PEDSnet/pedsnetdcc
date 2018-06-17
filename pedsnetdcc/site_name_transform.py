@@ -11,7 +11,8 @@ class SiteNameTransform(Transform):
     ignore_index_by_table = {
         'drug_exposure': ('site',),
         'fact_relationship': ('site',),
-        'measurement': ('site',),
+        'measurement_organism': ('site',),
+        'visit_payer': ('site',),
     }
 
     @classmethod

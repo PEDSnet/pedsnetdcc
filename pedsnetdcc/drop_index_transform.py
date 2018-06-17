@@ -6,12 +6,13 @@ from pedsnetdcc.abstract_transform import Transform
 
 class DropIndexTransform(Transform):
     drop_by_table = {
-        'adt_occurrence': ('next_adt_occurrence_id',),
+        'adt_occurrence': ('next_adt_occurrence_id','prior_adt_occurrence_id',),
         'fact_relationship': ('domain_concept_id_1', 'domain_concept_id_2',),
         'procedure_occurrence': ('provider_id',),
     }
     idx_by_column = {
         'next_adt_occurrence_id': 'idx_adt_next_id',
+        'prior_adt_occurrence_id': 'idx_adt_prior_id',
         'domain_concept_id_1': 'idx_fact_relationship_id_1',
         'domain_concept_id_2': 'idx_fact_relationship_id_2',
         'provider_id': 'idx_procedure_provider_id',

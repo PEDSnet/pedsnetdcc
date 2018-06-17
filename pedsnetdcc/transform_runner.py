@@ -231,7 +231,7 @@ def run_transformation(conn_str, model_version, site, search_path,
     add_indexes(new_conn_str, model_version, force)
 
     # Drop unneeded indexes from the transformed tables
-    drop_unneeded_indexes(conn_str, model_version, force)
+    drop_unneeded_indexes(new_conn_str, model_version, force)
 
     # Add constraints to the transformed tables
     add_foreign_keys(new_conn_str, model_version, force)

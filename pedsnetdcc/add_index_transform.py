@@ -19,7 +19,7 @@ class AddIndexTransform(Transform):
         'procedure_occurrence': ('procedure_date',),
         'provider': ('specialty_concept_id',),
         'visit_occurrence': ('care_site_id', 'provider_id', 'visit_start_date',),
-        'visit_payer': ('visit_occurrence_id', 'plan_type',),
+        'visit_payer': ('plan_type',),
     }
 
     @classmethod
