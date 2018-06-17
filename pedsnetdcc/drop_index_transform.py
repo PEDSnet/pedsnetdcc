@@ -44,6 +44,14 @@ class DropIndexTransform(Transform):
         return indexes
 
     @classmethod
+    def modify_select(cls, metadata, table_name, select, join):
+        """
+        No transform for columns needed
+        """
+        return select, join
+
+
+    @classmethod
     def modify_table(cls, metadata, table):
         """Helper function to apply the transformation to a table in place.
         See Transform.modify_table for signature.

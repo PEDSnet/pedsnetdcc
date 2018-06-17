@@ -1,5 +1,4 @@
 from sqlalchemy.schema import Column, Index
-
 from pedsnetdcc.abstract_transform import Transform
 
 
@@ -22,6 +21,13 @@ class AddIndexTransform(Transform):
         'visit_occurrence': ('care_site_id', 'provider_id', 'visit_start_date',),
         'visit_payer': ('visit_occurrence_id', 'plan_type',),
     }
+
+    @classmethod
+    def modify_select(cls, metadata, table_name, select, join):
+        """
+        No transform for columns needed
+        """
+        return select, join
 
     @classmethod
     def modify_table(cls, metadata, table):
