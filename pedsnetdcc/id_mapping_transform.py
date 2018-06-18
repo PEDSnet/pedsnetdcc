@@ -34,7 +34,7 @@ insert_new_maps_msg = "inserting new {table_name} ID mappings into map table"
 map_table_name_tmpl = "{table_name}_ids"
 last_id_table_name_tmpl = "dcc_{table_name}_id"
 
-CREATE_ID_MAP_INDEX_SQL = """CREATE INDEX {0}_maps_idx_site ON {0}_ids (site_id)"""
+CREATE_ID_MAP_INDEX_SQL = """CREATE INDEX IF NOT EXISTS {0}_maps_idx_site ON {0}_ids (site_id)"""
 
 logger = logging.getLogger(__name__)
 

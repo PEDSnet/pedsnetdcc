@@ -381,6 +381,36 @@ def grant_permissions(dburi, pwprompt, full):
     grant_schema_permissions(conn_str)
     grant_vocabulary_permissions(conn_str)
 
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--force', is_flag=True, default=False,
+              help='Ignore any "already exists" errors from the database.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def vocab_indexes(pwprompt, searchpath, force, model_version, dburi):
+    """
+    Adjust the vocabulary indexes to the new specifications
+    """
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.transform_runner import run_vocab_indexes
+    success = run_vocab_indexes(conn_str, model_version, searchpath, force)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
 @pedsnetdcc.command()		  
 @click.argument('dburi', required=True)		 
 @click.option('--pwprompt', '-p', is_flag=True, default=False)
