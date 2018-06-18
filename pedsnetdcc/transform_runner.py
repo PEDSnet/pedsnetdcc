@@ -7,7 +7,8 @@ import sqlalchemy.dialects.postgresql
 from pedsnetdcc import VOCAB_TABLES
 from pedsnetdcc.db import Statement, StatementSet, StatementList
 from pedsnetdcc.dict_logging import secs_since
-from pedsnetdcc.indexes import add_indexes, drop_indexes, drop_unneeded_indexes
+from pedsnetdcc.indexes import add_indexes, drop_indexes, drop_unneeded_indexes, add_vocab_indexes, \
+    drop_vocab_unneeded_indexes
 from pedsnetdcc.foreign_keys import add_foreign_keys, drop_foreign_keys
 from pedsnetdcc.primary_keys import add_primary_keys
 from pedsnetdcc.not_nulls import set_not_nulls
@@ -345,3 +346,43 @@ def undo_transformation(conn_str, model_version, search_path):
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),
          'elapsed': secs_since(start_time)}, log_dict))
+
+def run_vocab_indexes(conn_str, model_version, search_path,
+                       force=False):
+    """Adjust vocabulary indexes.
+
+    :param str conn_str: pq connection string
+    :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str search_path: PostgreSQL schema search path
+    :param bool force: if True, ignore benign errors
+    :return: True if no exception raised
+    :rtype: bool
+    :raise: various possible exceptions ...
+    """
+    log_dict = combine_dicts({'model_version': model_version,
+                              'search_path': search_path, 'force': force},
+                             get_conn_info_dict(conn_str))
+
+    task = 'updating vocabulary indexes'
+    start_time = time.time()
+    # TODO: define spec for computer readable log messages
+    # E.g. we might want both 'task' and 'msg' keys, maybe 'submsg'
+    logger.info(combine_dicts({'msg': 'started {}'.format(task)}, log_dict))
+
+    # TODO: should we catch all exceptions and perform logger.error?
+    # and a logger.info to record the elapsed time at abort.
+
+    # TODO: do we need to validate the primary schema at all?
+    schema = primary_schema(search_path)
+
+    # Add indexes to the vocabulary tables
+    add_vocab_indexes(conn_str, model_version, force)
+
+    # Drop unneeded indexes from the vocabulary tables
+    drop_vocab_unneeded_indexes(conn_str, model_version, force)
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    return True
