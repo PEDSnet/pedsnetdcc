@@ -8,7 +8,7 @@ from pedsnetdcc.transform_runner import TRANSFORMS
 from pedsnetdcc.db import Statement, StatementSet
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.foreign_keys import add_foreign_keys
-from pedsnetdcc.indexes import add_indexes
+from pedsnetdcc.indexes import add_indexes, drop_unneeded_indexes
 from pedsnetdcc.not_nulls import set_not_nulls
 from pedsnetdcc.primary_keys import add_primary_keys
 from pedsnetdcc.utils import (combine_dicts, get_conn_info_dict,
@@ -160,10 +160,11 @@ def merge_site_data(model_version, conn_str, force=False):
     # Set tables logged.
     set_logged(conn_str, model_version)
 
-    # Add primary keys, not nulls, indexes, foreign keys.
+    # Add primary keys, not nulls, indexes, drop unneeded indexes, add foreign keys.
     add_primary_keys(conn_str, model_version, force)
     set_not_nulls(conn_str, model_version)
     add_indexes(conn_str, model_version, force)
+    drop_unneeded_indexes(conn_str, model_version, force)
 
     # Change search_path to include the vocabulary schema and add foreign keys.
     conn_str = conn_str_with_search_path(conn_str, DCC_SCHEMA + ',' +
