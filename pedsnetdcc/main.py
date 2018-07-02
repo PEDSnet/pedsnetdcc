@@ -339,7 +339,7 @@ def run_bmi(pwprompt, searchpath, site, model_version, dburi):
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
-    config_file = site + "_temp.config"
+    config_file = site + "_temp.conf"
 
     from pedsnetdcc.bmi import run_bmi_calc
     success = run_bmi_calc(config_file, conn_str, site, password, searchpath, model_version)
