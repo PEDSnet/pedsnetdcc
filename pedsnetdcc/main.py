@@ -10,7 +10,6 @@ from pedsnetdcc.cleanup import cleanup_site_directories
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 
-
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.option('--logfmt', type=click.Choice(['tty', 'text', 'json']),
               help='Logging output format.')
@@ -266,6 +265,92 @@ def merge(pwprompt, force, model_version, undo, dburi):
 
 
 @pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def split_measurement(pwprompt, searchpath, model_version, dburi):
+    """Split measurement table into anthro, labs, and vitals.
+
+    The steps are:
+
+    - Create the measurement_anthro, measurement_labs, and measurement_vitals from measurement
+    - Set primary keys
+    - Add indexes
+    - Add foreign keys
+    - Set permissions
+    - Drop measurement table?
+    - Create measurements view if schema = dcc_pedsnet
+    - Vacuum
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.split_measurement import split_measurement_table
+    success = split_measurement_table(conn_str, model_version, searchpath)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for the config file.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def run_bmi(pwprompt, searchpath, site, model_version, dburi):
+    """Run BMI derivation.
+
+    The steps are:
+
+      - Create the config file.
+      - Create the output table.
+      - Run the derivation.
+      - Add indexes to output table
+      - Vacuum the output table
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+    config_file = site + "_temp.config"
+
+    from pedsnetdcc.bmi import run_bmi_calc
+    success = run_bmi_calc(config_file, conn_str, site, password, searchpath, model_version)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--dcc-only', type=bool, is_flag=True, default=False,
@@ -313,6 +398,7 @@ def cleanup(backup_dir, site_root):
 
     sys.exit(0)
 
+
 @pedsnetdcc.command()
 @click.argument('dburi', required=True)
 @click.argument('in_file', required=True)
@@ -351,6 +437,7 @@ def map_external_ids(dburi, in_file, search_path, out_file, table_name, pwprompt
 
     map_external_ids(conn_str, str(in_file), str(out_file), str(table_name))
 
+
 @pedsnetdcc.command()
 @click.argument('dburi', required=True)
 @click.option('--pwprompt', '-p', is_flag=True, default=False)
@@ -358,7 +445,8 @@ def map_external_ids(dburi, in_file, search_path, out_file, table_name, pwprompt
 def grant_permissions(dburi, pwprompt, full):
     """Grants the appropriate permissions for all schemas and tables, as well as vocabulary schemas and tables
     
-    This is normally set during prepdb and transform, but this command can be used to manually set permissions if there is an issue
+    This is normally set during prepdb and transform, but this command can be used to manually set permissions
+    if there is an issue
 
     The database should be specified using a model version and a dburi
 
@@ -366,7 +454,8 @@ def grant_permissions(dburi, pwprompt, full):
     postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
     """
     
-    from pedsnetdcc.permissions import grant_schema_permissions, grant_vocabulary_permissions, grant_loading_user_permissions
+    from pedsnetdcc.permissions import grant_schema_permissions, grant_vocabulary_permissions, \
+        grant_loading_user_permissions
 
     password = None
 
@@ -376,10 +465,40 @@ def grant_permissions(dburi, pwprompt, full):
     conn_str = make_conn_str(dburi, password=password)
 
     if full:
-	grant_loading_user_permissions(conn_str)
+        grant_loading_user_permissions(conn_str)
 
     grant_schema_permissions(conn_str)
     grant_vocabulary_permissions(conn_str)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--force', is_flag=True, default=False,
+              help='Ignore any "already exists" errors from the database.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def vocab_indexes(pwprompt, searchpath, force, model_version, dburi):
+    """
+    Adjust the vocabulary indexes to the new specifications
+    """
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.transform_runner import run_vocab_indexes
+    success = run_vocab_indexes(conn_str, model_version, searchpath, force)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
 
 @pedsnetdcc.command()		  
 @click.argument('dburi', required=True)		 
@@ -394,9 +513,7 @@ def generate_transform_statements(dburi, pwprompt, searchpath, model_version, si
     from pedsnetdcc.transform_runner import _transform_select_sql		
     from pedsnetdcc.schema import create_schema, primary_schema		
     if pwprompt:		
-        password = click.prompt('Database password', hide_input=True)		
-        
-    conn_str = make_conn_str(dburi, password=password)		
+        password = click.prompt('Database password', hide_input=True)
 
     # TODO: do we need to validate the primary schema at all?		
     schema = primary_schema(searchpath)		
