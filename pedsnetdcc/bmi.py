@@ -129,7 +129,11 @@ def run_bmi_calc(config_file, conn_str, site, password, search_path, model_versi
     # Run BMI tool
     cwd = os.getcwd()
     command = 'docker run -v {0}:/working --rm -it pedsnet-derivation-bmi derive_bmi {1}_temp --verbose=2'.format(cwd, site)
-    subprocess.call([command], shell=True, stderr=subprocess.STDOUT)
+    process = subprocess.Popen([command], stdout=subprocess.PIPE)
+    out, err = process.communicate()
+    print(out)
+    print(err)
+
     #docker.run('-v {0}:/working --rm -it pedsnet-derivation-bmi derive_bmi {1}_temp --verbose=2'.format(cwd, site))
 
     # Add indexes to measurement_bmi (same as measurement)
