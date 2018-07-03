@@ -3,12 +3,13 @@ import time
 import hashlib
 import os
 import re
+import subprocess
 
 from pedsnetdcc.db import StatementSet, Statement
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.schema import (primary_schema)
 from pedsnetdcc.utils import (check_stmt_err, combine_dicts, get_conn_info_dict, vacuum)
-from sh import docker
+#from sh import docker
 
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
@@ -127,7 +128,9 @@ def run_bmi_calc(config_file, conn_str, site, password, search_path, model_versi
 
     # Run BMI tool
     cwd = os.getcwd()
-    docker.run('-v {0}:/working --rm -it pedsnet-derivation-bmi derive_bmi {1}_temp --verbose=2'.format(cwd, site))
+    command = 'docker run -v {0}:/working --rm -it pedsnet-derivation-bmi derive_bmi {1}_temp --verbose=2'.format(cwd, site)
+    subprocess.call([command], shell=True, stderr=subprocess.STDOUT)
+    #docker.run('-v {0}:/working --rm -it pedsnet-derivation-bmi derive_bmi {1}_temp --verbose=2'.format(cwd, site))
 
     # Add indexes to measurement_bmi (same as measurement)
     stmts.clear()
