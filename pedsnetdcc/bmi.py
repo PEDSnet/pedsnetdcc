@@ -14,12 +14,13 @@ from pedsnetdcc.utils import (check_stmt_err, combine_dicts, get_conn_info_dict,
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
 CREATE_MEASURE_LIKE_TABLE_SQL = 'create table measurement_bmi (like measurement)'
+DROP_NULL_BMI_TABLE_SQL = 'alter table measurement_bmi alter column measurement_id drop not null;'
 IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_bmi ({1})'
 
 
 def _create_config_file(config_file, schema, password, conn_info_dict):
     with open(config_file, 'wb') as out_config:
-        out_config.write('ht_measurement_concept_ids = 3023540, 3036277' + os.linesep)
+        out_config.write('ht_measurement_concept_ids = 3023540,3036277' + os.linesep)
         out_config.write('wt_measurement_concept_ids = 3013762' + os.linesep)
         out_config.write('bmi_measurement_concept_id = 3038553' + os.linesep)
         out_config.write('bmi_measurement_type_concept_id = 45754907'+ os.linesep)
@@ -109,6 +110,8 @@ def run_bmi_calc(config_file, conn_str, site, password, search_path, model_versi
 
     # Add a creation statement.
     stmts = StatementSet()
+    drop_stmt = Statement(DROP_NULL_BMI_TABLE_SQL)
+    stmts.add(drop_stmt)
     create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL)
     stmts.add(create_stmt)
 
@@ -128,11 +131,11 @@ def run_bmi_calc(config_file, conn_str, site, password, search_path, model_versi
 
     # Run BMI tool
     cwd = os.getcwd()
-    command = 'docker run -v {0}:/working --rm -it pedsnet-derivation-bmi derive_bmi {1}_temp --verbose=2'.format(cwd, site)
-    process = subprocess.Popen([command], stdout=subprocess.PIPE)
+    command = 'docker run -v {0}:/working -v /var/run/docker.sock:/var/run/docker.sock ' \
+              '--rm pedsnet-derivation-bmi derive_bmi {1}_temp --verbose=2'.format(cwd, site)
+    process = subprocess.Popen([command], shell=True, stdout=subprocess.PIPE)
     out, err = process.communicate()
     print(out)
-    print(err)
 
     #docker.run('-v {0}:/working --rm -it pedsnet-derivation-bmi derive_bmi {1}_temp --verbose=2'.format(cwd, site))
 
