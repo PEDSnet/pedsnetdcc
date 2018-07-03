@@ -110,8 +110,6 @@ def run_bmi_calc(config_file, conn_str, site, password, search_path, model_versi
 
     # Add a creation statement.
     stmts = StatementSet()
-    drop_stmt = Statement(DROP_NULL_BMI_TABLE_SQL)
-    stmts.add(drop_stmt)
     create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL)
     stmts.add(create_stmt)
 
@@ -128,6 +126,25 @@ def run_bmi_calc(config_file, conn_str, site, password, search_path, model_versi
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
+
+        # Add drop null statement.
+        stmts = StatementSet()
+        drop_stmt = Statement(DROP_NULL_BMI_TABLE_SQL)
+        stmts.add(drop_stmt)
+
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                stmt.execute(conn_str)
+                check_stmt_err(stmt, 'Run BMI calculation')
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'create BMI table failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
 
     # Run BMI tool
     cwd = os.getcwd()
