@@ -46,7 +46,7 @@ def _create_config_file(config_path, config_file, schema, password, conn_info_di
         out_config.write('domain = stage' + os.linesep)
         out_config.write('type = dcc' + os.linesep)
         out_config.write('post_connect_sql = set search_path to ' + schema + ', vocabulary;' + os.linesep)
-        out_config.write('</ src_rdb>' + os.linesep)
+        out_config.write('</src_rdb>' + os.linesep)
         out_config.write('input_measurement_table = measurement_bmi' + os.linesep)
         out_config.write('output_measurement_table = measurement_bmiz' + os.linesep)
 
@@ -295,7 +295,7 @@ def run_bmiz_calc(config_file, conn_str, site, password, search_path, model_vers
     logger.info({'msg': 'bmi-z measurements copied to dcc_pedsmet measurement_anthro'})
 
     # Vacuum analyze tables for piney freshness.
-    vacuum(conn_str, model_version, analyze=True, tables=['measurement_bmi-z'])
+    vacuum(conn_str, model_version, analyze=True, tables=['measurement_bmi_z'])
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished BMI-Z calculation',
@@ -341,7 +341,7 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
     add_measurement_ids_sql = """update {0}.measurement_bmiz set measurement_id = nextval('{0}.measurement_id_seq')
         where measurement_id is null"""
     add_measurement_ids_msg = "adding the measurement ids to the measurement_bmiz table"
-    pk_measurement_id_sql = "alter table {}.measurement_bmiz add primary key (measurement_id)"
+    pk_measurement_id_sql = "alter table {0}.measurement_bmiz add primary key (measurement_id)"
     pk_measurement_id_msg = "making measurement_id the primary key"
 
     conn_info_dict = get_conn_info_dict(conn_str)
