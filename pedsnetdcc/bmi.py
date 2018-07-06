@@ -3,13 +3,13 @@ import time
 import hashlib
 import os
 import re
-import subprocess
 
-from pedsnetdcc.db import StatementSet, Statement
+from pedsnetdcc.db import StatementSet, Statement, StatementList
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.schema import (primary_schema)
-from pedsnetdcc.utils import (check_stmt_err, combine_dicts, get_conn_info_dict, vacuum)
-#from sh import docker
+from pedsnetdcc.utils import (check_stmt_err, check_stmt_data, combine_dicts,
+                              get_conn_info_dict, vacuum, stock_metadata)
+from sh import derive_bmi
 
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
@@ -18,8 +18,8 @@ DROP_NULL_BMI_TABLE_SQL = 'alter table measurement_bmi alter column measurement_
 IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_bmi ({1})'
 
 
-def _create_config_file(config_file, schema, password, conn_info_dict):
-    with open(config_file, 'wb') as out_config:
+def _create_config_file(config_path, config_file, schema, password, conn_info_dict):
+    with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('ht_measurement_concept_ids = 3023540,3036277' + os.linesep)
         out_config.write('wt_measurement_concept_ids = 3013762' + os.linesep)
         out_config.write('bmi_measurement_concept_id = 3038553' + os.linesep)
@@ -69,6 +69,96 @@ def _make_index_name(table_name, column_name):
     return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
 
 
+def _fill_concept_names(conn_str):
+    fill_concept_names_sql = """UPDATE measurement_bmi bmi
+        SET measurement_concept_name=v.measurement_concept_name,
+        measurement_source_concept_name=v.measurement_source_concept_name, 
+        measurement_type_concept_name=v.measurement_type_concept_name, 
+        operator_concept_name=v.operator_concept_name, 
+        priority_concept_name=v.priority_concept_name, 
+        range_high_operator_concept_name=v.range_high_operator_concept_name, 
+        range_low_operator_concept_name=v.range_low_operator_concept_name, 
+        unit_concept_name=v.unit_concept_name, 
+        value_as_concept_name=v.value_as_concept_name
+        FROM ( SELECT
+        b.measurement_id AS measurement_id,
+        v1.concept_name AS measurement_concept_name, 
+        v2.concept_name AS measurement_source_concept_name, 
+        v3.concept_name AS measurement_type_concept_name, 
+        v4.concept_name AS operator_concept_name,  
+        v5.concept_name AS priority_concept_name,
+        v6.concept_name AS range_high_operator_concept_name, 
+        v7.concept_name AS range_low_operator_concept_name, 
+        v8.concept_name AS unit_concept_name, 
+        v9.concept_name AS value_as_concept_name 
+        FROM measurement_bmi AS b
+        LEFT JOIN vocabulary.concept AS v1 ON b.measurement_concept_id = v1.concept_id
+        LEFT JOIN vocabulary.concept AS v2 ON b.measurement_source_concept_id = v2.concept_id 
+        LEFT JOIN vocabulary.concept AS v3 ON b.measurement_type_concept_id = v3.concept_id
+        LEFT JOIN vocabulary.concept AS v4 ON b.operator_concept_id  = v4.concept_id
+        LEFT JOIN vocabulary.concept AS v5 ON b.priority_concept_id  = v5.concept_id
+        LEFT JOIN vocabulary.concept AS v6 ON b.range_high_operator_concept_id = v6.concept_id
+        LEFT JOIN vocabulary.concept AS v7 ON b.range_low_operator_concept_id = v7.concept_id 
+        LEFT JOIN vocabulary.concept AS v8 ON b.unit_concept_id = v8.concept_id
+        LEFT JOIN vocabulary.concept AS v9 ON b.value_as_concept_id  = v9.concept_id
+        ) v
+        WHERE bmi.measurement_id = v.measurement_id"""
+
+    fill_concept_names_msg = "adding concept names"
+
+    # Add concept names
+    add_measurement_ids_stmt = Statement(fill_concept_names_sql, fill_concept_names_msg)
+
+    # Execute the add concept names statement and ensure it didn't error
+    add_measurement_ids_stmt.execute(conn_str)
+    check_stmt_err(add_measurement_ids_stmt, 'add concept names')
+
+
+    # If reached without error, then success!
+    return True
+
+
+def _copy_to_dcc_measurement_anthro_table(conn_str):
+    copy_to_measurement_anthro_sql = """INSERT INTO dcc_pedsnet.measurement_anthro(
+        measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
+        measurement_order_date, measurement_order_datetime, measurement_result_date, 
+        measurement_result_datetime, measurement_source_concept_id, measurement_source_value, 
+        measurement_type_concept_id, operator_concept_id, person_id, priority_concept_id, 
+        priority_source_value, provider_id, range_high, range_high_operator_concept_id, 
+        range_high_source_value, range_low, range_low_operator_concept_id, range_low_source_value, 
+        specimen_source_value, unit_concept_id, unit_source_value, value_as_concept_id, 
+        value_as_number, value_source_value, visit_occurrence_id, measurement_age_in_months, 
+        measurement_result_age_in_months, measurement_concept_name, measurement_source_concept_name, 
+        measurement_type_concept_name, operator_concept_name, priority_concept_name, 
+        range_high_operator_concept_name, range_low_operator_concept_name, unit_concept_name, 
+        value_as_concept_name, site, site_id)
+        (select measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
+        measurement_order_date, measurement_order_datetime, measurement_result_date, 
+        measurement_result_datetime, measurement_source_concept_id, measurement_source_value, 
+        measurement_type_concept_id, operator_concept_id, person_id, priority_concept_id, 
+        priority_source_value, provider_id, range_high, range_high_operator_concept_id, 
+        range_high_source_value, range_low, range_low_operator_concept_id, range_low_source_value, 
+        specimen_source_value, unit_concept_id, unit_source_value, value_as_concept_id, 
+        value_as_number, value_source_value, visit_occurrence_id, measurement_age_in_months, 
+        measurement_result_age_in_months, measurement_concept_name, measurement_source_concept_name, 
+        measurement_type_concept_name, operator_concept_name, priority_concept_name, 
+        range_high_operator_concept_name, range_low_operator_concept_name, unit_concept_name, 
+        value_as_concept_name, site, site_id
+        from measurement_bmi) ON CONFLICT DO NOTHING"""
+
+    copy_to_measurement_anthro_msg = "copying bmi to dcc_pedsnet.measurement_anthro"
+
+    # Insert BMI measurements into measurement_anthro table
+    copy_to_measurement_anthro_stmt = Statement(copy_to_measurement_anthro_sql, copy_to_measurement_anthro_msg)
+
+    # Execute the insert BMI measurements statement and ensure it didn't error
+    copy_to_measurement_anthro_stmt.execute(conn_str)
+    check_stmt_err(copy_to_measurement_anthro_stmt, 'insert BMI measurements')
+
+    # If reached without error, then success!
+    return True
+
+
 def run_bmi_calc(config_file, conn_str, site, password, search_path, model_version):
     """Run the BMI tool.
 
@@ -104,7 +194,8 @@ def run_bmi_calc(config_file, conn_str, site, password, search_path, model_versi
         password = pass_match.group(1)
 
     # create the congig file
-    _create_config_file(config_file, schema, password, conn_info_dict)
+    config_path = "/app"
+    _create_config_file(config_path, config_file, schema, password, conn_info_dict)
 
     # create measurement_bmi table
 
@@ -147,16 +238,10 @@ def run_bmi_calc(config_file, conn_str, site, password, search_path, model_versi
             raise
 
     # Run BMI tool
-    cwd = os.getcwd()
-    command = 'docker run -v {0}:/working -v /var/run/docker.sock:/var/run/docker.sock ' \
-              '--rm pedsnet-derivation-bmi derive_bmi {1}_temp --verbose=2'.format(cwd, site)
-    process = subprocess.Popen([command], shell=True, stdout=subprocess.PIPE)
-    out, err = process.communicate()
-    print(out)
-
-    #docker.run('-v {0}:/working --rm -it pedsnet-derivation-bmi derive_bmi {1}_temp --verbose=2'.format(cwd, site))
+    derive_bmi(config_file[:-5], '--verbose=1', _cwd='/app', _fg=True)
 
     # Add indexes to measurement_bmi (same as measurement)
+    logger.info({'msg': 'begin add indexes'})
     stmts.clear()
     col_index = ('measurement_age_in_months', 'measurement_concept_id', 'measurement_date',
                  'measurement_type_concept_id', 'person_id', 'site', 'visit_occurrence_id',
@@ -183,12 +268,184 @@ def run_bmi_calc(config_file, conn_str, site, password, search_path, model_versi
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
+    logger.info({'msg': 'add indexes complete'})
+
+    # add measurement_ids
+    okay = _add_measurement_ids(conn_str, site, search_path, model_version)
+    if not okay:
+        return False
+
+    # Add the concept_names
+    logger.info({'msg': 'add concept names'})
+    okay = _fill_concept_names(conn_str)
+    if not okay:
+        return False
+    logger.info({'msg': 'concept names added'})
+
+    # Copy to the measurement table
+    logger.info({'msg': 'copy bmi measurements to dcc_pedsmet measurement_anthro'})
+    okay = _copy_to_dcc_measurement_anthro_table(conn_str)
+    if not okay:
+        return False
+    logger.info({'msg': 'bmi measurements copied to dcc_pedsmet measurement_anthro'})
 
     # Vacuum analyze tables for piney freshness.
     vacuum(conn_str, model_version, analyze=True, tables=['measurement_bmi'])
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished BMI calculation',
+                               'elapsed': secs_since(start_time)}, log_dict))
+
+    # If reached without error, then success!
+    return True
+
+
+def _add_measurement_ids(conn_str, site, search_path, model_version):
+    """Add measurement ids for the bmi table
+
+    * Find how many ids needed
+    * Update dcc_measurement_id with new value
+    * Create sequence
+    * Set sequence starting number
+    * Assign measurement ids
+    * Make measurement Id the primary key
+
+    :param str conn_str:      database connection string
+    :param str site:    site to run BMI for
+    :param str search_path: PostgreSQL schema search path
+    :param str model_version: pedsnet model version, e.g. 2.3.0
+    :returns:                 True if the function succeeds
+    :rtype:                   bool
+    :raises DatabaseError:    if any of the statement executions cause errors
+    """
+
+    new_id_count_sql = """SELECT COUNT(*)
+        FROM measurement_bmi WHERE measurement_id IS NULL"""
+    new_id_count_msg = "counting new IDs needed for measurement_bmi"
+    lock_last_id_sql = """LOCK {last_id_table_name}"""
+    lock_last_id_msg = "locking {table_name} last ID tracking table for update"
+
+    update_last_id_sql = """UPDATE {last_id_table_name} AS new
+        SET last_id = new.last_id + '{new_id_count}'::integer
+        FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
+    update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
+    create_seq_measurement_sql = "create sequence if not exists {0}.measurement_id_seq"
+    create_seq_measurement_msg = "creating measurement id sequence"
+    set_seq_number_sql = "alter sequence {0}.measurement_id_seq restart with {1};"
+    set_seq_number_msg = "setting sequence number"
+    add_measurement_ids_sql = """update {0}.measurement_bmi set measurement_id = nextval('{0}.measurement_id_seq')
+        where measurement_id is null"""
+    add_measurement_ids_msg = "adding the measurement ids to the measurement_bmi table"
+    pk_measurement_id_sql = "alter table {}.measurement_bmi add primary key (measurement_id)"
+    pk_measurement_id_msg = "making measurement_id the priomary key"
+
+    conn_info_dict = get_conn_info_dict(conn_str)
+
+    # Log start of the function and set the starting time.
+    log_dict = combine_dicts({'site': site, },
+                             conn_info_dict)
+
+    logger = logging.getLogger(__name__)
+
+    logger.info(combine_dicts({'msg': 'starting measurement_id assignment'},
+                              log_dict))
+    start_time = time.time()
+    schema = primary_schema(search_path)
+    table_name = 'measurement'
+
+    # Mapping and last ID table naming conventions.
+    last_id_table_name_tmpl = "dcc_{table_name}_id"
+    metadata = stock_metadata(model_version)
+
+    # Get table object and start to build tpl_vars map, which will be
+    # used throughout for formatting SQL statements.
+    table = metadata.tables[table_name]
+    tpl_vars = {'table_name': table_name}
+    tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.format(**tpl_vars)
+
+    # Build the statement to count how many new ID mappings are needed.
+    new_id_count_stmt = Statement(new_id_count_sql, new_id_count_msg)
+
+    # Execute the new ID mapping count statement and ensure it didn't
+    # error and did return a result.
+    new_id_count_stmt.execute(conn_str)
+    check_stmt_err(new_id_count_stmt, 'assign measurement ids')
+    check_stmt_data(new_id_count_stmt, 'assign measurement ids')
+
+    # Get the actual count of new ID maps needed and log it.
+    tpl_vars['new_id_count'] = new_id_count_stmt.data[0][0]
+    logger.info({'msg': 'counted new IDs needed', 'table': table_name,
+                 'count': tpl_vars['new_id_count']})
+
+    # Build list of two last id table update statements that need to
+    # occur in a single transaction to prevent race conditions.
+    update_last_id_stmts = StatementList()
+    update_last_id_stmts.append(Statement(
+        lock_last_id_sql.format(**tpl_vars),
+        lock_last_id_msg.format(**tpl_vars)))
+    update_last_id_stmts.append(Statement(
+        update_last_id_sql.format(**tpl_vars),
+        update_last_id_msg.format(**tpl_vars)))
+
+    # Execute last id table update statements and ensure they didn't
+    # error and the second one returned results.
+    update_last_id_stmts.serial_execute(conn_str, transaction=True)
+
+    for stmt in update_last_id_stmts:
+        check_stmt_err(stmt, 'assign measurement ids')
+    check_stmt_data(update_last_id_stmts[1],
+                    'assign measurement ids')
+
+    # Get the old and new last IDs from the second update statement.
+    tpl_vars['old_last_id'] = update_last_id_stmts[1].data[0][0]
+    tpl_vars['new_last_id'] = update_last_id_stmts[1].data[0][1]
+    logger.info({'msg': 'last ID tracking table updated',
+                 'table': table_name,
+                 'old_last_id': tpl_vars['old_last_id'],
+                 'new_last_id': tpl_vars['new_last_id']})
+
+    logger.info({'msg': 'begin measurement id sequence creation'})
+    # Create the measurement id sequence (if it doesn't exist)
+    measurement_seq_stmt = Statement( create_seq_measurement_sql.format(schema),
+                                      create_seq_measurement_msg)
+
+    # Execute the create the measurement id sequence statement and ensure it didn't error
+    measurement_seq_stmt.execute(conn_str)
+    check_stmt_err(measurement_seq_stmt, 'create measurement id sequence')
+    logger.info({'msg': 'measurement id sequence creation complete'})
+
+    # Set the sequence number
+    logger.info({'msg': 'begin set sequence number'})
+    seq_number_set_stmt = Statement(set_seq_number_sql.format(schema, tpl_vars['old_last_id']),
+                                    set_seq_number_msg)
+
+    # Execute the set the sequence number statement and ensure it didn't error
+    seq_number_set_stmt.execute(conn_str)
+    check_stmt_err(seq_number_set_stmt, 'set the sequence number')
+    logger.info({'msg': 'set sequence number complete'})
+
+    # Add the measurement ids
+    logger.info({'msg': 'begin add measurement ids'})
+    add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema, schema),
+                                         add_measurement_ids_msg)
+
+    # Execute the add the measurement ids statement and ensure it didn't error
+    add_measurement_ids_stmt.execute(conn_str)
+    check_stmt_err(add_measurement_ids_stmt, 'add the measurement ids')
+    logger.info({'msg': 'add measurement ids complete'})
+
+    # Make measurement Id the primary key
+    logger.info({'msg': 'begin add primary key'})
+    pk_measurement_id_stmt = Statement(pk_measurement_id_sql.format(schema),
+                                         pk_measurement_id_msg)
+
+    # Execute the Make measurement Id the primary key statement and ensure it didn't error
+    pk_measurement_id_stmt.execute(conn_str)
+    check_stmt_err(pk_measurement_id_stmt, 'make measurement Id the primary key')
+    logger.info({'msg': 'primary key created'})
+
+    # Log end of function.
+    logger.info(combine_dicts({'msg': 'finished adding measurement ids for the bmi table',
                                'elapsed': secs_since(start_time)}, log_dict))
 
     # If reached without error, then success!
