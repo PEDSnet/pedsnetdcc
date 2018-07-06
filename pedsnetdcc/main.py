@@ -325,6 +325,9 @@ def run_bmi(pwprompt, searchpath, site, model_version, dburi):
       - Create the output table.
       - Run the derivation.
       - Add indexes to output table
+      - Add measurement ids
+      - Add concept names
+      - Copy BMI measurements to dcc_pedsnet.measurement_anthro
       - Vacuum the output table
 
     The database should be specified using a DBURI:
@@ -349,6 +352,50 @@ def run_bmi(pwprompt, searchpath, site, model_version, dburi):
 
     sys.exit(0)
 
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for the config file.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def run_bmiz(pwprompt, searchpath, site, model_version, dburi):
+    """Run BMI-Z derivation.
+
+    The steps are:
+
+      - Create the config file.
+      - Create the output table.
+      - Run the derivation.
+      - Add indexes to output table
+      - Add measurement ids
+      - Add concept names
+      - Copy BMI-Z measurements to dcc_pedsnet.measurement_anthro
+      - Vacuum the output table
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+    config_file = site + "_temp.conf"
+
+    from pedsnetdcc.bmiz import run_bmiz_calc
+    success = run_bmiz_calc(config_file, conn_str, site, password, searchpath, model_version)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
 
 @pedsnetdcc.command()
 @click.option('--model-version', '-v', required=True,

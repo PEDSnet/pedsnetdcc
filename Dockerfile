@@ -28,6 +28,7 @@ RUN apt-get install -y cpanminus
 # Build using the current version of BMI on GitHub
 RUN cpanm git://github.com/PEDSnet/PEDSnet-Derivation
 RUN cpanm git://github.com/PEDSnet/PEDSnet-Derivation-BMI
+RUN cpanm git://github.com/PEDSnet/PEDSnet-Derivation-Anthro_Z
 
 RUN apt-get update && apt-get install -y \
     build-essential \
