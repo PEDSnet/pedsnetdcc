@@ -25,6 +25,7 @@ from pedsnetdcc.site_name_transform import SiteNameTransform
 from pedsnetdcc.id_mapping_transform import IDMappingTransform
 from pedsnetdcc.add_index_transform import AddIndexTransform
 from pedsnetdcc.permissions import grant_database_permissions, grant_schema_permissions, grant_vocabulary_permissions
+from pedsnetdcc.concept_group_tables import create_index_replacement_tables
 
 logger = logging.getLogger(__name__)
 
@@ -236,6 +237,9 @@ def run_transformation(conn_str, model_version, site, search_path,
 
     # Add constraints to the transformed tables
     add_foreign_keys(new_conn_str, model_version, force)
+
+    # Create new tables to replace concept name/source value indexes
+    create_index_replacement_tables(new_conn_str, model_version)
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.
