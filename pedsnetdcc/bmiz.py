@@ -20,14 +20,14 @@ IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_bmiz ({1})'
 
 def _create_config_file(config_path, config_file, schema, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
-        out_config.write('< concept_id_map >' + os.linesep)
+        out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3038553' + os.linesep)
-        out_config.write('< z_score_info >' + os.linesep)
+        out_config.write('<z_score_info>' + os.linesep)
         out_config.write('z_class_system = NHANES_2000' + os.linesep)
         out_config.write('z_class_measure = BMI for Age' + os.linesep)
         out_config.write('z_measurement_concept_id = 2000000043' + os.linesep)
-        out_config.write('< / z_score_info >' + os.linesep)
-        out_config.write('< / concept_id_map >' + os.linesep)
+        out_config.write('</z_score_info >' + os.linesep)
+        out_config.write('</concept_id_map >' + os.linesep)
         out_config.write('z_measurement_concept_id = 2000000043' + os.linesep)
         out_config.write('z_measurement_type_concept_id = 45754907' + os.linesep)
         out_config.write('z_unit_source_value = SD' + os.linesep)
@@ -36,7 +36,7 @@ def _create_config_file(config_path, config_file, schema, password, conn_info_di
         out_config.write('output_chunk_size = 1000' + os.linesep)
         out_config.write('person_chunk_size = 1000' + os.linesep)
         out_config.write('verbose = 1' + os.linesep)
-        out_config.write('< src_rdb >' + os.linesep)
+        out_config.write('<src_rdb>' + os.linesep)
         out_config.write('driver = Pg' + os.linesep)
         out_config.write('host = ' + conn_info_dict.get('host') + os.linesep)
         out_config.write('database = ' + conn_info_dict.get('dbname')+ os.linesep)
@@ -46,7 +46,7 @@ def _create_config_file(config_path, config_file, schema, password, conn_info_di
         out_config.write('domain = stage' + os.linesep)
         out_config.write('type = dcc' + os.linesep)
         out_config.write('post_connect_sql = set search_path to ' + schema + ', vocabulary;' + os.linesep)
-        out_config.write('< / src_rdb >' + os.linesep)
+        out_config.write('</ src_rdb>' + os.linesep)
         out_config.write('input_measurement_table = measurement_bmi' + os.linesep)
         out_config.write('output_measurement_table = measurement_bmiz' + os.linesep)
 
