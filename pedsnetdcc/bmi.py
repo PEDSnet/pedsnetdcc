@@ -159,18 +159,22 @@ def _copy_to_dcc_measurement_anthro_table(conn_str):
     return True
 
 
-def run_bmi_calc(config_file, conn_str, site, password, search_path, model_version):
+def run_bmi_calc(config_file, conn_str, site, copy, password, search_path, model_version):
     """Run the BMI tool.
 
     * Create config file
     * Create output table
     * Run BMI
     * Index output table
+    * Add measurement Ids
+    * Add the concept names
+    * Copy to the measurement table (if selected)
     * Vacuum output table
 
     :param str config_file:   config file name
     :param str conn_str:      database connection string
     :param str site:    site to run BMI for
+    :param bool copy: if True, copy results to dcc_pedsnet.measurement_anthro
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
@@ -283,14 +287,17 @@ def run_bmi_calc(config_file, conn_str, site, password, search_path, model_versi
     logger.info({'msg': 'concept names added'})
 
     # Copy to the measurement table
-    logger.info({'msg': 'copy bmi measurements to dcc_pedsmet measurement_anthro'})
-    okay = _copy_to_dcc_measurement_anthro_table(conn_str)
-    if not okay:
-        return False
-    logger.info({'msg': 'bmi measurements copied to dcc_pedsmet measurement_anthro'})
+    if copy:
+        logger.info({'msg': 'copy bmi measurements to dcc_pedsmet measurement_anthro'})
+        okay = _copy_to_dcc_measurement_anthro_table(conn_str)
+        if not okay:
+            return False
+        logger.info({'msg': 'bmi measurements copied to dcc_pedsmet measurement_anthro'})
 
     # Vacuum analyze tables for piney freshness.
+    logger.info({'msg': 'begin vacuum'})
     vacuum(conn_str, model_version, analyze=True, tables=['measurement_bmi'])
+    logger.info({'msg': 'vacuum finished'})
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished BMI calculation',
@@ -336,7 +343,7 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
     add_measurement_ids_sql = """update {0}.measurement_bmi set measurement_id = nextval('{0}.measurement_id_seq')
         where measurement_id is null"""
     add_measurement_ids_msg = "adding the measurement ids to the measurement_bmi table"
-    pk_measurement_id_sql = "alter table {}.measurement_bmi add primary key (measurement_id)"
+    pk_measurement_id_sql = "alter table {0}.measurement_bmi add primary key (measurement_id)"
     pk_measurement_id_msg = "making measurement_id the priomary key"
 
     conn_info_dict = get_conn_info_dict(conn_str)

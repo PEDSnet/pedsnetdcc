@@ -313,10 +313,13 @@ def split_measurement(pwprompt, searchpath, model_version, dburi):
 @click.option('--searchpath', '-s', help='Schema search path in database.')
 @click.option('--site', required=True,
               help='PEDSnet site name for the config file.')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to dcc_pedsnet.measurement_anthro.')
+
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_bmi(pwprompt, searchpath, site, model_version, dburi):
+def run_bmi(pwprompt, searchpath, site, copy, model_version, dburi):
     """Run BMI derivation.
 
     The steps are:
@@ -345,7 +348,7 @@ def run_bmi(pwprompt, searchpath, site, model_version, dburi):
     config_file = site + "_temp.conf"
 
     from pedsnetdcc.bmi import run_bmi_calc
-    success = run_bmi_calc(config_file, conn_str, site, password, searchpath, model_version)
+    success = run_bmi_calc(config_file, conn_str, site, copy, password, searchpath, model_version)
 
     if not success:
         sys.exit(1)
@@ -358,10 +361,12 @@ def run_bmi(pwprompt, searchpath, site, model_version, dburi):
 @click.option('--searchpath', '-s', help='Schema search path in database.')
 @click.option('--site', required=True,
               help='PEDSnet site name for the config file.')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to dcc_pedsnet.measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_bmiz(pwprompt, searchpath, site, model_version, dburi):
+def run_bmiz(pwprompt, searchpath, site, copy, model_version, dburi):
     """Run BMI-Z derivation.
 
     The steps are:
@@ -390,7 +395,7 @@ def run_bmiz(pwprompt, searchpath, site, model_version, dburi):
     config_file = site + "_temp.conf"
 
     from pedsnetdcc.bmiz import run_bmiz_calc
-    success = run_bmiz_calc(config_file, conn_str, site, password, searchpath, model_version)
+    success = run_bmiz_calc(config_file, conn_str, site, copy, password, searchpath, model_version)
 
     if not success:
         sys.exit(1)

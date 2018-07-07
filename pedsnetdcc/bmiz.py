@@ -164,18 +164,22 @@ def _copy_to_dcc_measurement_anthro_table(conn_str):
     return True
 
 
-def run_bmiz_calc(config_file, conn_str, site, password, search_path, model_version):
+def run_bmiz_calc(config_file, conn_str, site, copy, password, search_path, model_version):
     """Run the BMI tool.
 
     * Create config file
     * Create output table
     * Run BMI-Z
     * Index output table
+    * Add measurement Ids
+    * Add the concept names
+    * Copy to the measurement table (if selected)
     * Vacuum output table
 
     :param str config_file:   config file name
     :param str conn_str:      database connection string
     :param str site:    site to run BMI for
+    :param bool copy: if True, copy results to dcc_pedsnet.measurement_anthro
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
@@ -288,14 +292,17 @@ def run_bmiz_calc(config_file, conn_str, site, password, search_path, model_vers
     logger.info({'msg': 'concept names added'})
 
     # Copy to the measurement table
-    logger.info({'msg': 'copy bmi-z measurements to dcc_pedsmet measurement_anthro'})
-    okay = _copy_to_dcc_measurement_anthro_table(conn_str)
-    if not okay:
-        return False
-    logger.info({'msg': 'bmi-z measurements copied to dcc_pedsmet measurement_anthro'})
+    if copy:
+        logger.info({'msg': 'copy bmi-z measurements to dcc_pedsmet measurement_anthro'})
+        okay = _copy_to_dcc_measurement_anthro_table(conn_str)
+        if not okay:
+            return False
+        logger.info({'msg': 'bmi-z measurements copied to dcc_pedsmet measurement_anthro'})
 
     # Vacuum analyze tables for piney freshness.
+    logger.info({'msg': 'begin vacuum'})
     vacuum(conn_str, model_version, analyze=True, tables=['measurement_bmi_z'])
+    logger.info({'msg': 'vacuum finished'})
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished BMI-Z calculation',
