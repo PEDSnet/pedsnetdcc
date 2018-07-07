@@ -301,7 +301,7 @@ def run_bmiz_calc(config_file, conn_str, site, copy, password, search_path, mode
 
     # Vacuum analyze tables for piney freshness.
     logger.info({'msg': 'begin vacuum'})
-    vacuum(conn_str, model_version, analyze=True, tables=['measurement_bmi_z'])
+    vacuum(conn_str, model_version, analyze=True, tables=['measurement_bmiz'])
     logger.info({'msg': 'vacuum finished'})
 
     # Log end of function.
