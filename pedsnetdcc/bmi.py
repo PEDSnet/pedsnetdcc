@@ -18,14 +18,14 @@ DROP_NULL_BMI_TABLE_SQL = 'alter table measurement_bmi alter column measurement_
 IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_bmi ({1})'
 
 
-def _create_config_file(config_path, config_file, schema, password, conn_info_dict):
+def _create_config_file(config_path, config_file, schema, table, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('ht_measurement_concept_ids = 3023540,3036277' + os.linesep)
         out_config.write('wt_measurement_concept_ids = 3013762' + os.linesep)
         out_config.write('bmi_measurement_concept_id = 3038553' + os.linesep)
         out_config.write('bmi_measurement_type_concept_id = 45754907'+ os.linesep)
         out_config.write('bmi_unit_concept_id = 9531' + os.linesep)
-        out_config.write('input_measurement_table = measurement_anthro' + os.linesep)
+        out_config.write('input_measurement_table = ' + table + os.linesep)
         out_config.write('output_chunk_size = 1000' + os.linesep)
         out_config.write('person_chunk_size = 1000' + os.linesep)
         out_config.write('clone_bmi_measurement = 1' + os.linesep)
@@ -42,7 +42,7 @@ def _create_config_file(config_path, config_file, schema, password, conn_info_di
         out_config.write('post_connect_sql = set search_path to ' + schema + ',vocabulary;' + os.linesep)
         out_config.write('</src_rdb>' + os.linesep)
         out_config.write('output_measurement_table = measurement_bmi'+ os.linesep)
-        out_config.write('person_finder_sql = select distinct person_id from measurement_anthro ')
+        out_config.write('person_finder_sql = select distinct person_id from ' + table)
         out_config.write('where measurement_concept_id in (3013762, 3023540, 3036277)' + os.linesep)
 
 
@@ -118,8 +118,8 @@ def _fill_concept_names(conn_str):
     return True
 
 
-def _copy_to_dcc_measurement_anthro_table(conn_str):
-    copy_to_measurement_anthro_sql = """INSERT INTO dcc_pedsnet.measurement_anthro(
+def _copy_to_dcc_table(conn_str, table):
+    copy_to_sql = """INSERT INTO dcc_pedsnet.{0}(
         measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
         measurement_order_date, measurement_order_datetime, measurement_result_date, 
         measurement_result_datetime, measurement_source_concept_id, measurement_source_value, 
@@ -146,20 +146,20 @@ def _copy_to_dcc_measurement_anthro_table(conn_str):
         value_as_concept_name, site, site_id
         from measurement_bmi) ON CONFLICT DO NOTHING"""
 
-    copy_to_measurement_anthro_msg = "copying bmi to dcc_pedsnet.measurement_anthro"
+    copy_to_msg = "copying bmi to dcc_pedsnet"
 
     # Insert BMI measurements into measurement_anthro table
-    copy_to_measurement_anthro_stmt = Statement(copy_to_measurement_anthro_sql, copy_to_measurement_anthro_msg)
+    copy_to_stmt = Statement(copy_to_sql.format(table), copy_to_msg)
 
     # Execute the insert BMI measurements statement and ensure it didn't error
-    copy_to_measurement_anthro_stmt.execute(conn_str)
-    check_stmt_err(copy_to_measurement_anthro_stmt, 'insert BMI measurements')
+    copy_to_stmt.execute(conn_str)
+    check_stmt_err(copy_to_stmt, 'insert BMI measurements')
 
     # If reached without error, then success!
     return True
 
 
-def run_bmi_calc(config_file, conn_str, site, copy, password, search_path, model_version):
+def run_bmi_calc(config_file, conn_str, site, copy, table, password, search_path, model_version):
     """Run the BMI tool.
 
     * Create config file
@@ -175,6 +175,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, password, search_path, model
     :param str conn_str:      database connection string
     :param str site:    site to run BMI for
     :param bool copy: if True, copy results to dcc_pedsnet.measurement_anthro
+    :param str table:    name of input/copy table (measurement/measurement_anthro)
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
@@ -199,7 +200,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, password, search_path, model
 
     # create the congig file
     config_path = "/app"
-    _create_config_file(config_path, config_file, schema, password, conn_info_dict)
+    _create_config_file(config_path, config_file, schema, table, password, conn_info_dict)
 
     # create measurement_bmi table
 
@@ -288,11 +289,11 @@ def run_bmi_calc(config_file, conn_str, site, copy, password, search_path, model
 
     # Copy to the measurement table
     if copy:
-        logger.info({'msg': 'copy bmi measurements to dcc_pedsmet measurement_anthro'})
-        okay = _copy_to_dcc_measurement_anthro_table(conn_str)
+        logger.info({'msg': 'copy bmi measurements to dcc_pedsnet'})
+        okay = _copy_to_dcc_table(conn_str, table)
         if not okay:
             return False
-        logger.info({'msg': 'bmi measurements copied to dcc_pedsmet measurement_anthro'})
+        logger.info({'msg': 'bmi measurements copied to dcc_pedsnet'})
 
     # Vacuum analyze tables for piney freshness.
     logger.info({'msg': 'begin vacuum'})
