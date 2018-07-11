@@ -54,7 +54,7 @@ def _create_bmiz_config_file(config_path, config_file, schema, password, conn_in
 def _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
-        out_config.write('measurement_concept_id = 3036277, 3023540' + os.linesep)
+        out_config.write('measurement_concept_id = 3036277,3023540' + os.linesep)
         out_config.write('<z_score_info>' + os.linesep)
         out_config.write('z_class_system = NHANES_2000' + os.linesep)
         out_config.write('z_class_measure = Height for Age' + os.linesep)
