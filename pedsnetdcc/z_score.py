@@ -51,7 +51,7 @@ def _create_bmiz_config_file(config_path, config_file, schema, password, conn_in
         out_config.write('output_measurement_table = measurement_bmiz' + os.linesep)
 
 
-def _create_height_config_file(config_path, config_file, schema, table, password, conn_info_dict):
+def _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3036277, 3023540' + os.linesep)
@@ -84,7 +84,7 @@ def _create_height_config_file(config_path, config_file, schema, table, password
         out_config.write('output_measurement_table = measurement_ht_z' + os.linesep)
 
 
-def _create_weight_config_file(config_path, config_file, schema, table, password, conn_info_dict):
+def _create_weight_z_config_file(config_path, config_file, schema, table, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3013762' + os.linesep)
@@ -281,7 +281,13 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
 
     # create the congig file
     config_path = "/app"
-    _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict)
+
+    if z_type == 'ht_z':
+        _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict)
+    elif z_type == 'wt_z':
+        _create_weight_z_config_file(config_path, config_file, schema, table, password, conn_info_dict)
+    else:
+        _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict)
 
     # create measurement_bmiz table
     # Add a creation statement.
