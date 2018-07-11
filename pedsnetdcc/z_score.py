@@ -51,7 +51,7 @@ def _create_bmiz_config_file(config_path, config_file, schema, password, conn_in
         out_config.write('output_measurement_table = measurement_bmiz' + os.linesep)
 
 
-def _create_height_config_file(config_path, config_file, schema, password, conn_info_dict):
+def _create_height_config_file(config_path, config_file, schema, table, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3036277, 3023540' + os.linesep)
@@ -80,9 +80,11 @@ def _create_height_config_file(config_path, config_file, schema, password, conn_
         out_config.write('type = dcc' + os.linesep)
         out_config.write('post_connect_sql = set search_path to ' + schema + ', vocabulary;' + os.linesep)
         out_config.write('</src_rdb>' + os.linesep)
+        out_config.write('input_measurement_table = ' + table + os.linesep)
+        out_config.write('output_measurement_table = measurement_ht_z' + os.linesep)
 
 
-def _create_weight_config_file(config_path, config_file, schema, password, conn_info_dict):
+def _create_weight_config_file(config_path, config_file, schema, table, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3013762' + os.linesep)
@@ -111,6 +113,8 @@ def _create_weight_config_file(config_path, config_file, schema, password, conn_
         out_config.write('type = dcc' + os.linesep)
         out_config.write('post_connect_sql = set search_path to ' + schema + ', vocabulary;' + os.linesep)
         out_config.write('</src_rdb>' + os.linesep)
+        out_config.write('input_measurement_table = ' + table + os.linesep)
+        out_config.write('output_measurement_table = measurement_wt_z' + os.linesep)
 
 
 def _make_index_name(z_type, column_name):
