@@ -13,12 +13,12 @@ from sh import derive_z
 
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
-CREATE_MEASURE_LIKE_TABLE_SQL = 'create table measurement_bmiz (like measurement)'
-DROP_NULL_BMIZ_TABLE_SQL = 'alter table measurement_bmiz alter column measurement_id drop not null;'
-IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_bmiz ({1})'
+CREATE_MEASURE_LIKE_TABLE_SQL = 'create table measurement_{0} (like measurement)'
+DROP_NULL_Z_TABLE_SQL = 'alter table measurement_{0} alter column measurement_id drop not null;'
+IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_{1) ({2})'
 
 
-def _create_config_file(config_path, config_file, schema, password, conn_info_dict):
+def _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3038553' + os.linesep)
@@ -39,7 +39,7 @@ def _create_config_file(config_path, config_file, schema, password, conn_info_di
         out_config.write('<src_rdb>' + os.linesep)
         out_config.write('driver = Pg' + os.linesep)
         out_config.write('host = ' + conn_info_dict.get('host') + os.linesep)
-        out_config.write('database = ' + conn_info_dict.get('dbname')+ os.linesep)
+        out_config.write('database = ' + conn_info_dict.get('dbname') + os.linesep)
         out_config.write('schema = ' + schema + os.linesep)
         out_config.write('username = ' + conn_info_dict.get('user') + os.linesep)
         out_config.write('password = ' + password + os.linesep)
@@ -51,7 +51,69 @@ def _create_config_file(config_path, config_file, schema, password, conn_info_di
         out_config.write('output_measurement_table = measurement_bmiz' + os.linesep)
 
 
-def _make_index_name(table_name, column_name):
+def _create_height_config_file(config_path, config_file, schema, password, conn_info_dict):
+    with open(os.path.join(config_path, config_file), 'wb') as out_config:
+        out_config.write('<concept_id_map>' + os.linesep)
+        out_config.write('measurement_concept_id = 3036277, 3023540' + os.linesep)
+        out_config.write('<z_score_info>' + os.linesep)
+        out_config.write('z_class_system = NHANES_2000' + os.linesep)
+        out_config.write('z_class_measure = Height for Age' + os.linesep)
+        out_config.write('z_measurement_concept_id = 2000000042' + os.linesep)
+        out_config.write('</z_score_info >' + os.linesep)
+        out_config.write('</concept_id_map >' + os.linesep)
+        out_config.write('z_measurement_concept_id = 2000000042' + os.linesep)
+        out_config.write('z_measurement_type_concept_id = 45754907' + os.linesep)
+        out_config.write('z_unit_source_value = SD' + os.linesep)
+        out_config.write('clone_z_measurements = 1' + os.linesep)
+        out_config.write('input_person_table = person' + os.linesep)
+        out_config.write('output_chunk_size = 1000' + os.linesep)
+        out_config.write('person_chunk_size = 1000' + os.linesep)
+        out_config.write('verbose = 1' + os.linesep)
+        out_config.write('<src_rdb>' + os.linesep)
+        out_config.write('driver = Pg' + os.linesep)
+        out_config.write('host = ' +  conn_info_dict.get('host') + os.linesep)
+        out_config.write('database = ' + conn_info_dict.get('dbname') + os.linesep)
+        out_config.write('schema = ' + schema + os.linesep)
+        out_config.write('username = ' + conn_info_dict.get('user') + os.linesep)
+        out_config.write('password = ' + password + os.linesep)
+        out_config.write('domain = stage' + os.linesep)
+        out_config.write('type = dcc' + os.linesep)
+        out_config.write('post_connect_sql = set search_path to ' + schema + ', vocabulary;' + os.linesep)
+        out_config.write('</src_rdb>' + os.linesep)
+
+
+def _create_weight_config_file(config_path, config_file, schema, password, conn_info_dict):
+    with open(os.path.join(config_path, config_file), 'wb') as out_config:
+        out_config.write('<concept_id_map>' + os.linesep)
+        out_config.write('measurement_concept_id = 3013762' + os.linesep)
+        out_config.write('<z_score_info>' + os.linesep)
+        out_config.write('z_class_system = NHANES_2000' + os.linesep)
+        out_config.write('z_class_measure = Weight for Age' + os.linesep)
+        out_config.write('z_measurement_concept_id = 2000000041' + os.linesep)
+        out_config.write('</z_score_info >' + os.linesep)
+        out_config.write('</concept_id_map >' + os.linesep)
+        out_config.write('z_measurement_concept_id = 2000000041' + os.linesep)
+        out_config.write('z_measurement_type_concept_id = 45754907' + os.linesep)
+        out_config.write('z_unit_source_value = SD' + os.linesep)
+        out_config.write('clone_z_measurements = 1' + os.linesep)
+        out_config.write('input_person_table = person' + os.linesep)
+        out_config.write('output_chunk_size = 1000' + os.linesep)
+        out_config.write('person_chunk_size = 1000' + os.linesep)
+        out_config.write('verbose = 1' + os.linesep)
+        out_config.write('<src_rdb>' + os.linesep)
+        out_config.write('driver = Pg' + os.linesep)
+        out_config.write('host = ' +  conn_info_dict.get('host') + os.linesep)
+        out_config.write('database = ' + conn_info_dict.get('dbname') + os.linesep)
+        out_config.write('schema = ' + schema + os.linesep)
+        out_config.write('username = ' + conn_info_dict.get('user') + os.linesep)
+        out_config.write('password = ' + password + os.linesep)
+        out_config.write('domain = stage' + os.linesep)
+        out_config.write('type = dcc' + os.linesep)
+        out_config.write('post_connect_sql = set search_path to ' + schema + ', vocabulary;' + os.linesep)
+        out_config.write('</src_rdb>' + os.linesep)
+
+
+def _make_index_name(z_type, column_name):
     """
     Create an index name for a given table/column combination with
     a NAME_LIMIT-character (Oracle) limit.  The table/column combination
@@ -64,18 +126,19 @@ def _make_index_name(table_name, column_name):
     :param str column_name:
     :rtype: str
     """
-    table_abbrev = "mea_" + table_name[:3]
+
+    table_abbrev = "mea_" + z_type.replace("_","")[:3]
     column_abbrev = ''.join([x[0] for x in column_name.split('_')])
     md5 = hashlib.md5(
-        '{}.{}'.format(table_name, column_name).encode('utf-8')). \
+        '{}.{}'.format(z_type, column_name).encode('utf-8')). \
         hexdigest()
     hashlen = NAME_LIMIT - (len(table_abbrev) + len(column_abbrev) +
                             3 * len('_') + len('ix'))
     return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
 
 
-def _fill_concept_names(conn_str):
-    fill_concept_names_sql = """UPDATE measurement_bmiz bmi
+def _fill_concept_names(conn_str, z_type):
+    fill_concept_names_sql = """UPDATE measurement_{0} zs
         SET measurement_concept_name=v.measurement_concept_name,
         measurement_source_concept_name=v.measurement_source_concept_name, 
         measurement_type_concept_name=v.measurement_type_concept_name, 
@@ -96,23 +159,23 @@ def _fill_concept_names(conn_str):
         v7.concept_name AS range_low_operator_concept_name, 
         v8.concept_name AS unit_concept_name, 
         v9.concept_name AS value_as_concept_name 
-        FROM measurement_bmiz AS b
-        LEFT JOIN vocabulary.concept AS v1 ON b.measurement_concept_id = v1.concept_id
-        LEFT JOIN vocabulary.concept AS v2 ON b.measurement_source_concept_id = v2.concept_id 
-        LEFT JOIN vocabulary.concept AS v3 ON b.measurement_type_concept_id = v3.concept_id
-        LEFT JOIN vocabulary.concept AS v4 ON b.operator_concept_id  = v4.concept_id
-        LEFT JOIN vocabulary.concept AS v5 ON b.priority_concept_id  = v5.concept_id
-        LEFT JOIN vocabulary.concept AS v6 ON b.range_high_operator_concept_id = v6.concept_id
-        LEFT JOIN vocabulary.concept AS v7 ON b.range_low_operator_concept_id = v7.concept_id 
-        LEFT JOIN vocabulary.concept AS v8 ON b.unit_concept_id = v8.concept_id
-        LEFT JOIN vocabulary.concept AS v9 ON b.value_as_concept_id  = v9.concept_id
+        FROM measurement_{0} AS z
+        LEFT JOIN vocabulary.concept AS v1 ON z.measurement_concept_id = v1.concept_id
+        LEFT JOIN vocabulary.concept AS v2 ON z.measurement_source_concept_id = v2.concept_id 
+        LEFT JOIN vocabulary.concept AS v3 ON z.measurement_type_concept_id = v3.concept_id
+        LEFT JOIN vocabulary.concept AS v4 ON z.operator_concept_id  = v4.concept_id
+        LEFT JOIN vocabulary.concept AS v5 ON z.priority_concept_id  = v5.concept_id
+        LEFT JOIN vocabulary.concept AS v6 ON z.range_high_operator_concept_id = v6.concept_id
+        LEFT JOIN vocabulary.concept AS v7 ON z.range_low_operator_concept_id = v7.concept_id 
+        LEFT JOIN vocabulary.concept AS v8 ON z.unit_concept_id = v8.concept_id
+        LEFT JOIN vocabulary.concept AS v9 ON z.value_as_concept_id  = v9.concept_id
         ) v
-        WHERE bmi.measurement_id = v.measurement_id"""
+        WHERE zs.measurement_id = v.measurement_id"""
 
     fill_concept_names_msg = "adding concept names"
 
     # Add concept names
-    add_measurement_ids_stmt = Statement(fill_concept_names_sql, fill_concept_names_msg)
+    add_measurement_ids_stmt = Statement(fill_concept_names_sql.format(z_type), fill_concept_names_msg)
 
     # Execute the add concept names statement and ensure it didn't error
     add_measurement_ids_stmt.execute(conn_str)
@@ -123,7 +186,7 @@ def _fill_concept_names(conn_str):
     return True
 
 
-def _copy_to_dcc_table(conn_str, table):
+def _copy_to_dcc_table(conn_str, table, z_type):
     copy_to_sql = """INSERT INTO dcc_pedsnet.{0}(
         measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
         measurement_order_date, measurement_order_datetime, measurement_result_date, 
@@ -149,33 +212,34 @@ def _copy_to_dcc_table(conn_str, table):
         measurement_type_concept_name, operator_concept_name, priority_concept_name, 
         range_high_operator_concept_name, range_low_operator_concept_name, unit_concept_name, 
         value_as_concept_name, site, site_id
-        from measurement_bmiz) ON CONFLICT DO NOTHING"""
+        from measurement_{1}) ON CONFLICT DO NOTHING"""
 
-    copy_to_msg = "copying bmi-z to dcc_pedsnet"
+    copy_to_msg = "copying {0} to dcc_pedsnet"
 
-    # Insert BMI-Z measurements into measurement_anthro table
-    copy_to_stmt = Statement(copy_to_sql.format(table), copy_to_msg)
+    # Insert measurements into measurement table
+    copy_to_stmt = Statement(copy_to_sql.format(table, z_type), copy_to_msg.format(table))
 
-    # Execute the insert BMI-Z measurements statement and ensure it didn't error
+    # Execute the insert measurements statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
-    check_stmt_err(copy_to_stmt, 'insert BMI-Z measurements')
+    check_stmt_err(copy_to_stmt, 'insert measurements')
 
     # If reached without error, then success!
     return True
 
 
-def run_bmiz_calc(config_file, conn_str, site, copy, table, password, search_path, model_version):
+def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, search_path, model_version):
     """Run the BMI tool.
 
     * Create config file
     * Create output table
-    * Run BMI-Z
+    * Run BMI-Z, Height-Z, or Weight-Z
     * Index output table
     * Add measurement Ids
     * Add the concept names
     * Copy to the measurement table (if selected)
     * Vacuum output table
 
+    :param str z_type:   type of Z score calculation (bmiz, htz, or wtz)
     :param str config_file:   config file name
     :param str conn_str:      database connection string
     :param str site:    site to run BMI for
@@ -189,12 +253,20 @@ def run_bmiz_calc(config_file, conn_str, site, copy, table, password, search_pat
     :raises DatabaseError:    if any of the statement executions cause errors
     """
 
+    if z_type == 'ht_z':
+        z_type_name ="Height-Z"
+    elif z_type == 'wt_z':
+        z_type_name = "Weight-Z"
+    else:
+        z_type_name = "BMI-Z"
+
     conn_info_dict = get_conn_info_dict(conn_str)
+    logger_msg = '{0} {1} calculation'
 
     # Log start of the function and set the starting time.
     log_dict = combine_dicts({'site': site, },
                              conn_info_dict)
-    logger.info(combine_dicts({'msg': 'starting BMI-Z calculation'},
+    logger.info(combine_dicts({'msg': logger_msg.format('Starting', z_type_name)},
                               log_dict))
     start_time = time.time()
     schema = primary_schema(search_path)
@@ -205,44 +277,43 @@ def run_bmiz_calc(config_file, conn_str, site, copy, table, password, search_pat
 
     # create the congig file
     config_path = "/app"
-    _create_config_file(config_path, config_file, schema, password, conn_info_dict)
+    _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict)
 
     # create measurement_bmiz table
-
     # Add a creation statement.
     stmts = StatementSet()
-    create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL)
+    create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.format(z_type))
     stmts.add(create_stmt)
 
     # Check for any errors and raise exception if they are found.
     for stmt in stmts:
         try:
             stmt.execute(conn_str)
-            check_stmt_err(stmt, 'Run BMI-Z calculation')
+            check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
         except:
             logger.error(combine_dicts({'msg': 'Fatal error',
                                         'sql': stmt.sql,
                                         'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'create BMI-Z table failed',
+            logger.info(combine_dicts({'msg': 'create table failed',
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
 
     # Add drop null statement
     stmts.clear()
-    drop_stmt = Statement(DROP_NULL_BMIZ_TABLE_SQL)
+    drop_stmt = Statement(DROP_NULL_Z_TABLE_SQL.format(z_type))
     stmts.add(drop_stmt)
 
     # Check for any errors and raise exception if they are found.
     for stmt in stmts:
         try:
             stmt.execute(conn_str)
-            check_stmt_err(stmt, 'Run BMI-Z calculation')
+            check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
         except:
             logger.error(combine_dicts({'msg': 'Fatal error',
                                         'sql': stmt.sql,
                                         'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'create BMI-Z table failed',
+            logger.info(combine_dicts({'msg': 'drop measurement id null failed',
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
@@ -258,9 +329,8 @@ def run_bmiz_calc(config_file, conn_str, site, copy, table, password, search_pat
                  'measurement_source_value', 'value_as_concept_id', 'value_as_number',)
 
     for col in col_index:
-        idx_name = _make_index_name('bmiz', col)
-        idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.
-                                 format(idx_name, col))
+        idx_name = _make_index_name(z_type, col)
+        idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.format(idx_name, z_type, col))
         stmts.add(idx_stmt)
 
     # Execute the statements in parallel.
@@ -269,7 +339,7 @@ def run_bmiz_calc(config_file, conn_str, site, copy, table, password, search_pat
     # Check for any errors and raise exception if they are found.
     for stmt in stmts:
         try:
-            check_stmt_err(stmt, 'Run BMI-Z calculation')
+            check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
         except:
             logger.error(combine_dicts({'msg': 'Fatal error',
                                         'sql': stmt.sql,
@@ -281,39 +351,39 @@ def run_bmiz_calc(config_file, conn_str, site, copy, table, password, search_pat
     logger.info({'msg': 'add indexes complete'})
 
     # add measurement_ids
-    okay = _add_measurement_ids(conn_str, site, search_path, model_version)
+    okay = _add_measurement_ids(z_type, conn_str, site, search_path, model_version)
     if not okay:
         return False
 
     # Add the concept_names
     logger.info({'msg': 'add concept names'})
-    okay = _fill_concept_names(conn_str)
+    okay = _fill_concept_names(conn_str, z_type)
     if not okay:
         return False
     logger.info({'msg': 'concept names added'})
 
     # Copy to the measurement table
     if copy:
-        logger.info({'msg': 'copy bmi-z measurements to dcc_pedsnet'})
-        okay = _copy_to_dcc_table(conn_str, table)
+        logger.info({'msg': 'copy measurements to dcc_pedsnet'})
+        okay = _copy_to_dcc_table(conn_str, table, z_type)
         if not okay:
             return False
-        logger.info({'msg': 'bmi-z measurements copied to dcc_pedsnet'})
+        logger.info({'msg': 'measurements copied to dcc_pedsnet'})
 
     # Vacuum analyze tables for piney freshness.
     logger.info({'msg': 'begin vacuum'})
-    vacuum(conn_str, model_version, analyze=True, tables=['measurement_bmiz'])
+    vacuum(conn_str, model_version, analyze=True, tables=['measurement_' + z_type])
     logger.info({'msg': 'vacuum finished'})
 
     # Log end of function.
-    logger.info(combine_dicts({'msg': 'finished BMI-Z calculation',
+    logger.info(combine_dicts({'msg': logger_msg.format('Finished', z_type_name),
                                'elapsed': secs_since(start_time)}, log_dict))
 
     # If reached without error, then success!
     return True
 
 
-def _add_measurement_ids(conn_str, site, search_path, model_version):
+def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
     """Add measurement ids for the bmi table
 
     * Find how many ids needed
@@ -323,6 +393,7 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
     * Assign measurement ids
     * Make measurement Id the primary key
 
+    :param str z_type:    type of z score calculation (bmiz,htz, wtz)
     :param str conn_str:      database connection string
     :param str site:    site to run BMI for
     :param str search_path: PostgreSQL schema search path
@@ -333,8 +404,8 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
     """
 
     new_id_count_sql = """SELECT COUNT(*)
-        FROM measurement_bmiz WHERE measurement_id IS NULL"""
-    new_id_count_msg = "counting new IDs needed for measurement_bmiz"
+        FROM measurement_{0} WHERE measurement_id IS NULL"""
+    new_id_count_msg = "counting new IDs needed for measurement_{0}"
     lock_last_id_sql = """LOCK {last_id_table_name}"""
     lock_last_id_msg = "locking {table_name} last ID tracking table for update"
 
@@ -346,10 +417,10 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
     create_seq_measurement_msg = "creating measurement id sequence"
     set_seq_number_sql = "alter sequence {0}.measurement_id_seq restart with {1};"
     set_seq_number_msg = "setting sequence number"
-    add_measurement_ids_sql = """update {0}.measurement_bmiz set measurement_id = nextval('{0}.measurement_id_seq')
+    add_measurement_ids_sql = """update {0}.measurement_{1} set measurement_id = nextval('{3}.measurement_id_seq')
         where measurement_id is null"""
-    add_measurement_ids_msg = "adding the measurement ids to the measurement_bmiz table"
-    pk_measurement_id_sql = "alter table {0}.measurement_bmiz add primary key (measurement_id)"
+    add_measurement_ids_msg = "adding the measurement ids to the measurement_{0} table"
+    pk_measurement_id_sql = "alter table {0}.measurement_{1} add primary key (measurement_id)"
     pk_measurement_id_msg = "making measurement_id the primary key"
 
     conn_info_dict = get_conn_info_dict(conn_str)
@@ -377,7 +448,7 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
     tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.format(**tpl_vars)
 
     # Build the statement to count how many new ID mappings are needed.
-    new_id_count_stmt = Statement(new_id_count_sql, new_id_count_msg)
+    new_id_count_stmt = Statement(new_id_count_sql.format(z_type), new_id_count_msg.format(z_type))
 
     # Execute the new ID mapping count statement and ensure it didn't
     # error and did return a result.
@@ -429,7 +500,7 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
 
     # Set the sequence number
     logger.info({'msg': 'begin set sequence number'})
-    seq_number_set_stmt = Statement(set_seq_number_sql.format(schema, tpl_vars['old_last_id']),
+    seq_number_set_stmt = Statement(set_seq_number_sql.format(schema, tpl_vars['old_last_id'], schema),
                                     set_seq_number_msg)
 
     # Execute the set the sequence number statement and ensure it didn't error
@@ -440,7 +511,7 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
     # Add the measurement ids
     logger.info({'msg': 'begin add measurement ids'})
     add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema, schema),
-                                         add_measurement_ids_msg)
+                                         add_measurement_ids_msg.format(z_type))
 
     # Execute the add the measurement ids statement and ensure it didn't error
     add_measurement_ids_stmt.execute(conn_str)
@@ -449,7 +520,7 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
 
     # Make measurement Id the primary key
     logger.info({'msg': 'begin add primary key'})
-    pk_measurement_id_stmt = Statement(pk_measurement_id_sql.format(schema),
+    pk_measurement_id_stmt = Statement(pk_measurement_id_sql.format(schema, z_type),
                                          pk_measurement_id_msg)
 
     # Execute the Make measurement Id the primary key statement and ensure it didn't error
@@ -458,7 +529,7 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
     logger.info({'msg': 'primary key created'})
 
     # Log end of function.
-    logger.info(combine_dicts({'msg': 'finished adding measurement ids for the bmi-z table',
+    logger.info(combine_dicts({'msg': 'finished adding measurement ids',
                                'elapsed': secs_since(start_time)}, log_dict))
 
     # If reached without error, then success!

@@ -363,7 +363,7 @@ def run_bmi(pwprompt, searchpath, site, copy, table, model_version, dburi):
 @click.option('--site', required=True,
               help='PEDSnet site name for the config file.')
 @click.option('--copy', is_flag=True, default=False,
-              help='Copy results to dcc_pedsnet.measurement_anthro.')
+              help='Copy results to dcc_pedsnet.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
@@ -380,7 +380,7 @@ def run_bmiz(pwprompt, searchpath, site, copy, table, model_version, dburi):
       - Add indexes to output table
       - Add measurement ids
       - Add concept names
-      - Copy BMI-Z measurements to dcc_pedsnet.measurement_anthro
+      - Copy BMI-Z measurements to dcc_pedsnet
       - Vacuum the output table
 
     The database should be specified using a DBURI:
@@ -397,13 +397,112 @@ def run_bmiz(pwprompt, searchpath, site, copy, table, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
     config_file = site + "_temp.conf"
 
-    from pedsnetdcc.bmiz import run_bmiz_calc
-    success = run_bmiz_calc(config_file, conn_str, site, copy, table, password, searchpath, model_version)
+    from pedsnetdcc.z_score import run_z_calc
+    success = run_z_calc('bmiz', config_file, conn_str, site, copy, table, password, searchpath, model_version)
 
     if not success:
         sys.exit(1)
 
     sys.exit(0)
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for the config file.')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to dcc_pedsnet.measurement_anthro.')
+@click.option('--table', required=True,
+              help='Table to use for input as well as copy (measurement, measurement_anthro.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def run_height_z(pwprompt, searchpath, site, copy, table, model_version, dburi):
+    """Run HEIGHT-Z derivation.
+
+    The steps are:
+
+      - Create the config file.
+      - Create the output table.
+      - Run the derivation.
+      - Add indexes to output table
+      - Add measurement ids
+      - Add concept names
+      - Copy Height-Z measurements to dcc_pedsnet
+      - Vacuum the output table
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+    config_file = site + "_temp.conf"
+
+    from pedsnetdcc.z_score import run_z_calc
+    success = run_z_calc('ht_z', config_file, conn_str, site, copy, table, password, searchpath, model_version)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for the config file.')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to dcc_pedsnet.measurement_anthro.')
+@click.option('--table', required=True,
+              help='Table to use for input as well as copy (measurement, measurement_anthro.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def run_weight_z(pwprompt, searchpath, site, copy, table, model_version, dburi):
+    """Run Weight-Z derivation.
+
+    The steps are:
+
+      - Create the config file.
+      - Create the output table.
+      - Run the derivation.
+      - Add indexes to output table
+      - Add measurement ids
+      - Add concept names
+      - Copy Weight-Z measurements to dcc_pedsnet
+      - Vacuum the output table
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+    config_file = site + "_temp.conf"
+
+    from pedsnetdcc.z_score import run_z_calc
+    success = run_z_calc('wt_z', config_file, conn_str, site, copy, table, password, searchpath, model_version)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
 
 @pedsnetdcc.command()
 @click.option('--model-version', '-v', required=True,
