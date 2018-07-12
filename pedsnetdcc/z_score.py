@@ -279,7 +279,6 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
         pass_match = re.search(r"password=(\S*)", conn_str)
         password = pass_match.group(1)
 
-    """
     # create the congig file
     config_path = "/app"
 
@@ -365,7 +364,6 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
     okay = _add_measurement_ids(z_type, conn_str, site, search_path, model_version)
     if not okay:
         return False
-    """
 
     # Add the concept_names
     logger.info({'msg': 'add concept names'})
