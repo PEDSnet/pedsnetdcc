@@ -54,7 +54,7 @@ def _create_bmiz_config_file(config_path, config_file, schema, password, conn_in
 def _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
-        out_config.write('measurement_concept_id = 3023540,3036277' + os.linesep)
+        out_config.write('measurement_concept_id = 3023540' + os.linesep)
         out_config.write('<z_score_info>' + os.linesep)
         out_config.write('z_class_system = NHANES_2000' + os.linesep)
         out_config.write('z_class_measure = Height for Age' + os.linesep)
@@ -153,7 +153,7 @@ def _fill_concept_names(conn_str, z_type):
         unit_concept_name=v.unit_concept_name, 
         value_as_concept_name=v.value_as_concept_name
         FROM ( SELECT
-        b.measurement_id AS measurement_id,
+        z.measurement_id AS measurement_id,
         v1.concept_name AS measurement_concept_name, 
         v2.concept_name AS measurement_source_concept_name, 
         v3.concept_name AS measurement_type_concept_name, 
@@ -279,6 +279,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
         pass_match = re.search(r"password=(\S*)", conn_str)
         password = pass_match.group(1)
 
+    """
     # create the congig file
     config_path = "/app"
 
@@ -328,10 +329,10 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
                                       log_dict))
             raise
 
-    # Run BMI-Z tool
+    # Run Z-Score tool
     derive_z(config_file[:-5], '--verbose=1', _cwd='/app', _fg=True)
 
-    # Add indexes to measurement_bmi (same as measurement)
+    # Add indexes to measurement result table (same as measurement)
     logger.info({'msg': 'begin add indexes'})
     stmts.clear()
     col_index = ('measurement_age_in_months', 'measurement_concept_id', 'measurement_date',
@@ -364,6 +365,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
     okay = _add_measurement_ids(z_type, conn_str, site, search_path, model_version)
     if not okay:
         return False
+    """
 
     # Add the concept_names
     logger.info({'msg': 'add concept names'})
