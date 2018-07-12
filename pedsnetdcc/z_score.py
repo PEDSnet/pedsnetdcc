@@ -54,7 +54,7 @@ def _create_bmiz_config_file(config_path, config_file, schema, password, conn_in
 def _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
-        out_config.write('measurement_concept_id = 3036277,3023540' + os.linesep)
+        out_config.write('measurement_concept_id = 3023540,3036277' + os.linesep)
         out_config.write('<z_score_info>' + os.linesep)
         out_config.write('z_class_system = NHANES_2000' + os.linesep)
         out_config.write('z_class_measure = Height for Age' + os.linesep)
@@ -427,7 +427,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
     create_seq_measurement_msg = "creating measurement id sequence"
     set_seq_number_sql = "alter sequence {0}.measurement_id_seq restart with {1};"
     set_seq_number_msg = "setting sequence number"
-    add_measurement_ids_sql = """update {0}.measurement_{1} set measurement_id = nextval('{3}.measurement_id_seq')
+    add_measurement_ids_sql = """update {0}.measurement_{1} set measurement_id = nextval('{0}.measurement_id_seq')
         where measurement_id is null"""
     add_measurement_ids_msg = "adding the measurement ids to the measurement_{0} table"
     pk_measurement_id_sql = "alter table {0}.measurement_{1} add primary key (measurement_id)"
@@ -520,7 +520,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
 
     # Add the measurement ids
     logger.info({'msg': 'begin add measurement ids'})
-    add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema, schema),
+    add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema, z_type, schema),
                                          add_measurement_ids_msg.format(z_type))
 
     # Execute the add the measurement ids statement and ensure it didn't error
