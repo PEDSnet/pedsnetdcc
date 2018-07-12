@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
 CREATE_MEASURE_LIKE_TABLE_SQL = 'create table measurement_{0} (like measurement)'
 DROP_NULL_Z_TABLE_SQL = 'alter table measurement_{0} alter column measurement_id drop not null;'
-IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_{1) ({2})'
+IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_{1} ({2})'
 
 
 def _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict):
