@@ -441,7 +441,7 @@ def _fill_concept_names(conn_str, era_type):
         FROM {0}_era AS e
         LEFT JOIN vocabulary.concept AS v1 ON e.{0}_concept_id = v1.concept_id
         ) v
-        WHERE era.{0}_era_id = v.era.{0}_era_id"""
+        WHERE era.{0}_era_id = v.{0}_id"""
 
     fill_concept_names_msg = "adding concept names"
 
