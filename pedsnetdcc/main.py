@@ -412,7 +412,7 @@ def run_bmiz(pwprompt, searchpath, site, copy, table, model_version, dburi):
 @click.option('--site', required=True,
               help='PEDSnet site name for the config file.')
 @click.option('--copy', is_flag=True, default=False,
-              help='Copy results to dcc_pedsnet.measurement_anthro.')
+              help='Copy results to dcc_pedsnet.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
@@ -461,7 +461,7 @@ def run_height_z(pwprompt, searchpath, site, copy, table, model_version, dburi):
 @click.option('--site', required=True,
               help='PEDSnet site name for the config file.')
 @click.option('--copy', is_flag=True, default=False,
-              help='Copy results to dcc_pedsnet.measurement_anthro.')
+              help='Copy results to dcc_pedsnet.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
@@ -502,6 +502,92 @@ def run_weight_z(pwprompt, searchpath, site, copy, table, model_version, dburi):
         sys.exit(1)
 
     sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for derivation.')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to dcc_pedsnet')
+@click.option('--stockpile', is_flag=True, default=False,
+              help='Use stockpiling methoad')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def run_drug_era(pwprompt, searchpath, site, copy, stockpile, model_version, dburi):
+    """Run Weight-Z derivation.
+
+    The steps are:
+
+      - Run the derivation.
+      - Add ids
+      - Add concept names
+      - Copy to dcc_pedsnet
+      - Vacuum the output table
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.era import run_era
+    success = run_era("drug", stockpile, conn_str, site, copy, searchpath, model_version)
+
+    if not success:
+        sys.exit(1)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for derivation.')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to dcc_pedsnet')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def run_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
+    """Run Condition Era derivation.
+
+    The steps are:
+
+      - Run the derivation.
+      - Add ids
+      - Add concept names
+      - Copy to dcc_pedsnet
+      - Vacuum the output table
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.era import run_era
+    success = run_era("condition", False, conn_str, site, copy, searchpath, model_version)
+
+    if not success:
+        sys.exit(1)
 
 
 @pedsnetdcc.command()

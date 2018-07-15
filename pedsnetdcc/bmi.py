@@ -237,7 +237,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, table, password, search_path
             logger.error(combine_dicts({'msg': 'Fatal error',
                                         'sql': stmt.sql,
                                         'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'create BMI table failed',
+            logger.info(combine_dicts({'msg': 'drop null failed',
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
@@ -434,7 +434,7 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
 
     # Add the measurement ids
     logger.info({'msg': 'begin add measurement ids'})
-    add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema, schema),
+    add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema),
                                          add_measurement_ids_msg)
 
     # Execute the add the measurement ids statement and ensure it didn't error

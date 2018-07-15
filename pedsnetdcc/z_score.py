@@ -405,7 +405,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
 
     :param str z_type:    type of z score calculation (bmiz,htz, wtz)
     :param str conn_str:      database connection string
-    :param str site:    site to run BMI for
+    :param str site:    site to run z score for
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
     :returns:                 True if the function succeeds
