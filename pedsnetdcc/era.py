@@ -458,7 +458,7 @@ def _fill_concept_names(conn_str, era_type):
     return True
 
 
-def _copy_to_dcc_table(conn_str, table, era_type):
+def _copy_to_dcc_table(conn_str, era_type):
     copy_to_condition_sql = """INSERT INTO dcc_pedsnet.condition_era(
         condition_concept_id, condition_era_end_date, condition_era_start_date, 
         condition_occurrence_count, condition_concept_name, site, condition_era_id, 
@@ -478,9 +478,9 @@ def _copy_to_dcc_table(conn_str, table, era_type):
 
     # Insert era data into dcc_pedsnet era table
     if era_type == "condition":
-        copy_to_stmt = Statement(copy_to_condition_sql.format(table), copy_to_msg.format({0}))
+        copy_to_stmt = Statement(copy_to_condition_sql, copy_to_msg.format(era_type))
     else:
-        copy_to_stmt = Statement(copy_to_drug_sql.format(table), copy_to_msg.format({0}))
+        copy_to_stmt = Statement(copy_to_drug_sql, copy_to_msg.format(era_type))
 
     # Execute the insert BMI measurements statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
