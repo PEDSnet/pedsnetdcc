@@ -9,6 +9,7 @@ from pedsnetdcc.utils import (check_stmt_err, check_stmt_data, combine_dicts,
                               get_conn_info_dict, vacuum, stock_metadata)
 
 logger = logging.getLogger(__name__)
+DROP_PK_CONSTRAINT_ERA_SQL = 'alter table {0}_era drop constraint if exists xpk_{0}_era;'
 DROP_NULL_ERA_SQL = 'alter table {0}_era alter column {0}_era_id drop not null;'
 IDX_ERA_SQL = 'create index {0} on {1}_era ({2})'
 CONDITION_ERA_SQL= """TRUNCATE {0}.condition_era;
@@ -520,8 +521,27 @@ def run_era(era_type, stockpile, conn_str, site, copy, search_path, model_versio
     start_time = time.time()
     schema = primary_schema(search_path)
 
-    # Add drop null statement.
+    # Drop primary key.
     stmts = StatementSet()
+    drop_pk_stmt = Statement(DROP_PK_CONSTRAINT_ERA_SQL.format(era_type))
+    stmts.add(drop_pk_stmt)
+
+    # Check for any errors and raise exception if they are found.
+    for stmt in stmts:
+        try:
+            stmt.execute(conn_str)
+            check_stmt_err(stmt, logger_msg.format('Run', era_type))
+        except:
+            logger.error(combine_dicts({'msg': 'Fatal error',
+                                        'sql': stmt.sql,
+                                        'err': str(stmt.err)}, log_dict))
+            logger.info(combine_dicts({'msg': 'drop pk failed',
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            raise
+
+    # Add drop null statement.
+    stmts.clear()
     drop_stmt = Statement(DROP_NULL_ERA_SQL.format(era_type))
     stmts.add(drop_stmt)
 
