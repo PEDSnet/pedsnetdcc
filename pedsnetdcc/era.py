@@ -115,7 +115,7 @@ DRUG_ERA_SQL = """TRUNCATE {0}.drug_era;
             ) AS drug_exposure_end_date
         FROM {0}.drug_exposure d
         JOIN {1}.concept_ancestor ca ON ca.descendant_concept_id = d.drug_concept_id
-        JOIN {0}.concept c ON ca.ancestor_concept_id = c.concept_id
+        JOIN {1}.concept c ON ca.ancestor_concept_id = c.concept_id
         WHERE c.vocabulary_id = 'RxNorm' --- was = 8 selects RxNorm from the vocabulary_id
         AND c.concept_class_id = 'Ingredient' --- was concept_class
         /* Depending on the needs of your data, you can put more filters on to your code. We assign 0 to unmapped drug_concept_id's, and we found data where days_supply was negative.
