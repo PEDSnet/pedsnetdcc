@@ -646,7 +646,7 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     create_seq_msg = "creating {0} era id sequence"
     set_seq_number_sql = "alter sequence {0}.{1}_era_id_seq restart with {2};"
     set_seq_number_msg = "setting sequence number"
-    add_era_ids_sql = """update {0}.{1)_era set {1}_era_id = nextval('{0}.{1)_era_id_seq')
+    add_era_ids_sql = """update {0}.{1}_era set {1}_era_id = nextval('{0}.{1}_era_id_seq')
         where {1}_era_id is null"""
     add_era_ids_msg = "adding the measurement ids to the {0}_era table"
     pk_era_id_sql = "alter table {0}.{1}_era add primary key ({1}_era_id)"
