@@ -9,7 +9,8 @@ from pedsnetdcc.utils import (check_stmt_err, check_stmt_data, combine_dicts,
                               get_conn_info_dict, vacuum, stock_metadata)
 
 logger = logging.getLogger(__name__)
-DROP_PK_CONSTRAINT_ERA_SQL = 'alter table {0}_era drop constraint if exists xpk_{0}_era;'
+DROP_PK_CONSTRAINT_ERA_SQL = """alter table {0}_era drop constraint if exists xpk_{0}_era;
+    alter table {0}_era drop constraint if exists {0}_era_pkey;"""
 DROP_NULL_ERA_SQL = 'alter table {0}_era alter column {0}_era_id drop not null;'
 IDX_ERA_SQL = 'create index {0} on {1}_era ({2})'
 CONDITION_ERA_SQL= """TRUNCATE {0}.condition_era;
