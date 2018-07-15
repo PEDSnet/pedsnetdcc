@@ -13,9 +13,9 @@ from sh import derive_z
 
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
-CREATE_MEASURE_LIKE_TABLE_SQL = 'create table measurement_{0} (like measurement)'
-DROP_NULL_Z_TABLE_SQL = 'alter table measurement_{0} alter column measurement_id drop not null;'
-IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_{1} ({2})'
+CREATE_MEASURE_LIKE_TABLE_SQL = 'create table {0).measurement_{1} (like measurement)'
+DROP_NULL_Z_TABLE_SQL = 'alter table {0}measurement_{1} alter column measurement_id drop not null;'
+IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on {1}.measurement_{2} ({3})'
 
 
 def _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict):
@@ -142,7 +142,7 @@ def _make_index_name(z_type, column_name):
 
 
 def _fill_concept_names(conn_str, z_type):
-    fill_concept_names_sql = """UPDATE measurement_{0} zs
+    fill_concept_names_sql = """UPDATE {0}.measurement_{1} zs
         SET measurement_concept_name=v.measurement_concept_name,
         measurement_source_concept_name=v.measurement_source_concept_name, 
         measurement_type_concept_name=v.measurement_type_concept_name, 
@@ -163,7 +163,7 @@ def _fill_concept_names(conn_str, z_type):
         v7.concept_name AS range_low_operator_concept_name, 
         v8.concept_name AS unit_concept_name, 
         v9.concept_name AS value_as_concept_name 
-        FROM measurement_{0} AS z
+        FROM measurement_{1} AS z
         LEFT JOIN vocabulary.concept AS v1 ON z.measurement_concept_id = v1.concept_id
         LEFT JOIN vocabulary.concept AS v2 ON z.measurement_source_concept_id = v2.concept_id 
         LEFT JOIN vocabulary.concept AS v3 ON z.measurement_type_concept_id = v3.concept_id
@@ -190,7 +190,7 @@ def _fill_concept_names(conn_str, z_type):
     return True
 
 
-def _copy_to_dcc_table(conn_str, table, z_type):
+def _copy_to_dcc_table(conn_str, schema, table, z_type):
     copy_to_sql = """INSERT INTO dcc_pedsnet.{0}(
         measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
         measurement_order_date, measurement_order_datetime, measurement_result_date, 
@@ -216,12 +216,12 @@ def _copy_to_dcc_table(conn_str, table, z_type):
         measurement_type_concept_name, operator_concept_name, priority_concept_name, 
         range_high_operator_concept_name, range_low_operator_concept_name, unit_concept_name, 
         value_as_concept_name, site, site_id
-        from measurement_{1}) ON CONFLICT DO NOTHING"""
+        from {1}.measurement_{2}) ON CONFLICT DO NOTHING"""
 
     copy_to_msg = "copying {0} to dcc_pedsnet"
 
     # Insert measurements into measurement table
-    copy_to_stmt = Statement(copy_to_sql.format(table, z_type), copy_to_msg.format(table))
+    copy_to_stmt = Statement(copy_to_sql.format(table, schema, z_type), copy_to_msg.format(table))
 
     # Execute the insert measurements statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
@@ -292,7 +292,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
     # create measurement_bmiz table
     # Add a creation statement.
     stmts = StatementSet()
-    create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.format(z_type))
+    create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.format(schema, z_type))
     stmts.add(create_stmt)
 
     # Check for any errors and raise exception if they are found.
@@ -311,7 +311,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
 
     # Add drop null statement
     stmts.clear()
-    drop_stmt = Statement(DROP_NULL_Z_TABLE_SQL.format(z_type))
+    drop_stmt = Statement(DROP_NULL_Z_TABLE_SQL.format(schema, z_type))
     stmts.add(drop_stmt)
 
     # Check for any errors and raise exception if they are found.
@@ -340,7 +340,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
 
     for col in col_index:
         idx_name = _make_index_name(z_type, col)
-        idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.format(idx_name, z_type, col))
+        idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.format(idx_name, schema, z_type, col))
         stmts.add(idx_stmt)
 
     # Execute the statements in parallel.
@@ -367,7 +367,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
 
     # Add the concept_names
     logger.info({'msg': 'add concept names'})
-    okay = _fill_concept_names(conn_str, z_type)
+    okay = _fill_concept_names(conn_str, schema, z_type)
     if not okay:
         return False
     logger.info({'msg': 'concept names added'})
@@ -375,7 +375,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
     # Copy to the measurement table
     if copy:
         logger.info({'msg': 'copy measurements to dcc_pedsnet'})
-        okay = _copy_to_dcc_table(conn_str, table, z_type)
+        okay = _copy_to_dcc_table(conn_str, schema, table, z_type)
         if not okay:
             return False
         logger.info({'msg': 'measurements copied to dcc_pedsnet'})
@@ -414,7 +414,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
     """
 
     new_id_count_sql = """SELECT COUNT(*)
-        FROM measurement_{0} WHERE measurement_id IS NULL"""
+        FROM {0}.measurement_{1} WHERE measurement_id IS NULL"""
     new_id_count_msg = "counting new IDs needed for measurement_{0}"
     lock_last_id_sql = """LOCK {last_id_table_name}"""
     lock_last_id_msg = "locking {table_name} last ID tracking table for update"
@@ -458,7 +458,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
     tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.format(**tpl_vars)
 
     # Build the statement to count how many new ID mappings are needed.
-    new_id_count_stmt = Statement(new_id_count_sql.format(z_type), new_id_count_msg.format(z_type))
+    new_id_count_stmt = Statement(new_id_count_sql.format(schema, z_type), new_id_count_msg.format(z_type))
 
     # Execute the new ID mapping count statement and ensure it didn't
     # error and did return a result.
