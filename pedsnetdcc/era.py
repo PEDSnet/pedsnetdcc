@@ -9,7 +9,7 @@ from pedsnetdcc.utils import (check_stmt_err, check_stmt_data, combine_dicts,
                               get_conn_info_dict, vacuum, stock_metadata)
 
 logger = logging.getLogger(__name__)
-DROP_NULL_ERA_SQL = 'alter table {0} alter column {0}_era_id drop not null;'
+DROP_NULL_ERA_SQL = 'alter table {0}_era alter column {0}_era_id drop not null;'
 IDX_ERA_SQL = 'create index {0} on {1}_era ({2})'
 CONDITION_ERA_SQL= """TRUNCATE {0}.condition_era;
     WITH cteConditionTarget (condition_occurrence_id, person_id, condition_concept_id, condition_start_date, condition_end_date) AS
