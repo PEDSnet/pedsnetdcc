@@ -141,7 +141,7 @@ def _make_index_name(z_type, column_name):
     return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
 
 
-def _fill_concept_names(conn_str, z_type):
+def _fill_concept_names(conn_str, schema, z_type):
     fill_concept_names_sql = """UPDATE {0}.measurement_{1} zs
         SET measurement_concept_name=v.measurement_concept_name,
         measurement_source_concept_name=v.measurement_source_concept_name, 
@@ -179,7 +179,7 @@ def _fill_concept_names(conn_str, z_type):
     fill_concept_names_msg = "adding concept names"
 
     # Add concept names
-    add_measurement_ids_stmt = Statement(fill_concept_names_sql.format(z_type), fill_concept_names_msg)
+    add_measurement_ids_stmt = Statement(fill_concept_names_sql.format(schema, z_type), fill_concept_names_msg)
 
     # Execute the add concept names statement and ensure it didn't error
     add_measurement_ids_stmt.execute(conn_str)
@@ -232,7 +232,7 @@ def _copy_to_dcc_table(conn_str, schema, table, z_type):
 
 
 def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, search_path, model_version):
-    """Run the BMI tool.
+    """Run the Z Score tool.
 
     * Create config file
     * Create output table
@@ -289,7 +289,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
     else:
         _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict)
 
-    # create measurement_bmiz table
+    # create measurement z_score table
     # Add a creation statement.
     stmts = StatementSet()
     create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.format(schema, z_type))
