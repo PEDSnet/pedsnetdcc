@@ -433,9 +433,11 @@ DRUG_ERA_STOCKPILE_SQL = """TRUNCATE {0}.drug_era;
         , (SELECT SUM(drug_exposure_count) FROM {0}.drug_era) AS sum
     */
 """
-def _fill_concept_names(conn_str, era_type):
+
+
+def _fill_concept_names(conn_str, era_type, site):
     fill_concept_names_sql = """UPDATE {0}_era era
-        SET {0}_concept_name=v.{0}_concept_name
+        SET {0}_concept_name=v.{0}_concept_name,site={1}
         FROM ( SELECT
         e.{0}_era_id AS {0}_id,
         v1.concept_name AS {0}_concept_name
@@ -447,7 +449,7 @@ def _fill_concept_names(conn_str, era_type):
     fill_concept_names_msg = "adding concept names"
 
     # Add concept names
-    add_era_ids_stmt = Statement(fill_concept_names_sql.format(era_type), fill_concept_names_msg)
+    add_era_ids_stmt = Statement(fill_concept_names_sql.format(era_type, site), fill_concept_names_msg)
 
     # Execute the add concept names statement and ensure it didn't error
     add_era_ids_stmt.execute(conn_str)
@@ -587,7 +589,7 @@ def run_era(era_type, stockpile, conn_str, site, copy, search_path, model_versio
 
     # Add the concept_names
     logger.info({'msg': 'add concept names'})
-    okay = _fill_concept_names(conn_str, era_type)
+    okay = _fill_concept_names(conn_str, era_type, site)
     if not okay:
         return False
     logger.info({'msg': 'concept names added'})
