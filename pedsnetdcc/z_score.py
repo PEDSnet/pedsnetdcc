@@ -163,7 +163,7 @@ def _fill_concept_names(conn_str, schema, z_type):
         v7.concept_name AS range_low_operator_concept_name, 
         v8.concept_name AS unit_concept_name, 
         v9.concept_name AS value_as_concept_name 
-        FROM measurement_{1} AS z
+        FROM {0}.measurement_{1} AS z
         LEFT JOIN vocabulary.concept AS v1 ON z.measurement_concept_id = v1.concept_id
         LEFT JOIN vocabulary.concept AS v2 ON z.measurement_source_concept_id = v2.concept_id 
         LEFT JOIN vocabulary.concept AS v3 ON z.measurement_type_concept_id = v3.concept_id
