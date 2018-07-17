@@ -437,7 +437,7 @@ DRUG_ERA_STOCKPILE_SQL = """TRUNCATE {0}.drug_era;
 
 def _fill_concept_names(conn_str, era_type, site):
     fill_concept_names_sql = """UPDATE {0}_era era
-        SET {0}_concept_name=v.{0}_concept_name,site={1}
+        SET {0}_concept_name=v.{0}_concept_name,site='{1}'
         FROM ( SELECT
         e.{0}_era_id AS {0}_id,
         v1.concept_name AS {0}_concept_name
@@ -460,7 +460,7 @@ def _fill_concept_names(conn_str, era_type, site):
     return True
 
 
-def _copy_to_dcc_table(conn_str, era_type):
+def _copy_to_dcc_table(conn_str, era_type, schema):
     copy_to_condition_sql = """INSERT INTO dcc_pedsnet.condition_era(
         condition_concept_id, condition_era_end_date, condition_era_start_date, 
         condition_occurrence_count, condition_concept_name, site, condition_era_id, 
@@ -468,21 +468,21 @@ def _copy_to_dcc_table(conn_str, era_type):
         (select condition_concept_id, condition_era_end_date, condition_era_start_date, 
         condition_occurrence_count, condition_concept_name, site, condition_era_id, 
         site_id, person_id
-        from condition_era) ON CONFLICT DO NOTHING"""
+        from {0}.condition_era) ON CONFLICT DO NOTHING"""
     copy_to_drug_sql = """INSERT INTO dcc_pedsnet.drug_era(
         drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
         gap_days, drug_concept_name, site, drug_era_id, site_id, person_id)
         (select drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
         gap_days, drug_concept_name, site, drug_era_id, site_id, person_id
-        from drug_era) ON CONFLICT DO NOTHING"""
+        from {0}.drug_era) ON CONFLICT DO NOTHING"""
 
     copy_to_msg = "copying {0}_era to dcc_pedsnet"
 
     # Insert era data into dcc_pedsnet era table
     if era_type == "condition":
-        copy_to_stmt = Statement(copy_to_condition_sql, copy_to_msg.format(era_type))
+        copy_to_stmt = Statement(copy_to_condition_sql.format(schema), copy_to_msg.format(era_type))
     else:
-        copy_to_stmt = Statement(copy_to_drug_sql, copy_to_msg.format(era_type))
+        copy_to_stmt = Statement(copy_to_drug_sql.format(schema), copy_to_msg.format(era_type))
 
     # Execute the insert BMI measurements statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
@@ -597,7 +597,7 @@ def run_era(era_type, stockpile, conn_str, site, copy, search_path, model_versio
     # Copy to the dcc_pedsnet table
     if copy:
         logger.info({'msg': 'copy {0}_era to dcc_pedsnet'.format(era_type)})
-        okay = _copy_to_dcc_table(conn_str, era_type)
+        okay = _copy_to_dcc_table(conn_str, era_type, schema)
         if not okay:
             return False
         logger.info({'msg': '{0}_era copied to dcc_pedsnet'.format(era_type)})
