@@ -15,6 +15,7 @@ PK_MEASURE_LIKE_TABLE_SQL = 'alter table measurement_{0} add primary key(measure
 IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_{1} ({2})'
 FK_MEASURE_LIKE_TABLE_SQL = 'alter table measurement_{0} add constraint {1} foreign key ({2}) references {3}({4})'
 GRANT_MEASURE_LIKE_TABLE_SQL = 'grant select on table measurement_{0} to {1}'
+DROP_MEASUREMENT_SQL = 'drop table measurement;'
 
 
 def _make_index_name(table_name, column_name):
@@ -40,7 +41,7 @@ def _make_index_name(table_name, column_name):
     return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
 
 
-def split_measurement_table(conn_str, model_version, search_path):
+def split_measurement_table(conn_str, drop, view, model_version, search_path):
     """Split measurement into anthro, lab, and vital.
 
     * Create the measurement_anthro, measurement_labs, and measurement_vitals from measurement
@@ -225,13 +226,29 @@ def split_measurement_table(conn_str, model_version, search_path):
                                       log_dict))
             raise
 
-    # Drop measurement if dcc_pedsnet
-    if schema == 'dcc_pedsnet':
+    # Drop measurement if flag set
+    if drop:
         stmts.clear()
-        # don't drop the table at this time
+        drop_stmt = Statement(DROP_MEASUREMENT_SQL)
+        stmts.add(drop_stmt)
 
-    # Create measurements view if dcc_pedsnet
-    if schema == 'dcc_pedsnet':
+        # Execute statements and check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                stmt.execute(conn_str)
+                check_stmt_err(stmt, 'Measurement table split')
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'drop measurement failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
+
+
+    # Create measurements view if flag set
+    if view:
         stmts.clear()
         view_stmt = Statement("""create view measurements as
         select * from measurement_anthro

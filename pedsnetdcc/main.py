@@ -268,10 +268,14 @@ def merge(pwprompt, force, model_version, undo, dburi):
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
 @click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--drop', is_flag=True, default=False,
+              help='Drop original table after split.')
+@click.option('--view', is_flag=True, default=False,
+              help='Create measurements view.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def split_measurement(pwprompt, searchpath, model_version, dburi):
+def split_measurement(pwprompt, searchpath, drop, view, model_version, dburi):
     """Split measurement table into anthro, labs, and vitals.
 
     The steps are:
@@ -299,7 +303,7 @@ def split_measurement(pwprompt, searchpath, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.split_measurement import split_measurement_table
-    success = split_measurement_table(conn_str, model_version, searchpath)
+    success = split_measurement_table(conn_str, drop, view, model_version, searchpath)
 
     if not success:
         sys.exit(1)
