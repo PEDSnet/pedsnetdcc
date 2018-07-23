@@ -11,8 +11,6 @@ class VocabularyDropIndexTransform(Transform):
     }
     idx_by_column = {
         'domain_id': 'idx_concept_domain_id',
-        'ancestor_concept_id': 'idx_concept_ancestor_id_1',
-        'descendant_concept_id': 'idx_concept_ancestor_id_2',
     }
 
     @classmethod
