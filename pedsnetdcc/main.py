@@ -268,6 +268,7 @@ def merge(pwprompt, force, model_version, undo, dburi):
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
 @click.option('--searchpath', '-s', help='Schema search path in database.')
+
 @click.option('--drop', is_flag=True, default=False,
               help='Drop original table after split.')
 @click.option('--view', is_flag=True, default=False,
@@ -276,6 +277,7 @@ def merge(pwprompt, force, model_version, undo, dburi):
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
 def split_measurement(pwprompt, searchpath, drop, view, model_version, dburi):
+
     """Split measurement table into anthro, labs, and vitals.
 
     The steps are:
@@ -303,6 +305,7 @@ def split_measurement(pwprompt, searchpath, drop, view, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.split_measurement import split_measurement_table
+
     success = split_measurement_table(conn_str, drop, view, model_version, searchpath)
 
     if not success:
@@ -317,6 +320,7 @@ def split_measurement(pwprompt, searchpath, drop, view, model_version, dburi):
 @click.option('--searchpath', '-s', help='Schema search path in database.')
 @click.option('--site', required=True,
               help='PEDSnet site name for the config file.')
+
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to dcc_pedsnet.')
 @click.option('--table', required=True,
@@ -325,6 +329,7 @@ def split_measurement(pwprompt, searchpath, drop, view, model_version, dburi):
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
 def run_bmi(pwprompt, searchpath, site, copy, table, model_version, dburi):
+
     """Run BMI derivation.
 
     The steps are:
@@ -353,6 +358,7 @@ def run_bmi(pwprompt, searchpath, site, copy, table, model_version, dburi):
     config_file = site + "_temp.conf"
 
     from pedsnetdcc.bmi import run_bmi_calc
+
     success = run_bmi_calc(config_file, conn_str, site, copy, table, password, searchpath, model_version)
 
     if not success:
@@ -366,6 +372,7 @@ def run_bmi(pwprompt, searchpath, site, copy, table, model_version, dburi):
 @click.option('--searchpath', '-s', help='Schema search path in database.')
 @click.option('--site', required=True,
               help='PEDSnet site name for the config file.')
+
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to dcc_pedsnet.')
 @click.option('--table', required=True,
@@ -374,6 +381,7 @@ def run_bmi(pwprompt, searchpath, site, copy, table, model_version, dburi):
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
 def run_bmiz(pwprompt, searchpath, site, copy, table, model_version, dburi):
+
     """Run BMI-Z derivation.
 
     The steps are:
@@ -410,6 +418,7 @@ def run_bmiz(pwprompt, searchpath, site, copy, table, model_version, dburi):
     sys.exit(0)
 
 @pedsnetdcc.command()
+
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
 @click.option('--searchpath', '-s', help='Schema search path in database.')
@@ -595,6 +604,7 @@ def run_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
 
 
 @pedsnetdcc.command()
+
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--dcc-only', type=bool, is_flag=True, default=False,

@@ -6,41 +6,41 @@ from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
 from pedsnetdcc.abstract_transform import Transform
 
 AGE_FUNCTIONS_SQL = (
-"""create or replace function last_month_of_interval(timestamp, timestamp)
-     returns timestamp strict immutable language sql as $$
-       select $1 + interval '1 year' * extract(years from age($2, $1)) + interval '1 month' * extract(months from age($2, $1))
-$$""",
-"""comment on function last_month_of_interval(timestamp, timestamp) is
-'Return the timestamp of the last month of the interval between two timestamps'""",
+    """create or replace function last_month_of_interval(timestamp, timestamp)
+         returns timestamp strict immutable language sql as $$
+           select $1 + interval '1 year' * extract(years from age($2, $1)) + interval '1 month' * extract(months from age($2, $1))
+    $$""",
+    """comment on function last_month_of_interval(timestamp, timestamp) is
+    'Return the timestamp of the last month of the interval between two timestamps'""",
 
-"""create or replace function month_after_last_month_of_interval(timestamp, timestamp)
-     returns timestamp strict immutable language sql as $$
-       select $1 + interval '1 year' * extract(years from age($2, $1)) + interval '1 month' * (extract(months from age($2, $1)) + 1)
-$$""",
-"""comment on function month_after_last_month_of_interval(timestamp, timestamp) is
-'Return the timestamp of the month AFTER the last month of the interval between two timestamps'""",
+    """create or replace function month_after_last_month_of_interval(timestamp, timestamp)
+         returns timestamp strict immutable language sql as $$
+           select $1 + interval '1 year' * extract(years from age($2, $1)) + interval '1 month' * (extract(months from age($2, $1)) + 1)
+    $$""",
+    """comment on function month_after_last_month_of_interval(timestamp, timestamp) is
+    'Return the timestamp of the month AFTER the last month of the interval between two timestamps'""",
 
-"""create or replace function days_in_last_month_of_interval(timestamp, timestamp)
+    """create or replace function days_in_last_month_of_interval(timestamp, timestamp)
+         returns double precision strict immutable language sql as $$
+           select extract(days from month_after_last_month_of_interval($1, $2) - last_month_of_interval($1, $2))
+    $$""",
+    """comment on function days_in_last_month_of_interval(timestamp, timestamp) is
+    'Return the number of days in the last month of the interval between two timestamps'""",
+
+    """create or replace function months_in_interval(timestamp, timestamp)
      returns double precision strict immutable language sql as $$
-       select extract(days from month_after_last_month_of_interval($1, $2) - last_month_of_interval($1, $2))
-$$""",
-"""comment on function days_in_last_month_of_interval(timestamp, timestamp) is
-'Return the number of days in the last month of the interval between two timestamps'""",
-
-"""create or replace function months_in_interval(timestamp, timestamp)
- returns double precision strict immutable language sql as $$
-  select extract(years from age($2, $1)) * 12 + extract(months from age($2, $1)) + extract(days from age($2, $1))/days_in_last_month_of_interval($1, $2)
-$$""",
-"""comment on function months_in_interval(timestamp, timestamp) is
-   'Return the number of months (double precision) between two timestamps.
-    The number of years/months/days is computed by PostgreSQL''s
-    extract/date_part function.  The fractional months value is
-    computed by dividing the extracted number of days by the total
-    number of days in the last month overlapping the interval; note
-    that this is not a calendar month but, say, the number of days
-    between Feb 2, 2001 and Mar 2, 2001.  You should be able to obtain
-    the original timestamp from the resulting value, albeit with great
-    difficulty.'"""
+      select extract(years from age($2, $1)) * 12 + extract(months from age($2, $1)) + extract(days from age($2, $1))/days_in_last_month_of_interval($1, $2)
+    $$""",
+    """comment on function months_in_interval(timestamp, timestamp) is
+       'Return the number of months (double precision) between two timestamps.
+        The number of years/months/days is computed by PostgreSQL''s
+        extract/date_part function.  The fractional months value is
+        computed by dividing the extracted number of days by the total
+        number of days in the last month overlapping the interval; note
+        that this is not a calendar month but, say, the number of days
+        between Feb 2, 2001 and Mar 2, 2001.  You should be able to obtain
+        the original timestamp from the resulting value, albeit with great
+        difficulty.'"""
 )
 
 
@@ -55,12 +55,15 @@ class AgeTransform(Transform):
         'visit_occurrence': ('visit_start_datetime',),
         'observation': ('observation_datetime',),
     }
+    ignore_index_by_table = {
+        'measurement': ('measurement_result_age_in_months',),
+    }
     AGE_COLUMN_TYPE = 'float'
 
     @classmethod
     def is_age_column(cls, column_name, table_name):
         return table_name in cls.columns_by_table and \
-                column_name in cls.columns_by_table[table_name]
+               column_name in cls.columns_by_table[table_name]
 
     @classmethod
     def pre_transform(cls, conn_str, metadata):
@@ -96,7 +99,7 @@ class AgeTransform(Transform):
 
             # Make sure table/column pair is valid
             if (not table_name in metadata.tables
-                    or not col_name in metadata.tables[table_name].c):
+                or not col_name in metadata.tables[table_name].c):
                 raise ValueError(
                     'Invalid column: {0}.{1}'.format(table_name, col_name))
 
@@ -135,5 +138,9 @@ class AgeTransform(Transform):
             new_col_name = col.name.replace('_datetime', '_age_in_months')
             new_col = Column(new_col_name, DOUBLE_PRECISION)
             table.append_column(new_col)
+            # Don't add indexes that are no longer needed
+            if table.name in cls.ignore_index_by_table:
+                if new_col_name in cls.ignore_index_by_table[table.name]:
+                    continue
             Index(Transform.make_index_name(table.name, new_col_name),
                   new_col)

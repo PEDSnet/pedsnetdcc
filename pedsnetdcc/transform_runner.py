@@ -7,7 +7,8 @@ import sqlalchemy.dialects.postgresql
 from pedsnetdcc import VOCAB_TABLES
 from pedsnetdcc.db import Statement, StatementSet, StatementList
 from pedsnetdcc.dict_logging import secs_since
-from pedsnetdcc.indexes import add_indexes, drop_indexes
+from pedsnetdcc.indexes import add_indexes, drop_indexes, drop_unneeded_indexes, add_vocab_indexes, \
+    drop_vocab_unneeded_indexes
 from pedsnetdcc.foreign_keys import add_foreign_keys, drop_foreign_keys
 from pedsnetdcc.primary_keys import add_primary_keys
 from pedsnetdcc.not_nulls import set_not_nulls
@@ -22,13 +23,15 @@ from pedsnetdcc.age_transform import AgeTransform
 from pedsnetdcc.concept_name_transform import ConceptNameTransform
 from pedsnetdcc.site_name_transform import SiteNameTransform
 from pedsnetdcc.id_mapping_transform import IDMappingTransform
+from pedsnetdcc.add_index_transform import AddIndexTransform
 from pedsnetdcc.permissions import grant_database_permissions, grant_schema_permissions, grant_vocabulary_permissions
+from pedsnetdcc.concept_group_tables import create_index_replacement_tables
 
 logger = logging.getLogger(__name__)
 
-
 TRANSFORMS = (AgeTransform, ConceptNameTransform, SiteNameTransform,
-              IDMappingTransform)
+              IDMappingTransform, AddIndexTransform)
+
 
 def _transform_select_sql(model_version, site, target_schema):
     """Create SQL for `select` statement transformations.
@@ -60,7 +63,6 @@ def _transform_select_sql(model_version, site, target_schema):
         join_obj = table
 
         for transform in TRANSFORMS:
-
             select_obj, join_obj = transform.modify_select(
                 metadata,
                 table_name,
@@ -70,7 +72,7 @@ def _transform_select_sql(model_version, site, target_schema):
         final_select_obj = select_obj.select_from(join_obj)
 
         table_sql_obj = final_select_obj.compile(
-                dialect=sqlalchemy.dialects.postgresql.dialect())
+            dialect=sqlalchemy.dialects.postgresql.dialect())
 
         table_sql = str(table_sql_obj) % table_sql_obj.params
 
@@ -230,8 +232,14 @@ def run_transformation(conn_str, model_version, site, search_path,
     # Add indexes to the transformed tables
     add_indexes(new_conn_str, model_version, force)
 
+    # Drop unneeded indexes from the transformed tables
+    drop_unneeded_indexes(new_conn_str, model_version, force)
+
     # Add constraints to the transformed tables
     add_foreign_keys(new_conn_str, model_version, force)
+
+    # Create new tables to replace concept name/source value indexes
+    create_index_replacement_tables(new_conn_str, model_version)
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.
@@ -262,7 +270,7 @@ def run_transformation(conn_str, model_version, site, search_path,
                                       log_dict))
             tpl = 'moving tables after transformation ({sql}): {err}'
             raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
-    
+
     ## Regrant permissions after renaming schemas
     grant_schema_permissions(new_conn_str)
     grant_vocabulary_permissions(new_conn_str)
@@ -342,3 +350,43 @@ def undo_transformation(conn_str, model_version, search_path):
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),
          'elapsed': secs_since(start_time)}, log_dict))
+
+def run_vocab_indexes(conn_str, model_version, search_path,
+                       force=False):
+    """Adjust vocabulary indexes.
+
+    :param str conn_str: pq connection string
+    :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str search_path: PostgreSQL schema search path
+    :param bool force: if True, ignore benign errors
+    :return: True if no exception raised
+    :rtype: bool
+    :raise: various possible exceptions ...
+    """
+    log_dict = combine_dicts({'model_version': model_version,
+                              'search_path': search_path, 'force': force},
+                             get_conn_info_dict(conn_str))
+
+    task = 'updating vocabulary indexes'
+    start_time = time.time()
+    # TODO: define spec for computer readable log messages
+    # E.g. we might want both 'task' and 'msg' keys, maybe 'submsg'
+    logger.info(combine_dicts({'msg': 'started {}'.format(task)}, log_dict))
+
+    # TODO: should we catch all exceptions and perform logger.error?
+    # and a logger.info to record the elapsed time at abort.
+
+    # TODO: do we need to validate the primary schema at all?
+    schema = primary_schema(search_path)
+
+    # Add indexes to the vocabulary tables
+    add_vocab_indexes(conn_str, model_version, force)
+
+    # Drop unneeded indexes from the vocabulary tables
+    drop_vocab_unneeded_indexes(conn_str, model_version, force)
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    return True
