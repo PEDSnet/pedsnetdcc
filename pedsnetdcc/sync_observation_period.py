@@ -54,7 +54,7 @@ UNION ALL
 create_date_table_msg = 'creating the temporary domain date limits table'
 
 fill_null_maxes_sql = '''
-UPDATE date_limit SET (max_datetime) = ROW(min_datetime)
+UPDATE date_limit SET (max_datetime) = (min_datetime)
     WHERE max_datetime IS NULL
 '''
 fill_null_maxes_msg = 'filling null max dates with mins in date limit table'
