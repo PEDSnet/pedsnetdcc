@@ -89,7 +89,7 @@ def partition_measurement_table(conn_str, model_version, search_path):
 
     # truncate the measurement table
     logger.info({'msg': 'truncating measurement table'})
-    drop_measurement_stmt = Statement(TRUNCATE_MEASUREMENT_SQL, "truncating measurement table")
+    drop_measurement_stmt = Statement(TRUNCATE_MEASUREMENT_SQL.format(schema), "truncating measurement table")
     drop_measurement_stmt.execute(conn_str)
     check_stmt_err(drop_measurement_stmt, 'truncate measurement table')
     logger.info({'msg': 'measurement table truncated'})
