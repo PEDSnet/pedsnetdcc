@@ -15,8 +15,13 @@ PK_MEASURE_LIKE_TABLE_SQL = 'alter table measurement_{0} add primary key(measure
 IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_{1} ({2})'
 FK_MEASURE_LIKE_TABLE_SQL = 'alter table measurement_{0} add constraint {1} foreign key ({2}) references {3}({4})'
 GRANT_MEASURE_LIKE_TABLE_SQL = 'grant select on table measurement_{0} to {1}'
-DROP_MEASUREMENT_SQL = 'drop table measurement;'
-
+DROP_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE = 'alter table {0}.measurement_organism drop constraint fpk_meas_org_meas'
+ADD_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE_LABS = """alter table {0}.measurement_organism 
+    add constraint fpk_meas_org_meas_lab
+    foreign key (measurement_id) 
+    references {0}.measurement_labs (measurement_id);"""
+TRUNCATE_MEASUREMENT_SQL = 'truncate table measurement;'
+SET_COLUMN_NOT_NULL = 'alter table {0}.measurement_{1) alter column {2} set not null;'
 
 def _make_index_name(table_name, column_name):
     """
@@ -41,7 +46,7 @@ def _make_index_name(table_name, column_name):
     return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
 
 
-def split_measurement_table(conn_str, drop, view, model_version, search_path):
+def split_measurement_table(conn_str, truncate, view, model_version, search_path):
     """Split measurement into anthro, lab, and vital.
 
     * Create the measurement_anthro, measurement_labs, and measurement_vitals from measurement
@@ -49,11 +54,13 @@ def split_measurement_table(conn_str, drop, view, model_version, search_path):
     * Add indexes
     * Add foreign keys
     * Set permissions
-    * Drop measurement table?
-    * Create measurements view if schema = dcc_pedsnet
+    * Truncate measurement table if flag set
+    * Create measurements view if flag set
     * Vacuum
 
     :param str conn_str:      database connection string
+    :param bool truncate: if True, truncate the measurement table
+    :param bool view: if True, create the measurements view
     :param model_version: PEDSnet model version, e.g. 2.3.0
     :param str search_path: PostgreSQL schema search path
     :returns:                 True if the function succeeds
@@ -89,7 +96,7 @@ def split_measurement_table(conn_str, drop, view, model_version, search_path):
 
     # Add a creation statement for each table.
     stmts = StatementSet()
-
+    logger.info({'msg': 'creating split tables'})
     for measure_like_table in measure_like_tables:
         concepts = ','.join(map(str, concept_id[measure_like_table]))
         create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.
@@ -111,9 +118,11 @@ def split_measurement_table(conn_str, drop, view, model_version, search_path):
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
+    logger.info({'msg': 'split tables created'})
 
     # Set primary keys
     stmts.clear()
+    logger.info({'msg': 'setting primary keys'})
     for measure_like_table in measure_like_tables:
         pk_stmt = Statement(PK_MEASURE_LIKE_TABLE_SQL.
                             format(measure_like_table))
@@ -134,9 +143,11 @@ def split_measurement_table(conn_str, drop, view, model_version, search_path):
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
+    logger.info({'msg': 'primary keys set'})
 
     # Add indexes (same as measurement)
     stmts.clear()
+    logger.info({'msg': 'adding indexes'})
     col_index = ('measurement_age_in_months', 'measurement_concept_id', 'measurement_date',
                  'measurement_type_concept_id', 'person_id', 'site', 'visit_occurrence_id',
                  'measurement_source_value', 'value_as_concept_id', 'value_as_number',)
@@ -163,9 +174,11 @@ def split_measurement_table(conn_str, drop, view, model_version, search_path):
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
+    logger.info({'msg': 'indexes added'})
 
     # Add foreign keys (same as measurement)
     stmts.clear()
+    logger.info({'msg': 'adding foreign keys'})
     col_fk = ('operator_concept_id', 'person_id', 'priority_concept_id', 'provider_id',
               'range_high_operator_concept_id', 'range_low_operator_concept_id',
               'measurement_type_concept_id', 'unit_concept_id', 'value_as_concept_id',
@@ -202,9 +215,58 @@ def split_measurement_table(conn_str, drop, view, model_version, search_path):
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
+    logger.info({'msg': 'foreign keys added'})
+
+    # Set not null (same as measurement)
+    stmts.clear()
+    logger.info({'msg': 'setting columns not null'})
+    col_not_null = ('measurement_concept_id', 'measurement_date', 'measurement_datetime',
+                    'measurement_source_value', 'measurement_type_concept_id',
+                    'person_id', 'value_source_value',)
+
+    for measure_like_table in measure_like_tables:
+        for col in col_not_null:
+            set_not_null_stmt = Statement(SET_COLUMN_NOT_NULL.format(schema, measure_like_table, col))
+            stmts.add(set_not_null_stmt)
+
+    # Execute the statements in parallel.
+    stmts.parallel_execute(conn_str)
+
+    # Execute statements and check for any errors and raise exception if they are found.
+    for stmt in stmts:
+        try:
+            check_stmt_err(stmt, 'Measurement table split')
+        except:
+            logger.error(combine_dicts({'msg': 'Fatal error',
+                                        'sql': stmt.sql,
+                                        'err': str(stmt.err)}, log_dict))
+            logger.info(combine_dicts({'msg': 'set not null failed',
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            raise
+    logger.info({'msg': 'columns set not null'})
+
+    # drop measurement organism fk to measurement
+    stmts.clear()
+    logger.info({'msg': 'dropping measurement organism fk to measurement'})
+    drop_fk_measurement_org = Statement(DROP_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE.format(schema),
+                                        "dropping fk to measurement")
+    drop_fk_measurement_org.execute(conn_str)
+    check_stmt_err(drop_fk_measurement_org, 'drop fk to measurement')
+    logger.info({'msg': 'measurement organism fk to measurement dropped'})
+
+    # add measurement organism fk to measurement_labs
+    stmts.clear()
+    logger.info({'msg': 'adding measurement organism fk to measurement_labs'})
+    add_fk_measurement_org = Statement(ADD_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE_LABS.format(schema),
+                                       "adding measurement organism fk to measurement_labs")
+    add_fk_measurement_org.execute(conn_str)
+    check_stmt_err(add_fk_measurement_org, 'add measurement organism fk to measurement_labs')
+    logger.info({'msg': 'measurement organism fk to measurement_labs added'})
 
     # Set permissions
     stmts.clear()
+    logger.info({'msg': 'setting permissions'})
     users = ('harvest_user', 'achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff')
     for measure_like_table in measure_like_tables:
         for usr in users:
@@ -225,31 +287,23 @@ def split_measurement_table(conn_str, drop, view, model_version, search_path):
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
+    logger.info({'msg': 'permissions set'})
 
-    # Drop measurement if flag set
-    if drop:
+    # Truncate measurement if flag set
+    if truncate:
+        # truncate the measurement table
         stmts.clear()
-        drop_stmt = Statement(DROP_MEASUREMENT_SQL)
-        stmts.add(drop_stmt)
-
-        # Execute statements and check for any errors and raise exception if they are found.
-        for stmt in stmts:
-            try:
-                stmt.execute(conn_str)
-                check_stmt_err(stmt, 'Measurement table split')
-            except:
-                logger.error(combine_dicts({'msg': 'Fatal error',
-                                            'sql': stmt.sql,
-                                            'err': str(stmt.err)}, log_dict))
-                logger.info(combine_dicts({'msg': 'drop measurement failed',
-                                           'elapsed': secs_since(start_time)},
-                                          log_dict))
-                raise
+        logger.info({'msg': 'truncating measurement table'})
+        drop_measurement_stmt = Statement(TRUNCATE_MEASUREMENT_SQL, "truncating measurement table")
+        drop_measurement_stmt.execute(conn_str)
+        check_stmt_err(drop_measurement_stmt, 'truncate measurement table')
+        logger.info({'msg': 'measurement table truncated'})
 
 
     # Create measurements view if flag set
     if view:
         stmts.clear()
+        logger.info({'msg': 'creating measurements view'})
         view_stmt = Statement("""create view measurements as
         select * from measurement_anthro
         union all
@@ -273,6 +327,7 @@ def split_measurement_table(conn_str, drop, view, model_version, search_path):
                                            'elapsed': secs_since(start_time)},
                                           log_dict))
                 raise
+        logger.info({'msg': 'measurements view created'})
 
     # Vacuum analyze tables for piney freshness.
     vacuum(conn_str, model_version, analyze=True,
