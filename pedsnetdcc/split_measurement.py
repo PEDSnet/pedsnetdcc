@@ -9,18 +9,18 @@ from pedsnetdcc.utils import (check_stmt_err, combine_dicts, get_conn_info_dict,
 
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
-CREATE_MEASURE_LIKE_TABLE_SQL = """create table measurement_{0} as 
-select * from measurement where measurement_concept_id {1} ({2})"""
-PK_MEASURE_LIKE_TABLE_SQL = 'alter table measurement_{0} add primary key(measurement_id)'
-IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_{1} ({2})'
-FK_MEASURE_LIKE_TABLE_SQL = 'alter table measurement_{0} add constraint {1} foreign key ({2}) references {3}({4})'
-GRANT_MEASURE_LIKE_TABLE_SQL = 'grant select on table measurement_{0} to {1}'
+CREATE_MEASURE_LIKE_TABLE_SQL = """create table {0}.measurement_{1} as 
+select * from {0}.measurement where measurement_concept_id {2} ({3})"""
+PK_MEASURE_LIKE_TABLE_SQL = 'alter table {0}.measurement_{1} add primary key(measurement_id)'
+IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on {1}.measurement_{2} ({3})'
+FK_MEASURE_LIKE_TABLE_SQL = 'alter table {0}.measurement_{1} add constraint {2} foreign key ({3}) references {4}({5})'
+GRANT_MEASURE_LIKE_TABLE_SQL = 'grant select on table {0}.measurement_{1} to {2}'
 DROP_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE = 'alter table {0}.measurement_organism drop constraint fpk_meas_org_meas'
 ADD_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE_LABS = """alter table {0}.measurement_organism 
     add constraint fpk_meas_org_meas_lab
     foreign key (measurement_id) 
     references {0}.measurement_labs (measurement_id);"""
-TRUNCATE_MEASUREMENT_SQL = 'truncate table measurement;'
+TRUNCATE_MEASUREMENT_SQL = 'truncate table {0}.measurement;'
 SET_COLUMN_NOT_NULL = 'alter table {0}.measurement_{1) alter column {2} set not null;'
 
 def _make_index_name(table_name, column_name):
@@ -100,7 +100,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
     for measure_like_table in measure_like_tables:
         concepts = ','.join(map(str, concept_id[measure_like_table]))
         create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.
-                                format(measure_like_table, measure_like_tables[measure_like_table], concepts))
+                                format(schema, measure_like_table, measure_like_tables[measure_like_table], concepts))
         stmts.add(create_stmt)
 
     # Execute the statements in parallel.
@@ -124,8 +124,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
     stmts.clear()
     logger.info({'msg': 'setting primary keys'})
     for measure_like_table in measure_like_tables:
-        pk_stmt = Statement(PK_MEASURE_LIKE_TABLE_SQL.
-                            format(measure_like_table))
+        pk_stmt = Statement(PK_MEASURE_LIKE_TABLE_SQL.format(schema, measure_like_table))
         stmts.add(pk_stmt)
 
     # Execute the statements in parallel.
@@ -155,8 +154,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
     for measure_like_table in measure_like_tables:
         for col in col_index:
             idx_name = _make_index_name(measure_like_table, col)
-            idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.
-                                 format(idx_name, measure_like_table, col))
+            idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.format(idx_name, schema, measure_like_table, col))
             stmts.add(idx_stmt)
 
     # Execute the statements in parallel.
@@ -196,8 +194,10 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
                 ref_table = '_'.join(fk.split('_')[:fk_len])
                 ref_col = fk
             fk_name = "fk_meas_" + base_name + "_" + measure_like_table
-            fk_stmt = Statement(FK_MEASURE_LIKE_TABLE_SQL.
-                                format(measure_like_table, fk_name, fk, ref_table, ref_col))
+            fk_stmt = Statement(FK_MEASURE_LIKE_TABLE_SQL.format(schema,
+                                                                 measure_like_table,
+                                                                 fk_name, fk, ref_table,
+                                                                 ref_col))
             stmts.add(fk_stmt)
 
     # Execute the statements in parallel.
@@ -270,8 +270,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
     users = ('harvest_user', 'achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff')
     for measure_like_table in measure_like_tables:
         for usr in users:
-            grant_stmt = Statement(GRANT_MEASURE_LIKE_TABLE_SQL.
-                                   format(measure_like_table, usr))
+            grant_stmt = Statement(GRANT_MEASURE_LIKE_TABLE_SQL.format(schema, measure_like_table, usr))
             stmts.add(grant_stmt)
 
     # Check for any errors and raise exception if they are found.
