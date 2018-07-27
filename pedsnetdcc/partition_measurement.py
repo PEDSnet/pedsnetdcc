@@ -52,7 +52,7 @@ FUNCTION_INSERT_MEASUREMENT_SQL = """CREATE OR REPLACE FUNCTION trg_insert_measu
         RETURN NULL;
     END;
     $$
-    LANGUAGE plpgsql;'"""
+    LANGUAGE plpgsql;"""
 
 TRIGGER_MEASUREMENT_INSERT_SQL = """CREATE TRIGGER measurement_insert BEFORE INSERT
     ON {0}.measurement FOR EACH ROW
