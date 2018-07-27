@@ -21,7 +21,7 @@ ADD_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE_LABS = """alter table {0}.measurement_org
     foreign key (measurement_id) 
     references {0}.measurement_labs (measurement_id);"""
 TRUNCATE_MEASUREMENT_SQL = 'truncate table {0}.measurement;'
-SET_COLUMN_NOT_NULL = 'alter table {0}.measurement_{1) alter column {2} set not null;'
+SET_COLUMN_NOT_NULL = 'alter table {0}.measurement_{1} alter column {2} set not null;'
 
 def _make_index_name(table_name, column_name):
     """
