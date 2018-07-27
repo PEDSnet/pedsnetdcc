@@ -60,7 +60,7 @@ TRIGGER_MEASUREMENT_INSERT_SQL = """CREATE TRIGGER measurement_insert BEFORE INS
 TRUNCATE_MEASUREMENT_SQL = 'TRUNCATE {0}.measurement'
 ADD_CHECK_CONSTRAINT_SQL = """ALTER TABLE {0}.measurement_{1} 
     ADD CONSTRAINT concept_in_{1} CHECK (measurement_concept_id {2} ({3}));"""
-ADD_INHERIT_SQL = 'ALTER TABLE "{0}.measurement_{1} INHERIT {0}.measurement;'
+ADD_INHERIT_SQL = 'ALTER TABLE {0}.measurement_{1} INHERIT {0}.measurement;'
 
 
 def partition_measurement_table(conn_str, model_version, search_path):
