@@ -149,7 +149,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
     logger.info({'msg': 'adding indexes'})
     col_index = ('measurement_age_in_months', 'measurement_concept_id', 'measurement_date',
                  'measurement_type_concept_id', 'person_id', 'site', 'visit_occurrence_id',
-                 'measurement_source_value', 'value_as_concept_id', 'value_as_number',)
+                 'value_as_concept_id', 'value_as_number',)
 
     for measure_like_table in measure_like_tables:
         for col in col_index:
