@@ -7,7 +7,6 @@ from pedsnetdcc.abstract_transform import Transform
 class VocabularyDropIndexTransform(Transform):
     drop_by_table = {
         'concept': ('domain_id',),
-        'concept_ancestor': ('ancestor_concept_id', 'descendant_concept_id',),
     }
     idx_by_column = {
         'domain_id': 'idx_concept_domain_id',

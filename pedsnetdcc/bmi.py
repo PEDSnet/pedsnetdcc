@@ -113,7 +113,6 @@ def _fill_concept_names(conn_str):
     add_measurement_ids_stmt.execute(conn_str)
     check_stmt_err(add_measurement_ids_stmt, 'add concept names')
 
-
     # If reached without error, then success!
     return True
 

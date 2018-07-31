@@ -268,14 +268,14 @@ def merge(pwprompt, force, model_version, undo, dburi):
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
 @click.option('--searchpath', '-s', help='Schema search path in database.')
-@click.option('--drop', is_flag=True, default=False,
-              help='Drop original table after split.')
+@click.option('--truncate', is_flag=True, default=False,
+              help='truncate measurement table after split.')
 @click.option('--view', is_flag=True, default=False,
               help='Create measurements view.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def split_measurement(pwprompt, searchpath, drop, view, model_version, dburi):
+def split_measurement(pwprompt, searchpath, truncate, view, model_version, dburi):
     """Split measurement table into anthro, labs, and vitals.
 
     The steps are:
@@ -285,8 +285,8 @@ def split_measurement(pwprompt, searchpath, drop, view, model_version, dburi):
     - Add indexes
     - Add foreign keys
     - Set permissions
-    - Drop measurement table?
-    - Create measurements view if schema = dcc_pedsnet
+    - Truncate measurement table if flag set
+    - Create measurements view if flag set
     - Vacuum
 
     The database should be specified using a DBURI:
@@ -303,7 +303,7 @@ def split_measurement(pwprompt, searchpath, drop, view, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.split_measurement import split_measurement_table
-    success = split_measurement_table(conn_str, drop, view, model_version, searchpath)
+    success = split_measurement_table(conn_str, truncate, view, model_version, searchpath)
 
     if not success:
         sys.exit(1)
@@ -551,6 +551,8 @@ def run_drug_era(pwprompt, searchpath, site, copy, stockpile, model_version, dbu
     if not success:
         sys.exit(1)
 
+    sys.exit(0)
+
 
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
@@ -592,6 +594,48 @@ def run_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
 
     if not success:
         sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def partition_measurement(pwprompt, searchpath, model_version, dburi):
+    """Partition measurement using measurement_anthro, measurement_labs, and measurement_vitals split tables
+
+    The steps are:
+
+    - Truncate Measurement Table
+    - Alter split tables to add check constraints by measurement concept id
+    - Alter split tables to inherit from the easurement table
+    - Create trg_insert_measurement function to route measurements to correct split table
+    - Add before insert trigger measurement_insert to measurement table
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.partition_measurement import partition_measurement_table
+    success = partition_measurement_table(conn_str, model_version, searchpath)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
 
 
 @pedsnetdcc.command()
