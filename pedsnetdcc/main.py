@@ -588,7 +588,7 @@ def run_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("condition", False, conn_str, site, copy, searchpath, model_version)
+    success = run_era("condition", conn_str, site, copy, searchpath, model_version)
 
     if not success:
         sys.exit(1)
