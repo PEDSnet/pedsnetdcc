@@ -21,7 +21,7 @@ IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_bmi ({1})'
 def _create_config_file(config_path, config_file, schema, table, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('ht_measurement_concept_ids = 3023540,3036277' + os.linesep)
-        out_config.write('wt_measurement_concept_ids = 3013762' + os.linesep)
+        out_config.write('wt_measurement_concept_ids = 3013762,3025315' + os.linesep)
         out_config.write('bmi_measurement_concept_id = 3038553' + os.linesep)
         out_config.write('bmi_measurement_type_concept_id = 45754907'+ os.linesep)
         out_config.write('bmi_unit_concept_id = 9531' + os.linesep)
