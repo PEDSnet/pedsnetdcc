@@ -242,7 +242,7 @@ DRUG_ERA_SQL = """TRUNCATE {0}.drug_era;
         ,COUNT(*) AS drug_exposure_count
         ,30 AS gap_days
         ,'{2}' AS site
-        ROW_NUMBER() OVER (
+        ,ROW_NUMBER() OVER (
             ORDER BY person_id
             ) AS drug_era_id
         ,person_id AS person_id
