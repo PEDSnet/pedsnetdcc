@@ -24,7 +24,7 @@ CONDITION_ERA_SQL= """TRUNCATE {0}.condition_era;
         ,co.condition_start_date
         ,COALESCE(co.condition_end_date, (condition_start_date + 1*INTERVAL'1 day')) AS condition_end_date
     FROM
-    {0}.coddition_occurrence co;
+    {0}.condition_occurrence co;
     --------------------------------------
     DROP TABLE IF EXISTS {1}_cteCondEndDates;
     CREATE TEMP TABLE {1}_cteCondEndDates
@@ -117,14 +117,14 @@ CONDITION_ERA_SQL= """TRUNCATE {0}.condition_era;
         ,condition_era_end_date
         ,condition_occurrence_count
         )
-    SELECT row_number() OVER (
+        SELECT row_number() OVER (
             ORDER BY person_id
             ) AS condition_era_id
         ,person_id
         ,condition_concept_id
         ,min(condition_start_date) AS condition_era_start_date
         ,era_end_date AS CONDITION_era_end_date
-        ,COUNT(*) AS coddition_occurrence_COUNT
+        ,COUNT(*) AS condition_occurrence_COUNT
     FROM {1}_cteConditionEnds
     GROUP BY person_id
         ,condition_concept_id
