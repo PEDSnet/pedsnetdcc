@@ -241,10 +241,12 @@ DRUG_ERA_SQL = """TRUNCATE {0}.drug_era;
         ,min(drug_exposure_start_date) AS drug_era_start_date
         ,COUNT(*) AS drug_exposure_count
         ,30 AS gap_days
+        ,NULL AS drug_concept_name
         ,'{2}' AS site
         ,ROW_NUMBER() OVER (
             ORDER BY person_id
             ) AS drug_era_id
+        ,NULL as site_id
         ,person_id AS person_id
     FROM {2}_cteDrugExpEnds
     GROUP BY person_id
