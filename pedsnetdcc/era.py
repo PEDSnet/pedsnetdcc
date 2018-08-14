@@ -137,7 +137,7 @@ DRUG_ERA_SQL = """TRUNCATE {0}.drug_era;
     AS
     SELECT
         d.drug_exposure_id
-        ,d.person_od
+        ,d.person_id
         ,c.concept_id
         ,d.drug_type_concept_id
         ,drug_exposure_start_date
