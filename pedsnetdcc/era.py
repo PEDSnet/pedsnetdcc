@@ -236,15 +236,16 @@ DRUG_ERA_SQL = """TRUNCATE {0}.drug_era;
         ,d.drug_exposure_start_date;
     ------------------------------------------				  
     INSERT INTO {0}.drug_era
-    SELECT ROW_NUMBER() OVER (
-            ORDER BY person_id
-            ) AS drug_era_id
-        ,person_id
-        ,ingredient_concept_id
+    SELECT ingredient_concept_id AS drug_concept_id
+        ,era_end_date AS drug_era_end_date
         ,min(drug_exposure_start_date) AS drug_era_start_date
-        ,era_end_date
         ,COUNT(*) AS drug_exposure_count
         ,30 AS gap_days
+        ,'{2}' AS site
+        ROW_NUMBER() OVER (
+            ORDER BY person_id
+            ) AS drug_era_id
+        ,person_id AS person_id
     FROM {2}_cteDrugExpEnds
     GROUP BY person_id
         ,ingredient_concept_id
