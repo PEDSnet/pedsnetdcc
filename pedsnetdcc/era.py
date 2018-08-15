@@ -110,7 +110,7 @@ CONDITION_ERA_SQL= """TRUNCATE {0}.condition_era;
         ,c.condition_start_date;
     -------------------------------
     INSERT INTO {0}.condition_era (
-        condition_era_id
+        site_id
         ,person_id
         ,condition_concept_id
         ,condition_era_start_date
@@ -120,7 +120,7 @@ CONDITION_ERA_SQL= """TRUNCATE {0}.condition_era;
         )
     SELECT row_number() OVER (
             ORDER BY person_id
-            ) AS condition_era_id
+            ) AS site_id
         ,person_id
         ,condition_concept_id
         ,min(condition_start_date) AS condition_era_start_date
@@ -245,10 +245,10 @@ DRUG_ERA_SQL = """TRUNCATE {0}.drug_era;
         ,30 AS gap_days
         ,NULL AS drug_concept_name
         ,'{2}' AS site
+        ,NULL as drug_era_id
         ,ROW_NUMBER() OVER (
             ORDER BY person_id
-            ) AS drug_era_id
-        ,NULL as site_id
+            ) AS site_id
         ,person_id AS person_id
     FROM {2}_cteDrugExpEnds
     GROUP BY person_id
