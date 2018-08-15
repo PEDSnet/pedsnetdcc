@@ -116,15 +116,17 @@ CONDITION_ERA_SQL= """TRUNCATE {0}.condition_era;
         ,condition_era_start_date
         ,condition_era_end_date
         ,condition_occurrence_count
+        ,site
         )
-        SELECT row_number() OVER (
+    SELECT row_number() OVER (
             ORDER BY person_id
             ) AS condition_era_id
         ,person_id
         ,condition_concept_id
         ,min(condition_start_date) AS condition_era_start_date
-        ,era_end_date AS CONDITION_era_end_date
-        ,COUNT(*) AS condition_occurrence_COUNT
+        ,era_end_date AS condition_era_end_date
+        ,COUNT(*) AS condition_occurrencee_count
+        ,'{1}'
     FROM {1}_cteConditionEnds
     GROUP BY person_id
         ,condition_concept_id
