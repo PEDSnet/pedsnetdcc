@@ -15,7 +15,7 @@ RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-k
 RUN sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ precise-pgdg main 9.5" >> /etc/apt/sources.list.d/postgresql.list'
 
 # use postgresql version that matches the server for pg_dump/pg_restore
-RUN apt-get update && apt-get install -y apt-utils git-all libpq-dev graphviz graphviz-dev pkg-config postgresql-9.5
+RUN apt-get update && apt-get install -y apt-utils git-all libpq-dev graphviz graphviz-dev pkg-config postgresql-10
 
 #RUN wget http://www.cpan.org/src/5.0/perl-5.28.0.tar.gz
 #RUN tar xvfz perl-5.28.0.tar.gz
