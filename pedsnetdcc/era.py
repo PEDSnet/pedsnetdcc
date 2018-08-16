@@ -14,425 +14,248 @@ DROP_PK_CONSTRAINT_ERA_SQL = """alter table {0}_era drop constraint if exists xp
 DROP_NULL_ERA_SQL = 'alter table {0}_era alter column {0}_era_id drop not null;'
 IDX_ERA_SQL = 'create index {0} on {1}_era ({2})'
 CONDITION_ERA_SQL= """TRUNCATE {0}.condition_era;
-    WITH cteConditionTarget (condition_occurrence_id, person_id, condition_concept_id, condition_start_date, condition_end_date) AS
-    (
-        SELECT
-            co.condition_occurrence_id
-            , co.person_id
-            , co.condition_concept_id
-            , co.condition_start_date
-            , COALESCE(NULLIF(co.condition_end_date,NULL), condition_start_date + INTERVAL '1 day') AS condition_end_date
-        FROM {0}.condition_occurrence co
-        /* Depending on the needs of your data, you can put more filters on to your code. We assign 0 to our unmapped condition_concept_id's,
-         * and since we don't want different conditions put in the same era, we put in the filter below.
-         */
-        ---WHERE condition_concept_id != 0
-    ),
-    --------------------------------------------------------------------------------------------------------------
-    cteEndDates (person_id, condition_concept_id, end_date) AS -- the magic
-    (
-        SELECT
-            person_id
-            , condition_concept_id
-            , event_date - INTERVAL '30 days' AS end_date -- unpad the end date
-        FROM
-        (
-            SELECT
-                person_id
-                , condition_concept_id
-                , event_date
-                , event_type
-                , MAX(start_ordinal) OVER (PARTITION BY person_id, condition_concept_id ORDER BY event_date, event_type ROWS UNBOUNDED PRECEDING) AS start_ordinal -- this pulls the current START down from the prior rows so that the NULLs from the END DATES will contain a value we can compare with 
-                , ROW_NUMBER() OVER (PARTITION BY person_id, condition_concept_id ORDER BY event_date, event_type) AS overall_ord -- this re-numbers the inner UNION so all rows are numbered ordered by the event date
-            FROM
-            (
-                -- select the start dates, assigning a row number to each
-                SELECT
-                    person_id
-                    , condition_concept_id
-                    , condition_start_date AS event_date
-                    , -1 AS event_type
-                    , ROW_NUMBER() OVER (PARTITION BY person_id
-                    , condition_concept_id ORDER BY condition_start_date) AS start_ordinal
-                FROM cteConditionTarget
-            
-                UNION ALL
-            
-                -- pad the end dates by 30 to allow a grace period for overlapping ranges.
-                SELECT
-                    person_id
-                        , condition_concept_id
-                    , condition_end_date + INTERVAL '30 days'
-                    , 1 AS event_type
-                    , NULL
-                FROM cteConditionTarget
-            ) RAWDATA
-        ) e
-        WHERE (2 * e.start_ordinal) - e.overall_ord = 0
-    ),
-    --------------------------------------------------------------------------------------------------------------
-    cteConditionEnds (person_id, condition_concept_id, condition_start_date, era_end_date) AS
-    (
+    DROP TABLE IF EXISTS {1}_cteConditionTarget;
+    -- create base eras from the concepts found in condition_occurrence
+    CREATE TEMP TABLE {1}_cteConditionTarget
+    AS
     SELECT
-            c.person_id
-        , c.condition_concept_id
-        , c.condition_start_date
-        , MIN(e.end_date) AS era_end_date
-    FROM cteConditionTarget c
-    JOIN cteEndDates e ON c.person_id = e.person_id AND c.condition_concept_id = e.condition_concept_id AND e.end_date >= c.condition_start_date
-    GROUP BY
-            c.condition_occurrence_id
-        , c.person_id
-        , c.condition_concept_id
-        , c.condition_start_date
-    )
-    --------------------------------------------------------------------------------------------------------------
-    INSERT INTO {0}.condition_era(person_id, condition_concept_id, condition_era_start_date, condition_era_end_date, condition_occurrence_count)
+        co.person_id
+        ,co.condition_concept_id
+        ,co.condition_start_date
+        ,COALESCE(co.condition_end_date, (condition_start_date + 1*INTERVAL'1 day')) AS condition_end_date
+    FROM
+    {0}.condition_occurrence co;
+    --------------------------------------
+    DROP TABLE IF EXISTS {1}_cteCondEndDates;
+    CREATE TEMP TABLE {1}_cteCondEndDates
+    AS
     SELECT
         person_id
-        , condition_concept_id
-        , MIN(condition_start_date) AS condition_era_start_date
-        , era_end_date AS condition_era_end_date
-        , COUNT(*) AS condition_occurrence_count
-    FROM cteConditionEnds
-    GROUP BY person_id, condition_concept_id, era_end_date
-    ORDER BY person_id, condition_concept_id
-    ;
+        ,condition_concept_id
+        ,(event_date+ - 30*INTERVAL'1 day') AS end_date -- unpad the end date
+    FROM
+    (
+        SELECT e1.person_id
+            ,e1.condition_concept_id
+            ,e1.event_date
+            ,COALESCE(e1.start_ordinal, MAX(e2.start_ordinal)) start_ordinal
+            ,e1.overall_ord
+        FROM (
+            SELECT person_id
+                ,condition_concept_id
+                ,event_date
+                ,event_type
+                ,start_ordinal
+                ,ROW_NUMBER() OVER (
+                    PARTITION BY person_id
+                    ,condition_concept_id ORDER BY event_date
+                        ,event_type
+                    ) AS overall_ord -- this re-numbers the inner UNION so all rows are numbered ordered by the event date
+            FROM (
+                -- select the start dates, assigning a row number to each
+                SELECT person_id
+                    ,condition_concept_id
+                    ,condition_start_date AS event_date
+                    ,- 1 AS event_type
+                    ,ROW_NUMBER() OVER (
+                        PARTITION BY person_id
+                        ,condition_concept_id ORDER BY condition_start_date
+                        ) AS start_ordinal
+                FROM {1}_cteConditionTarget
+                UNION ALL
+                -- pad the end dates by 30 to allow a grace period for overlapping ranges.
+                SELECT person_id
+                    ,condition_concept_id
+                    ,(condition_end_date + 30*INTERVAL'1 day')
+                    ,1 AS event_type
+                    ,NULL
+                FROM {1}_cteConditionTarget
+                ) RAWDATA
+            ) e1
+        INNER JOIN (
+            SELECT person_id
+                ,condition_concept_id
+                ,condition_start_date AS event_date
+                ,ROW_NUMBER() OVER (
+                    PARTITION BY person_id
+                    ,condition_concept_id ORDER BY condition_start_date
+                    ) AS start_ordinal
+            FROM {1}_cteConditionTarget
+            ) e2 ON e1.person_id = e2.person_id
+            AND e1.condition_concept_id = e2.condition_concept_id
+            AND e2.event_date<= e1.event_date
+        GROUP BY e1.person_id
+            ,e1.condition_concept_id
+            ,e1.event_date
+            ,e1.start_ordinal
+            ,e1.overall_ord
+        ) e
+    WHERE (2 * e.start_ordinal) - e.overall_ord = 0;
+    ------------------------------------------------
+    DROP TABLE IF EXISTS {1}_cteConditionEnds;
+    CREATE TEMP TABLE {1}_cteConditionEnds
+    AS
+    SELECT
+        c.person_id
+        ,c.condition_concept_id
+        ,c.condition_start_date
+        ,MIN(e.end_date) AS era_end_date
+    FROM
+    {1}_cteConditionTarget c
+    INNER JOIN {1}_cteCondEndDates e ON c.person_id = e.person_id
+        AND c.condition_concept_id = e.condition_concept_id
+        AND e.end_date >= c.condition_start_date
+    GROUP BY c.person_id
+        ,c.condition_concept_id
+        ,c.condition_start_date;
+    -------------------------------
+    INSERT INTO {0}.condition_era (
+        site_id
+        ,person_id
+        ,condition_concept_id
+        ,condition_era_start_date
+        ,condition_era_end_date
+        ,condition_occurrence_count
+        ,site
+        )
+    SELECT row_number() OVER (
+            ORDER BY person_id
+            ) AS site_id
+        ,person_id
+        ,condition_concept_id
+        ,min(condition_start_date) AS condition_era_start_date
+        ,era_end_date AS condition_era_end_date
+        ,COUNT(*) AS condition_occurrencee_count
+        ,'{1}'
+    FROM {1}_cteConditionEnds
+    GROUP BY person_id
+        ,condition_concept_id
+        ,era_end_date;
 """
 DRUG_ERA_SQL = """TRUNCATE {0}.drug_era;
-    WITH
-    ctePreDrugTarget(drug_exposure_id, person_id, ingredient_concept_id, drug_exposure_start_date, days_supply, drug_exposure_end_date) AS
-    (-- Normalize DRUG_EXPOSURE_END_DATE to either the existing drug exposure end date, or add days supply, or add 1 day to the start date
-        SELECT
-            d.drug_exposure_id
-            , d.person_id
-            , c.concept_id AS ingredient_concept_id
-            , d.drug_exposure_start_date AS drug_exposure_start_date
-            , d.days_supply AS days_supply
-            , COALESCE(
-                NULLIF(drug_exposure_end_date, NULL) ---If drug_exposure_end_date != NULL, return drug_exposure_end_date, otherwise go to next case
-                , NULLIF(drug_exposure_start_date + (INTERVAL '1 day' * days_supply), drug_exposure_start_date) ---If days_supply != NULL or 0, return drug_exposure_start_date + days_supply, otherwise go to next case
-                , drug_exposure_start_date + INTERVAL '1 day' ---Add 1 day to the drug_exposure_start_date since there is no end_date or INTERVAL for the days_supply
-            ) AS drug_exposure_end_date
-        FROM {0}.drug_exposure d
-        JOIN {1}.concept_ancestor ca ON ca.descendant_concept_id = d.drug_concept_id
-        JOIN {1}.concept c ON ca.ancestor_concept_id = c.concept_id
-        WHERE c.vocabulary_id = 'RxNorm' --- was = 8 selects RxNorm from the vocabulary_id
-        AND c.concept_class_id = 'Ingredient' --- was concept_class
-        /* Depending on the needs of your data, you can put more filters on to your code. We assign 0 to unmapped drug_concept_id's, and we found data where days_supply was negative.
-         * We don't want different drugs put in the same era, so the code below shows how we filtered them out.
-         * We also don't want negative days_supply, because that will pull our end_date before the start_date due to our second parameter in the COALESCE function.
-         * For now, we are filtering those out as well, but this is a data quality issue that we are trying to solve.
-         */
-        ---AND d.drug_concept_id != 0
-        ---AND d.days_supply >= 0
-    )
-    
-    , cteSubExposureEndDates (person_id, ingredient_concept_id, end_date) AS --- A preliminary sorting that groups all of the overlapping exposures into one exposure so that we don't double-count non-gap-days
-    (
-        SELECT
-            person_id
-            , ingredient_concept_id
-            , event_date AS end_date
-        FROM
-        (
-            SELECT
-                person_id
-                , ingredient_concept_id
-                , event_date
-                , event_type
-                , MAX(start_ordinal) OVER (PARTITION BY person_id, ingredient_concept_id ORDER BY event_date, event_type ROWS unbounded preceding) AS start_ordinal -- this pulls the current START down from the prior rows so that the NULLs from the END DATES will contain a value we can compare with
-                , ROW_NUMBER() OVER (PARTITION BY person_id, ingredient_concept_id ORDER BY event_date, event_type) AS overall_ord -- this re-numbers the inner UNION so all rows are numbered ordered by the event date
-            FROM (
-                -- select the start dates, assigning a row number to each
-                SELECT
-                    person_id
-                    , ingredient_concept_id
-                    , drug_exposure_start_date AS event_date
-                    , -1 AS event_type
-                    , ROW_NUMBER() OVER (PARTITION BY person_id, ingredient_concept_id ORDER BY drug_exposure_start_date) AS start_ordinal
-                FROM ctePreDrugTarget
-            
-                UNION ALL
-    
-                SELECT
-                    person_id
-                    , ingredient_concept_id
-                    , drug_exposure_end_date
-                    , 1 AS event_type
-                    , NULL
-                FROM ctePreDrugTarget
-            ) RAWDATA
-        ) e
-        WHERE (2 * e.start_ordinal) - e.overall_ord = 0 
-    )
-        
-    , cteDrugExposureEnds (person_id, drug_concept_id, drug_exposure_start_date, drug_sub_exposure_end_date) AS
-    (
-        SELECT 
-               dt.person_id
-               , dt.ingredient_concept_id
-               , dt.drug_exposure_start_date
-               , MIN(e.end_date) AS drug_sub_exposure_end_date
-        FROM ctePreDrugTarget dt
-        JOIN cteSubExposureEndDates e ON dt.person_id = e.person_id AND dt.ingredient_concept_id = e.ingredient_concept_id AND e.end_date >= dt.drug_exposure_start_date
-        GROUP BY 
-                  dt.drug_exposure_id
-                  , dt.person_id
-              , dt.ingredient_concept_id
-              , dt.drug_exposure_start_date
-    )
-    --------------------------------------------------------------------------------------------------------------
-    , cteSubExposures(row_number, person_id, drug_concept_id, drug_sub_exposure_start_date, drug_sub_exposure_end_date, drug_exposure_count) AS
-    (
-        SELECT
-            ROW_NUMBER() OVER (PARTITION BY person_id, drug_concept_id, drug_sub_exposure_end_date)
-            , person_id
-            , drug_concept_id
-            , MIN(drug_exposure_start_date) AS drug_sub_exposure_start_date
-            , drug_sub_exposure_end_date
-            , COUNT(*) AS drug_exposure_count
-        FROM cteDrugExposureEnds
-        GROUP BY person_id, drug_concept_id, drug_sub_exposure_end_date
-        ORDER BY person_id, drug_concept_id
-    )
-    --------------------------------------------------------------------------------------------------------------
-    /*Everything above grouped exposures into sub_exposures if there was overlap between exposures.
-     *This means no persistence window was implemented. Now we CAN add the persistence window to calculate eras.
-     */
-    --------------------------------------------------------------------------------------------------------------
-    , cteFinalTarget(row_number, person_id, ingredient_concept_id, drug_sub_exposure_start_date, drug_sub_exposure_end_date, drug_exposure_count, days_exposed) AS
-    (
-        SELECT
-            row_number
-            , person_id
-            , drug_concept_id
-            , drug_sub_exposure_start_date
-            , drug_sub_exposure_end_date
-            , drug_exposure_count
-            , drug_sub_exposure_end_date - drug_sub_exposure_start_date AS days_exposed
-        FROM cteSubExposures
-    )
-    --------------------------------------------------------------------------------------------------------------
-    , cteEndDates (person_id, ingredient_concept_id, end_date) AS -- the magic
-    (
-        SELECT
-            person_id
-            , ingredient_concept_id
-            , event_date - INTERVAL '30 days' AS end_date -- unpad the end date
-        FROM
-        (
-            SELECT
-                person_id
-                , ingredient_concept_id
-                , event_date
-                , event_type
-                , MAX(start_ordinal) OVER (PARTITION BY person_id, ingredient_concept_id ORDER BY event_date, event_type ROWS UNBOUNDED PRECEDING) AS start_ordinal -- this pulls the current START down from the prior rows so that the NULLs from the END DATES will contain a value we can compare with
-                , ROW_NUMBER() OVER (PARTITION BY person_id, ingredient_concept_id ORDER BY event_date, event_type) AS overall_ord -- this re-numbers the inner UNION so all rows are numbered ordered by the event date
-            FROM (
-                -- select the start dates, assigning a row number to each
-                SELECT
-                    person_id
-                    , ingredient_concept_id
-                    , drug_sub_exposure_start_date AS event_date
-                    , -1 AS event_type
-                    , ROW_NUMBER() OVER (PARTITION BY person_id, ingredient_concept_id ORDER BY drug_sub_exposure_start_date) AS start_ordinal
-                FROM cteFinalTarget
-            
-                UNION ALL
-            
-                -- pad the end dates by 30 to allow a grace period for overlapping ranges.
-                SELECT
-                    person_id
-                    , ingredient_concept_id
-                    , drug_sub_exposure_end_date + INTERVAL '30 days'
-                    , 1 AS event_type
-                    , NULL
-                FROM cteFinalTarget
-            ) RAWDATA
-        ) e
-        WHERE (2 * e.start_ordinal) - e.overall_ord = 0 
-    
-    )
-    , cteDrugEraEnds (person_id, drug_concept_id, drug_sub_exposure_start_date, drug_era_end_date, drug_exposure_count, days_exposed) AS
-    (
-    SELECT 
-        ft.person_id
-        , ft.ingredient_concept_id
-        , ft.drug_sub_exposure_start_date
-        , MIN(e.end_date) AS era_end_date
-        , ft.drug_exposure_count
-        , ft.days_exposed
-    FROM cteFinalTarget ft
-    JOIN cteEndDates e ON ft.person_id = e.person_id AND ft.ingredient_concept_id = e.ingredient_concept_id AND e.end_date >= ft.drug_sub_exposure_start_date
-    GROUP BY 
-            ft.person_id
-        , ft.ingredient_concept_id
-        , ft.drug_sub_exposure_start_date
-        , ft.drug_exposure_count
-        , ft.days_exposed
-    )
-    INSERT INTO {0}.drug_era(person_id, drug_concept_id, drug_era_start_date, drug_era_end_date, drug_exposure_count, gap_days)
+    DROP TABLE IF EXISTS {2}_cteDrugTarget;
+    -- Normalize drug_exposure_end_date to either the existing drug exposure end date, or add days supply, or add 1 day to the start date
+    CREATE TEMP TABLE {2}_cteDrugTarget
+    AS
+    SELECT
+        d.drug_exposure_id
+        ,d.person_id
+        ,c.concept_id
+        ,d.drug_type_concept_id
+        ,drug_exposure_start_date
+        ,COALESCE(drug_exposure_end_date, (drug_exposure_start_date + days_supply*INTERVAL'1 day'), (drug_exposure_start_date + 1*INTERVAL'1 day')) AS drug_exposure_end_date
+        ,c.concept_id AS ingredient_concept_id
+    FROM
+    {0}.drug_exposure d
+    INNER JOIN {1}.concept_ancestor ca ON ca.descendant_concept_id = d.drug_concept_id
+    INNER JOIN {1}.concept c ON ca.ancestor_concept_id = c.concept_id
+    WHERE c.vocabulary_id = 'RxNorm'
+        AND c.concept_class_id = 'Ingredient';
+    ------------------------------------																								 
+    DROP TABLE IF EXISTS {2}_cteEndDates;
+    CREATE TEMP TABLE {2}_cteEndDates
+    AS
     SELECT
         person_id
-        , drug_concept_id
-        , MIN(drug_sub_exposure_start_date) AS drug_era_start_date
-        , drug_era_end_date
-        , SUM(drug_exposure_count) AS drug_exposure_count
-        , EXTRACT(EPOCH FROM drug_era_end_date - MIN(drug_sub_exposure_start_date) - SUM(days_exposed)) / 86400 AS gap_days
-    FROM cteDrugEraEnds
-    GROUP BY person_id, drug_concept_id, drug_era_end_date
-    ORDER BY person_id, drug_concept_id
-    
-    /*
+        ,ingredient_concept_id
+        ,(event_date + - 30*INTERVAL'1 day') AS end_date -- unpad the end date
+    FROM
+    (
+        SELECT e1.person_id
+            ,e1.ingredient_concept_id
+            ,e1.event_date
+            ,COALESCE(e1.start_ordinal, MAX(e2.start_ordinal)) start_ordinal
+            ,e1.overall_ord
+        FROM (
+            SELECT person_id
+                ,ingredient_concept_id
+                ,event_date
+                ,event_type
+                ,start_ordinal
+                ,ROW_NUMBER() OVER (
+                    PARTITION BY person_id
+                    ,ingredient_concept_id ORDER BY event_date
+                        ,event_type
+                    ) AS overall_ord -- this re-numbers the inner UNION so all rows are numbered ordered by the event date
+            FROM (
+                -- select the start dates, assigning a row number to each
+                SELECT person_id
+                    ,ingredient_concept_id
+                    ,drug_exposure_start_date AS event_date
+                    ,0 AS event_type
+                    ,ROW_NUMBER() OVER (
+                        PARTITION BY person_id
+                        ,ingredient_concept_id ORDER BY drug_exposure_start_date
+                        ) AS start_ordinal
+                FROM {2}_cteDrugTarget
+                UNION ALL
+                -- add the end dates with NULL as the row number, padding the end dates by 30 to allow a grace period for overlapping ranges.
+                SELECT person_id
+                    ,ingredient_concept_id
+                    ,(drug_exposure_end_date + 30*INTERVAL'1 day')
+                    ,1 AS event_type
+                    ,NULL
+                FROM {2}_cteDrugTarget
+                ) RAWDATA
+            ) e1
+        INNER JOIN (
+            SELECT person_id
+                ,ingredient_concept_id
+                ,drug_exposure_start_date AS event_date
+                ,ROW_NUMBER() OVER (
+                    PARTITION BY person_id
+                    ,ingredient_concept_id ORDER BY drug_exposure_start_date
+                    ) AS start_ordinal
+            FROM {2}_cteDrugTarget
+            ) e2 ON e1.person_id = e2.person_id
+            AND e1.ingredient_concept_id = e2.ingredient_concept_id
+            AND e2.event_date <= e1.event_date
+        GROUP BY e1.person_id
+            ,e1.ingredient_concept_id
+            ,e1.event_date
+            ,e1.start_ordinal
+            ,e1.overall_ord
+        ) e
+    WHERE 2 * e.start_ordinal - e.overall_ord = 0;
+    ----------------------------------------------
+    DROP TABLE IF EXISTS {2}_cteDrugExpEnds;
+    CREATE TEMP TABLE {2}_cteDrugExpEnds
+    AS
     SELECT
-        (
-            SELECT SUM(drug_exposure_count) FROM cteFinalTarget
-        ) AS sum
-        , (
-            SELECT COUNT(*) FROM {0}.drug_exposure d
-                JOIN {1}.concept_ancestor ca ON ca.descendant_concept_id = d.drug_concept_id
-                JOIN {1}.concept c ON ca.ancestor_concept_id = c.concept_id
-                WHERE c.vocabulary_id = 'RxNorm' --- was = 8
-                AND c.concept_class_id = 'Ingredient' --- was concept_class
-                AND d.drug_concept_id != 0
-                AND d.days_supply >= 0
-        ) AS count
-    */
+        d.person_id
+        ,d.ingredient_concept_id
+        ,d.drug_type_concept_id
+        ,d.drug_exposure_start_date
+        ,MIN(e.end_date) AS era_end_date
+    FROM
+    {2}_cteDrugTarget d
+    INNER JOIN {2}_cteEndDates e ON d.person_id = e.person_id
+        AND d.ingredient_concept_id = e.ingredient_concept_id
+        AND e.end_date >= d.drug_exposure_start_date
+    GROUP BY d.person_id
+        ,d.ingredient_concept_id
+        ,d.drug_type_concept_id
+        ,d.drug_exposure_start_date;
+    ------------------------------------------				  
+    INSERT INTO {0}.drug_era
+    SELECT ingredient_concept_id AS drug_concept_id
+        ,era_end_date AS drug_era_end_date
+        ,min(drug_exposure_start_date) AS drug_era_start_date
+        ,COUNT(*) AS drug_exposure_count
+        ,30 AS gap_days
+        ,NULL AS drug_concept_name
+        ,'{2}' AS site
+        ,NULL as drug_era_id
+        ,ROW_NUMBER() OVER (
+            ORDER BY person_id
+            ) AS site_id
+        ,person_id AS person_id
+    FROM {2}_cteDrugExpEnds
+    GROUP BY person_id
+        ,ingredient_concept_id
+        ,drug_type_concept_id
+        ,era_end_date;
     """
-DRUG_ERA_STOCKPILE_SQL = """TRUNCATE {0}.drug_era;
-    WITH cteDrugPreTarget(drug_exposure_id, person_id, ingredient_concept_id, drug_exposure_start_date, days_supply, drug_exposure_end_date) AS
-        (
-        -- Normalize DRUG_EXPOSURE_END_DATE to either the existing drug exposure end date, or add days supply, or add 1 day to the start date
-        SELECT
-            d.drug_exposure_id
-            , d.person_id
-            , c.concept_id AS ingredient_concept_id
-            , d.drug_exposure_start_date AS drug_exposure_start_date
-            , d.days_supply AS days_supply
-            , COALESCE(
-                ---NULLIF returns NULL if both values are the same, otherwise it returns the first parameter
-                NULLIF(drug_exposure_end_date, NULL),
-                ---If drug_exposure_end_date != NULL, return drug_exposure_end_date, otherwise go to next case
-                NULLIF(drug_exposure_start_date + (INTERVAL '1 day' * days_supply), drug_exposure_start_date),
-                ---If days_supply != NULL or 0, return drug_exposure_start_date + days_supply, otherwise go to next case
-                drug_exposure_start_date + INTERVAL '1 day'
-                ---Add 1 day to the drug_exposure_start_date since there is no end_date or INTERVAL for the days_supply
-            ) AS drug_exposure_end_date
-        FROM {0}.drug_exposure d
-            JOIN {1}.concept_ancestor ca ON ca.descendant_concept_id = d.drug_concept_id
-            JOIN {1}.concept c ON ca.ancestor_concept_id = c.concept_id
-            WHERE c.vocabulary_id = 'RxNorm' --- was = 8 / 8 selects RxNorm from the vocabulary_id
-            AND c.concept_class_id = 'Ingredient' --- was concept_class = 'Ingredient'
-            /* Depending on the needs of your data, you can put more filters on to your code. We assign 0 to unmapped drug_concept_id's, and we found data where days_supply was negative.
-             * We don't want different drugs put in the same era, so the code below shows how we filtered them out.
-             * We also don't want negative days_supply, because that will pull our end_date before the start_date due to our second parameter in the COALESCE function.
-             * For now, we are filtering those out as well, but this is a data quality issue that we are trying to solve.
-             */
-            ---AND d.drug_concept_id != 0
-            ---AND d.days_supply >= 0
-    )
-    --------------------------------------------------------------------------------------------------------------
-    , cteDrugTarget(drug_exposure_id, person_id, ingredient_concept_id, drug_exposure_start_date, days_supply, drug_exposure_end_date, days_of_exposure) AS
-    (
-        SELECT
-            drug_exposure_id
-            , person_id
-            , ingredient_concept_id
-            , drug_exposure_start_date
-            , days_supply
-            , drug_exposure_end_date
-            , drug_exposure_end_date - drug_exposure_start_date AS days_of_exposure ---Calculates the days of exposure to the drug so at the end we can subtract the SUM of these days from the total days in the era.
-        FROM cteDrugPreTarget
-    )
-    --------------------------------------------------------------------------------------------------------------
-    , cteEndDates (person_id, ingredient_concept_id, end_date) AS -- the magic
-    (
-        SELECT
-            person_id
-            , ingredient_concept_id
-            , event_date - INTERVAL '30 days' AS end_date -- unpad the end date
-        FROM
-        (
-            SELECT
-                person_id
-                , ingredient_concept_id
-                , event_date
-                , event_type
-                , MAX(start_ordinal) OVER (PARTITION BY person_id, ingredient_concept_id ORDER BY event_date, event_type ROWS unbounded preceding) AS start_ordinal -- this pulls the current START down from the prior rows so that the NULLs from the END DATES will contain a value we can compare with
-                , ROW_NUMBER() OVER (PARTITION BY person_id, ingredient_concept_id ORDER BY event_date, event_type) AS overall_ord -- this re-numbers the inner UNION so all rows are numbered ordered by the event date
-            FROM (
-                -- select the start dates, assigning a row number to each
-                SELECT
-                    person_id
-                    , ingredient_concept_id
-                    , drug_exposure_start_date AS event_date
-                    , -1 AS event_type
-                    , ROW_NUMBER() OVER (PARTITION BY person_id, ingredient_concept_id ORDER BY drug_exposure_start_date) AS start_ordinal
-                FROM cteDrugTarget
-            
-                UNION ALL
-            
-                -- pad the end dates by 30 to allow a grace period for overlapping ranges.
-                SELECT
-                    person_id
-                    , ingredient_concept_id
-                    , drug_exposure_end_date + INTERVAL '30 days'
-                    , 1 AS event_type
-                    , NULL
-                FROM cteDrugTarget
-            ) RAWDATA
-        ) e
-        WHERE (2 * e.start_ordinal) - e.overall_ord = 0 
-    
-    )
-    --------------------------------------------------------------------------------------------------------------
-    , cteDrugExposureEnds (person_id, drug_concept_id, drug_exposure_start_date, drug_era_end_date, days_of_exposure) AS
-    (
-        SELECT 
-               dt.person_id
-               , dt.ingredient_concept_id
-               , dt.drug_exposure_start_date
-               , MIN(e.end_date) AS era_end_date
-               , dt.days_of_exposure AS days_of_exposure
-        FROM cteDrugTarget dt
-        JOIN cteEndDates e ON dt.person_id = e.person_id AND dt.ingredient_concept_id = e.ingredient_concept_id AND e.end_date >= dt.drug_exposure_start_date
-        GROUP BY 
-                  dt.drug_exposure_id
-                  , dt.person_id
-              , dt.ingredient_concept_id
-              , dt.drug_exposure_start_date
-              , dt.days_of_exposure
-    )
-    --------------------------------------------------------------------------------------------------------------
-    INSERT INTO {0}.drug_era(person_id, drug_concept_id, drug_era_start_date, drug_era_end_date, drug_exposure_count, gap_days)
-    SELECT
-        person_id
-        , drug_concept_id
-        , MIN(drug_exposure_start_date) AS drug_era_start_date
-        , drug_era_end_date
-        , COUNT(*) AS drug_exposure_count
-        , EXTRACT(EPOCH FROM (drug_era_end_date - MIN(drug_exposure_start_date)) - SUM(days_of_exposure)) / 86400 AS gap_days
-                  ---dividing by 86400 puts the integer in the "units" of days.
-                  ---There are no actual units on this, it is just an integer, but we want it to represent days and dividing by 86400 does that.
-    FROM cteDrugExposureEnds
-    GROUP BY person_id, drug_concept_id, drug_era_end_date
-    ORDER BY person_id, drug_concept_id
-    ;
-    
-    /*
-    ---This is a common test to make sure you have the same number of exposures going in as contribute to the count at the end.
-    ---Make sure the JOIN and AND statements are the same as above so that your counts actually represent what you should be getting.
-    SELECT
-        (SELECT COUNT(*) FROM {0}.drug_exposure d JOIN {1}.concept_ancestor ca ON ca.descendant_concept_id = d.drug_concept_id
-            JOIN {1}.concept c ON ca.ancestor_concept_id = c.concept_id
-            WHERE c.vocabulary_id = 'RxNorm' ---8 selects RxNorm from the vocabulary_id
-            AND c.concept_class_id = 'Ingredient'
-            AND d.drug_concept_id != 0 ---Our unmapped drug_concept_id's are set to 0, so we don't want different drugs wrapped up in the same era
-            AND d.days_supply >= 0) AS count
-        , (SELECT SUM(drug_exposure_count) FROM {0}.drug_era) AS sum
-    */
-"""
 
 
 def _fill_concept_names(conn_str, era_type, site):
@@ -492,7 +315,7 @@ def _copy_to_dcc_table(conn_str, era_type, schema):
     return True
 
 
-def run_era(era_type, stockpile, conn_str, site, copy, search_path, model_version):
+def run_era(era_type, conn_str, site, copy, search_path, model_version):
     """Run the Condition or Drug Era derivation.
 
     * Execute SQL
@@ -502,7 +325,6 @@ def run_era(era_type, stockpile, conn_str, site, copy, search_path, model_versio
     * Vacuum output table
 
     :param str era_type:    type of derivation (condition or drug)
-    :param bool stockpile:    if type drug to use stockpiling
     :param str conn_str:      database connection string
     :param str site:    site to run derivation for
     :param bool copy: if True, copy results to dcc_pedsnet
@@ -569,12 +391,9 @@ def run_era(era_type, stockpile, conn_str, site, copy, search_path, model_versio
     # run query
     stmts.clear()
     if era_type == "condition":
-        era_query_stmt = Statement(CONDITION_ERA_SQL.format(schema), run_query_msg.format(era_type))
+        era_query_stmt = Statement(CONDITION_ERA_SQL.format(schema, site), run_query_msg.format(era_type))
     else:
-        if stockpile:
-            era_query_stmt = Statement(DRUG_ERA_STOCKPILE_SQL.format(schema, "vocabulary"), run_query_msg.format(era_type))
-        else:
-            era_query_stmt = Statement(DRUG_ERA_SQL.format(schema, "vocabulary"),
+        era_query_stmt = Statement(DRUG_ERA_SQL.format(schema, "vocabulary", site),
                                        run_query_msg.format(era_type))
 
     # Execute the query and ensure it didn't error

@@ -516,12 +516,10 @@ def run_weight_z(pwprompt, searchpath, site, copy, table, model_version, dburi):
               help='PEDSnet site name for derivation.')
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to dcc_pedsnet')
-@click.option('--stockpile', is_flag=True, default=False,
-              help='Use stockpiling methoad')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_drug_era(pwprompt, searchpath, site, copy, stockpile, model_version, dburi):
+def run_drug_era(pwprompt, searchpath, site, copy, model_version, dburi):
     """Run Weight-Z derivation.
 
     The steps are:
@@ -546,7 +544,7 @@ def run_drug_era(pwprompt, searchpath, site, copy, stockpile, model_version, dbu
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("drug", stockpile, conn_str, site, copy, searchpath, model_version)
+    success = run_era("drug", conn_str, site, copy, searchpath, model_version)
 
     if not success:
         sys.exit(1)
@@ -590,7 +588,7 @@ def run_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("condition", False, conn_str, site, copy, searchpath, model_version)
+    success = run_era("condition", conn_str, site, copy, searchpath, model_version)
 
     if not success:
         sys.exit(1)
