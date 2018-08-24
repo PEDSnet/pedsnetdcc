@@ -45,7 +45,7 @@ FACT_RELATIONSHIP_DOMAINS = {
     'observation': 27,
     'measurement': 21,
     'visit_occurrence': 8,
-    'drug':13,
+    'drug_exposure': 13,
 }
 
 SITE_ROOT = '/data/site_data'
