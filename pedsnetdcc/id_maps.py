@@ -3,7 +3,7 @@ import re
 import time
 import os
 
-from pedsnetdcc import SITES, ID_MAP_TABLES, CONSISTENT_ID_MAP_TABLES
+from pedsnetdcc import SITES_AND_EXTERNAL, ID_MAP_TABLES, CONSISTENT_ID_MAP_TABLES
 from pedsnetdcc.db import (Statement, StatementList)
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_err
@@ -142,7 +142,7 @@ def create_id_map_tables(conn_str):
     starttime = time.time()
 
     statements = StatementList()
-    for site in SITES:
+    for site in SITES_AND_EXTERNAL:
         for table in ID_MAP_TABLES:
             statements.extend(
                 [Statement(CREATE_ID_MAP_TABLE_SQL.format(site, table))])
@@ -170,7 +170,7 @@ def copy_id_maps(old_conn_str, new_conn_str):
     starttime = time.time()
 
     _dump_and_restore_dcc_ids(old_conn_str, new_conn_str, starttime)
-    for site in SITES:
+    for site in SITES_AND_EXTERNAL:
         _dump_and_restore_id_maps(site, old_conn_str, new_conn_str, starttime)
 
     logger.info({
