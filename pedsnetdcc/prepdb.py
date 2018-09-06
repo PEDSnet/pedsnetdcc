@@ -2,7 +2,7 @@ import logging
 import re
 import time
 
-from pedsnetdcc import SITES
+from pedsnetdcc import SITES, SITES_AND_EXTERNAL
 from pedsnetdcc.db import (Statement, StatementList)
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_err
@@ -38,7 +38,7 @@ def _conn_str_with_database(conn_str, dbname):
     return new_conn_str
 
 
-def _sites_and_dcc(dcc_only=False):
+def _sites_and_dcc(dcc_only=False, inc_external=False):
     """Return a tuple containing "dcc" and the site names, or just "dcc".
     :param dcc_only: return a tuple containing just 'dcc'
     :type: bool
@@ -47,7 +47,10 @@ def _sites_and_dcc(dcc_only=False):
     if dcc_only:
         return 'dcc',
     else:
-        return ('dcc',) + SITES
+        if inc_external:
+            return ('dcc',) + SITES_AND_EXTERNAL
+        else:
+            return ('dcc',) + SITES
 
 
 def _version_to_shorthand(version):
@@ -174,7 +177,7 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     grant_database_permissions(conn_str, database_name)
     # Operate on the newly created database.
     stmts = StatementList()
-    for site in _sites_and_dcc(dcc_only):
+    for site in _sites_and_dcc(dcc_only, True):
         stmts.extend([Statement(x) for x in _site_sql(site)])
 
     stmts.extend([Statement(x) for x in _other_sql()])
