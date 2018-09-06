@@ -4,7 +4,7 @@ import re
 
 from pedsnetdcc.db import Statement, StatementList
 from pedsnetdcc.dict_logging import secs_since
-from pedsnetdcc import SITES_AND_DCC
+from pedsnetdcc import SITES_EXTERNAL_ADD_DCC
 from pedsnetdcc.utils import check_stmt_err, combine_dicts, get_conn_info_dict
 
 
@@ -115,7 +115,7 @@ def grant_loading_user_permissions(conn_str):
 
     stmnts = StatementList()
 
-    for site in SITES_AND_DCC:
+    for site in SITES_EXTERNAL_ADD_DCC:
         stmnts.extend(
             [Statement(x) for x in _loading_user_privileges_sql(site)]
         )
@@ -174,7 +174,7 @@ def grant_schema_permissions(conn_str):
 
 
     stmnts = StatementList()
-    for site in SITES_AND_DCC:
+    for site in SITES_EXTERNAL_ADD_DCC:
         stmnts.extend([Statement(x) for x in _permissions_sql(site)])
 
     stmnts.serial_execute(conn_str)

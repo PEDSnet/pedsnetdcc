@@ -2,7 +2,7 @@ import logging
 import re
 import time
 
-from pedsnetdcc import SITES, SITES_AND_EXTERNAL
+from pedsnetdcc import SITES, SITES_AND_EXTERNAL, EXTERNAL_SITES
 from pedsnetdcc.db import (Statement, StatementList)
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_err
@@ -83,7 +83,7 @@ def _make_database_name(model_version):
 def _create_database_sql(database_name):
     """Return a tuple of statements to create the database with the given name.
     :param database_name: Database name
-    :type: str
+    :type: strf
     :rtype: tuple
     """
     tmpl = "create database {} with owner = dcc_owner template = template0 " \
@@ -140,6 +140,25 @@ def _other_sql():
     sql = SQL_OTHER
     return [_despace(x) for x in sql.split("\n") if x]
 
+def _delete_external_schemas(conn_str, site):
+    delete_schemas_sql = """
+    DROP SCHEMA {0)_pedsnet CASCADE;
+    DROP SCHEMA {0)_pcornet CASCADE;
+    DROP SCHEMA {0)_harvest CASCADE;
+    DROP SCHEMA {0)_achilles CASCADE;
+    """
+    delete_schemas_msg = "cleaning up unused {0} schemas"
+
+    # Clean up unneeded schemas
+    clean_schemas_stmt = Statement( delete_schemas_sql.format(site), delete_schemas_msg.format(site))
+
+    # Execute the clean up statements and ensure they didn't error
+    clean_schemas_stmt.execute(conn_str)
+    check_stmt_err(clean_schemas_stmt, 'clean up {0} schemas'.format(site))
+
+    # If reached without error, then success!
+    return True
+
 
 def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     """Create a new database containing vocabulary and site schemas.
@@ -193,6 +212,9 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
 
     for stmt in stmts:
         check_stmt_err(stmt, 'database preparation')
+
+    for ext_site in EXTERNAL_SITES:
+        _delete_external_schemas(new_conn_str, ext_site)
 
     logger.info({
         'msg': 'finished database preparation',
