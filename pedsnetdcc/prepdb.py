@@ -140,12 +140,13 @@ def _other_sql():
     sql = SQL_OTHER
     return [_despace(x) for x in sql.split("\n") if x]
 
+
 def _delete_external_schemas(conn_str, site):
     delete_schemas_sql = """
-    DROP SCHEMA {0)_pedsnet CASCADE;
-    DROP SCHEMA {0)_pcornet CASCADE;
-    DROP SCHEMA {0)_harvest CASCADE;
-    DROP SCHEMA {0)_achilles CASCADE;
+    DROP SCHEMA {0}_pedsnet CASCADE;
+    DROP SCHEMA {0}_pcornet CASCADE;
+    DROP SCHEMA {0}_harvest CASCADE;
+    DROP SCHEMA {0}_achilles CASCADE;
     """
     delete_schemas_msg = "cleaning up unused {0} schemas"
 
