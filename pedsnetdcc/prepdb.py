@@ -83,7 +83,7 @@ def _make_database_name(model_version):
 def _create_database_sql(database_name):
     """Return a tuple of statements to create the database with the given name.
     :param database_name: Database name
-    :type: strf
+    :type: str
     :rtype: tuple
     """
     tmpl = "create database {} with owner = dcc_owner template = template0 " \
