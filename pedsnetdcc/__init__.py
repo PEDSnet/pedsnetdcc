@@ -50,7 +50,10 @@ FACT_RELATIONSHIP_DOMAINS = {
 
 SITE_ROOT = '/data/site_data'
 SITES = ('chop', 'colorado', 'nationwide', 'nemours', 'seattle', 'stlouis')
+EXTERNAL_SITES = ('boston', 'cchmc',)
 SITES_AND_DCC = SITES + ('dcc',)
+SITES_AND_EXTERNAL =  EXTERNAL_SITES + SITES
+SITES_EXTERNAL_ADD_DCC = SITES_AND_EXTERNAL + ('dcc',)
 BACKUP_ROOT = '/mnt/isilon/pedsnet/archives/ftp/'
 
 CONSISTENT_ID_MAP_TABLES = (
@@ -69,6 +72,7 @@ ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
     'drug_era',
     'drug_exposure',
     'location',
+    'immunization',
     'measurement',
     'measurement_organism',
     'observation',
