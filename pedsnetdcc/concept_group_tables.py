@@ -15,8 +15,9 @@ def create_index_replacement_tables(conn_str, model_version):
         'measurement': ('measurement_source_value', 'measurement_concept_name',),
         'procedure_occurrence': ('procedure_concept_name', 'procedure_source_value',),
     }
-    create_concept_group_sql='create table {0} as select {1}, count({1}) from {2} group by {1}'
-    pk_concept_group_sql='alter table {0} add primary key ({1})'
+
+    create_concept_group_sql = 'create table {0} as select {1}, {2}, count({2}) from {3} group by {1},{2} order by {1}'
+    pk_concept_group_sql = 'alter table {0} add primary key ({1},{2})'
 
     # Log start of the function and set the starting time.
     log_dict = combine_dicts({'model_version': model_version, },
@@ -32,9 +33,13 @@ def create_index_replacement_tables(conn_str, model_version):
         for col in cols:
             col_short_name = '_'.join(col.split('_')[1:])
             new_tbl_name = tbl + "_" + col_short_name
-            create_stmt = Statement(create_concept_group_sql.format(new_tbl_name, col, tbl))
+            if col_short_name.endswith('name'):
+                col_id = '_'.join(col.split('_')[0:2]) + '_id'
+            else:
+                col_id = '_'.join(col.split('_')[0:1]) + '_concept_id'
+            create_stmt = Statement(create_concept_group_sql.format(new_tbl_name, col, col_id, tbl))
             table_stmts.add(create_stmt)
-            pk_stmt = Statement(pk_concept_group_sql.format(new_tbl_name, col))
+            pk_stmt = Statement(pk_concept_group_sql.format(new_tbl_name, col, col_id))
             pk_stmts.add(pk_stmt)
 
     logger.info({'msg': 'begin creating index replacement tables'})
