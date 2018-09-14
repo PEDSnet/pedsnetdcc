@@ -4,7 +4,7 @@ import re
 
 from pedsnetdcc.db import Statement, StatementList
 from pedsnetdcc.dict_logging import secs_since
-from pedsnetdcc import SITES_AND_DCC
+from pedsnetdcc import SITES_AND_DCC, SITES_EXTERNAL_ADD_DCC
 from pedsnetdcc.utils import check_stmt_err, combine_dicts, get_conn_info_dict
 
 
@@ -101,7 +101,7 @@ def _vocabulary_permissions_sql():
     sql = VOCABULARY_PERMISSIONS_SQL_TEMPL
     return [_despace(x) for x in sql.split("\n") if x]
 
-def grant_loading_user_permissions(conn_str):
+def grant_loading_user_permissions(conn_str, inc_external = False):
     """Grant loading_user grant permissions for pcornet, achilles, harvest
 
     :param conn_str: connection string to database
@@ -115,7 +115,12 @@ def grant_loading_user_permissions(conn_str):
 
     stmnts = StatementList()
 
-    for site in SITES_AND_DCC:
+    if inc_external:
+        site_list = SITES_EXTERNAL_ADD_DCC
+    else:
+        site_list = SITES_AND_DCC
+
+    for site in site_list:
         stmnts.extend(
             [Statement(x) for x in _loading_user_privileges_sql(site)]
         )
@@ -159,7 +164,7 @@ def grant_database_permissions(conn_str, database_name):
                                'elapsed': secs_since(start_time)}, log_dict))
 
 
-def grant_schema_permissions(conn_str):
+def grant_schema_permissions(conn_str, inc_external=False):
     """Grant schema and table permissions on a database for the appropriate PEDSnet users
 
     :param conn_str: connection string to database
@@ -171,10 +176,14 @@ def grant_schema_permissions(conn_str):
     logger.info(combine_dicts({'msg': 'starting granting of schema permissions'},
                               log_dict))
     start_time = time.time()
-
-
     stmnts = StatementList()
-    for site in SITES_AND_DCC:
+
+    if inc_external:
+        site_list = SITES_EXTERNAL_ADD_DCC
+    else:
+        site_list = SITES_AND_DCC
+
+    for site in site_list:
         stmnts.extend([Statement(x) for x in _permissions_sql(site)])
 
     stmnts.serial_execute(conn_str)

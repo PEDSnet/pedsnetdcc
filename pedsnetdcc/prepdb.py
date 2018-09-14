@@ -2,7 +2,7 @@ import logging
 import re
 import time
 
-from pedsnetdcc import SITES
+from pedsnetdcc import SITES, SITES_AND_EXTERNAL, EXTERNAL_SITES
 from pedsnetdcc.db import (Statement, StatementList)
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_err
@@ -38,7 +38,7 @@ def _conn_str_with_database(conn_str, dbname):
     return new_conn_str
 
 
-def _sites_and_dcc(dcc_only=False):
+def _sites_and_dcc(dcc_only=False, inc_external=False):
     """Return a tuple containing "dcc" and the site names, or just "dcc".
     :param dcc_only: return a tuple containing just 'dcc'
     :type: bool
@@ -47,7 +47,10 @@ def _sites_and_dcc(dcc_only=False):
     if dcc_only:
         return 'dcc',
     else:
-        return ('dcc',) + SITES
+        if inc_external:
+            return ('dcc',) + SITES_AND_EXTERNAL
+        else:
+            return ('dcc',) + SITES
 
 
 def _version_to_shorthand(version):
@@ -138,6 +141,26 @@ def _other_sql():
     return [_despace(x) for x in sql.split("\n") if x]
 
 
+def _delete_external_schemas(conn_str, site):
+    delete_schemas_sql = """
+    DROP SCHEMA {0}_pedsnet CASCADE;
+    DROP SCHEMA {0}_pcornet CASCADE;
+    DROP SCHEMA {0}_harvest CASCADE;
+    DROP SCHEMA {0}_achilles CASCADE;
+    """
+    delete_schemas_msg = "cleaning up unused {0} schemas"
+
+    # Clean up unneeded schemas
+    clean_schemas_stmt = Statement( delete_schemas_sql.format(site), delete_schemas_msg.format(site))
+
+    # Execute the clean up statements and ensure they didn't error
+    clean_schemas_stmt.execute(conn_str)
+    check_stmt_err(clean_schemas_stmt, 'clean up {0} schemas'.format(site))
+
+    # If reached without error, then success!
+    return True
+
+
 def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     """Create a new database containing vocabulary and site schemas.
 
@@ -174,7 +197,7 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     grant_database_permissions(conn_str, database_name)
     # Operate on the newly created database.
     stmts = StatementList()
-    for site in _sites_and_dcc(dcc_only):
+    for site in _sites_and_dcc(dcc_only, True):
         stmts.extend([Statement(x) for x in _site_sql(site)])
 
     stmts.extend([Statement(x) for x in _other_sql()])
@@ -184,12 +207,15 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
 
     stmts.serial_execute(new_conn_str)
 
-    grant_loading_user_permissions(new_conn_str)
-    grant_schema_permissions(new_conn_str)
+    grant_loading_user_permissions(new_conn_str, True)
+    grant_schema_permissions(new_conn_str, True)
     grant_vocabulary_permissions(new_conn_str)
 
     for stmt in stmts:
         check_stmt_err(stmt, 'database preparation')
+
+    for ext_site in EXTERNAL_SITES:
+        _delete_external_schemas(new_conn_str, ext_site)
 
     logger.info({
         'msg': 'finished database preparation',
