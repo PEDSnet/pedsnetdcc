@@ -207,8 +207,8 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
 
     stmts.serial_execute(new_conn_str)
 
-    grant_loading_user_permissions(new_conn_str)
-    grant_schema_permissions(new_conn_str)
+    grant_loading_user_permissions(new_conn_str, True)
+    grant_schema_permissions(new_conn_str, True)
     grant_vocabulary_permissions(new_conn_str)
 
     for stmt in stmts:

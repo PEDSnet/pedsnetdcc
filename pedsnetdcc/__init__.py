@@ -81,6 +81,14 @@ ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
     'visit_payer'
 )
 
+INDEX_REPLACEMENT_TABLES = (
+    'condition_occurrence_concept_name',
+    'condition_occurrence_source_value,'
+    'drug_exposure_concept_name',
+    'measurement_concept_name',
+    'measurement_source_value'
+)
+
 _dms_var = 'PEDSNETDCC_DMS_URL'
 if _dms_var in os.environ:
     DATA_MODELS_SERVICE = os.environ[_dms_var]
