@@ -4,7 +4,7 @@ import time
 import sqlalchemy
 import sqlalchemy.dialects.postgresql
 
-from pedsnetdcc import VOCAB_TABLES, INDEX_REPLACEMENT_TABLES
+from pedsnetdcc import VOCAB_TABLES
 from pedsnetdcc.db import Statement, StatementSet, StatementList
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.indexes import add_indexes, drop_indexes, drop_unneeded_indexes, add_vocab_indexes, \
@@ -132,7 +132,7 @@ def _move_tables_statements(model_version, from_schema, to_schema):
     move_tpl = 'ALTER TABLE {from_sch}.{tbl} SET SCHEMA {to_sch}'
     msg_tpl = 'moving {tbl} from {from_sch} to {to_sch}'
 
-    for table_name in set(metadata.tables.keys()) | set(INDEX_REPLACEMENT_TABLES) - set(VOCAB_TABLES):
+    for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
         tpl_vals = {'from_sch': from_schema, 'to_sch': to_schema,
                     'tbl': table_name}
         stmts.append(Statement(move_tpl.format(**tpl_vals),
@@ -238,8 +238,6 @@ def run_transformation(conn_str, model_version, site, search_path,
     # Add constraints to the transformed tables
     add_foreign_keys(new_conn_str, model_version, force)
 
-    # Create new tables to replace concept name/source value indexes
-    create_index_replacement_tables(new_conn_str, model_version)
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.
