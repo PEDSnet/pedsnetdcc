@@ -1,5 +1,9 @@
 from pedsnetdcc.utils import (stock_metadata)
 import os
+import logging
+import time
+
+from pedsnetdcc.dict_logging import secs_since
 
 
 def create_oracle_views(model_version, source_schema, target_schema, view_file_name):
@@ -21,6 +25,11 @@ def create_oracle_views(model_version, source_schema, target_schema, view_file_n
     :returns:   True if the function succeeds
     :rtype: bool
     """
+
+    logger = logging.getLogger(__name__)
+    logger.info({'msg': 'starting Oracle view SQL file'})
+    start_time = time.time()
+
     metadata = stock_metadata(model_version)
     target_schema = target_schema.upper()
     source_schema = source_schema.upper()
@@ -45,6 +54,9 @@ def create_oracle_views(model_version, source_schema, target_schema, view_file_n
 
         for table_name in sorted(table_list):
             view_file.write(grant_dict[table_name] + os.linesep)
+
+    # Output completion message.
+    logger.info({'msg': 'finished Oracle view SQL file','elapsed': secs_since(start_time)})
 
     # If reached without error, then success!
     return True
