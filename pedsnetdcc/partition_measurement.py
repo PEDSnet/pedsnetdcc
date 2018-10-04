@@ -206,10 +206,17 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc):
     start_time = time.time()
     schema = primary_schema(search_path)
 
-    # move site bmi measurements
-    copied = _copy_to_bmi_table(conn_str)
-    if copied:
-        _delete_bmi_from_anthro(conn_str)
+    # move site bmi measurements if site (not dcc)
+    if not dcc:
+        logger.info({'msg': 'moving bmi measurements'})
+        copied = _copy_to_bmi_table(conn_str)
+        if copied:
+            _delete_bmi_from_anthro(conn_str)
+            logger.info({'msg': 'bmi measurements moved'})
+        else:
+            logger.info({'msg': 'error movibg bmi measurements'})
+            return False
+
 
     # truncate the measurement table
     logger.info({'msg': 'truncating measurement table'})
