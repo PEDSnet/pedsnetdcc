@@ -120,8 +120,8 @@ ADD_CHECK_CONSTRAINT_SQL = """ALTER TABLE {0}.measurement_{1}
 ADD_INHERIT_SQL = 'ALTER TABLE {0}.measurement_{1} INHERIT {0}.measurement;'
 
 
-def _copy_to_bmi_table(conn_str):
-    copy_to_sql = """INSERT INTO measurement_bmi(
+def _copy_to_measure_table(conn_str, table, concepts):
+    copy_to_sql = """INSERT INTO measurement_{0}(
         measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
         measurement_order_date, measurement_order_datetime, measurement_result_date, 
         measurement_result_datetime, measurement_source_concept_id, measurement_source_value, 
@@ -146,33 +146,33 @@ def _copy_to_bmi_table(conn_str):
         measurement_type_concept_name, operator_concept_name, priority_concept_name, 
         range_high_operator_concept_name, range_low_operator_concept_name, unit_concept_name, 
         value_as_concept_name, site, site_id
-        FROM measurement_anthro WHERE measurement_concept_id = 3038553) ON CONFLICT DO NOTHING"""
+        FROM measurement_anthro WHERE measurement_concept_id IN ({1})) ON CONFLICT DO NOTHING"""
 
-    copy_to_msg = "copying bmi to measurement_bmi"
+    copy_to_msg = "copying {0} to measurement_{0}"
 
     # Insert BMI measurements into measurement_anthro table
-    copy_to_stmt = Statement(copy_to_sql, copy_to_msg)
+    copy_to_stmt = Statement(copy_to_sql.format(table, concepts), copy_to_msg.format(table))
 
     # Execute the insert BMI measurements statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
-    check_stmt_err(copy_to_stmt, 'insert BMI measurements')
+    check_stmt_err(copy_to_stmt, 'insert ' + table + ' measurements')
 
     # If reached without error, then success!
     return True
 
 
-def _delete_bmi_from_anthro(conn_str):
+def _delete_measure_from_anthro(conn_str, table, concepts):
     delete_bmi_sql = """DELETE FROM measurement_anthro WHERE
-        measurement_concept_id = 3038553"""
+        measurement_concept_id IN ({0})"""
 
-    delete_bmi_msg = "remove bmi from measurement_anthro"
+    delete_bmi_msg = "remove {0} from measurement_anthro"
 
     # Insert BMI measurements into measurement_anthro table
-    delete_bmi_stmt = Statement(delete_bmi_sql, delete_bmi_msg)
+    delete_bmi_stmt = Statement(delete_bmi_sql.format(concepts), delete_bmi_msg.format(table))
 
     # Execute the insert BMI measurements statement and ensure it didn't error
     delete_bmi_stmt.execute(conn_str)
-    check_stmt_err(delete_bmi_stmt, 'remove BMI measurements')
+    check_stmt_err(delete_bmi_stmt, 'remove ' + table + ' measurements')
 
     # If reached without error, then success!
     return True
@@ -208,14 +208,21 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc):
 
     # move site bmi measurements if site (not dcc)
     if not dcc:
-        logger.info({'msg': 'moving bmi measurements'})
-        copied = _copy_to_bmi_table(conn_str)
-        if copied:
-            _delete_bmi_from_anthro(conn_str)
-            logger.info({'msg': 'bmi measurements moved'})
-        else:
-            logger.info({'msg': 'error movibg bmi measurements'})
-            return False
+        move_measures = {
+            'bmi': (3038553,),
+            'bmiz': (2000000043,),
+            'ht_z': (2000000042,),
+            'wt_z': (2000000041,),
+        }
+        for measure in move_measures:
+            logger.info({'msg': 'moving ' + measure + ' measurements'})
+            concepts = ','.join(map(str, move_measures[measure]))
+            copied = _copy_to_measure_table(conn_str, measure, concepts)
+            if copied:
+                _delete_measure_from_anthro(conn_str)
+                logger.info({'msg': measure + ' measurements moved'})
+            else:
+                logger.info({'msg': 'error moving ' + measure + ' measurements'})
 
 
     # truncate the measurement table
