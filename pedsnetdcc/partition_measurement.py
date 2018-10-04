@@ -108,16 +108,74 @@ FUNCTION_INSERT_SITE_MEASUREMENT_SQL = """CREATE OR REPLACE FUNCTION trg_insert_
     LANGUAGE plpgsql;"""
 
 
-TRIGGER_DCC_MEASUREMENT_INSERT_SQL = """CREATE TRIGGER measurement_insert BEFORE INSERT
+TRIGGER_DCC_MEASUREMENT_INSERT_SQL = """CREATE TRIGGER measurement_dcc_insert BEFORE INSERT
     ON {0}.measurement FOR EACH ROW
     EXECUTE PROCEDURE trg_insert_dcc_measurement();"""
-TRIGGER_SITE_MEASUREMENT_INSERT_SQL = """CREATE TRIGGER measurement_insert BEFORE INSERT
+TRIGGER_SITE_MEASUREMENT_INSERT_SQL = """CREATE TRIGGER measurement_site_insert BEFORE INSERT
     ON {0}.measurement FOR EACH ROW
     EXECUTE PROCEDURE trg_insert_site_measurement();"""
 TRUNCATE_MEASUREMENT_SQL = 'TRUNCATE {0}.measurement'
 ADD_CHECK_CONSTRAINT_SQL = """ALTER TABLE {0}.measurement_{1} 
     ADD CONSTRAINT concept_in_{1} CHECK (measurement_concept_id {2} ({3}));"""
 ADD_INHERIT_SQL = 'ALTER TABLE {0}.measurement_{1} INHERIT {0}.measurement;'
+
+
+def _copy_to_bmi_table(conn_str):
+    copy_to_sql = """INSERT INTO measurement_bmi(
+        measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
+        measurement_order_date, measurement_order_datetime, measurement_result_date, 
+        measurement_result_datetime, measurement_source_concept_id, measurement_source_value, 
+        measurement_type_concept_id, operator_concept_id, person_id, priority_concept_id, 
+        priority_source_value, provider_id, range_high, range_high_operator_concept_id, 
+        range_high_source_value, range_low, range_low_operator_concept_id, range_low_source_value, 
+        specimen_source_value, unit_concept_id, unit_source_value, value_as_concept_id, 
+        value_as_number, value_source_value, visit_occurrence_id, measurement_age_in_months, 
+        measurement_result_age_in_months, measurement_concept_name, measurement_source_concept_name, 
+        measurement_type_concept_name, operator_concept_name, priority_concept_name, 
+        range_high_operator_concept_name, range_low_operator_concept_name, unit_concept_name, 
+        value_as_concept_name, site, site_id)
+        (select measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
+        measurement_order_date, measurement_order_datetime, measurement_result_date, 
+        measurement_result_datetime, measurement_source_concept_id, measurement_source_value, 
+        measurement_type_concept_id, operator_concept_id, person_id, priority_concept_id, 
+        priority_source_value, provider_id, range_high, range_high_operator_concept_id, 
+        range_high_source_value, range_low, range_low_operator_concept_id, range_low_source_value, 
+        specimen_source_value, unit_concept_id, unit_source_value, value_as_concept_id, 
+        value_as_number, value_source_value, visit_occurrence_id, measurement_age_in_months, 
+        measurement_result_age_in_months, measurement_concept_name, measurement_source_concept_name, 
+        measurement_type_concept_name, operator_concept_name, priority_concept_name, 
+        range_high_operator_concept_name, range_low_operator_concept_name, unit_concept_name, 
+        value_as_concept_name, site, site_id
+        FROM measurement_anthro WHERE measurement_concept_id = 3038553) ON CONFLICT DO NOTHING"""
+
+    copy_to_msg = "copying bmi to measurement_bmi"
+
+    # Insert BMI measurements into measurement_anthro table
+    copy_to_stmt = Statement(copy_to_sql, copy_to_msg)
+
+    # Execute the insert BMI measurements statement and ensure it didn't error
+    copy_to_stmt.execute(conn_str)
+    check_stmt_err(copy_to_stmt, 'insert BMI measurements')
+
+    # If reached without error, then success!
+    return True
+
+
+def _delete_bmi_from_anthro(conn_str):
+    delete_bmi_sql = """DELETE FROM measurement_anthro WHERE
+        measurement_concept_id = 3038553"""
+
+    delete_bmi_msg = "remove bmi from measurement_anthro"
+
+    # Insert BMI measurements into measurement_anthro table
+    delete_bmi_stmt = Statement(delete_bmi_sql, delete_bmi_msg)
+
+    # Execute the insert BMI measurements statement and ensure it didn't error
+    delete_bmi_stmt.execute(conn_str)
+    check_stmt_err(delete_bmi_stmt, 'remove BMI measurements')
+
+    # If reached without error, then success!
+    return True
 
 
 def partition_measurement_table(conn_str, model_version, search_path, dcc):
@@ -147,6 +205,11 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc):
                               log_dict))
     start_time = time.time()
     schema = primary_schema(search_path)
+
+    # move site bmi measurements
+    copied = _copy_to_bmi_table(conn_str)
+    if copied:
+        _delete_bmi_from_anthro(conn_str)
 
     # truncate the measurement table
     logger.info({'msg': 'truncating measurement table'})
