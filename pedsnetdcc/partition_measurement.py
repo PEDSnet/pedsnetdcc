@@ -219,7 +219,7 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc):
             concepts = ','.join(map(str, move_measures[measure]))
             copied = _copy_to_measure_table(conn_str, measure, concepts)
             if copied:
-                _delete_measure_from_anthro(conn_str)
+                _delete_measure_from_anthro(conn_str, measure, concepts)
                 logger.info({'msg': measure + ' measurements moved'})
             else:
                 logger.info({'msg': 'error moving ' + measure + ' measurements'})
