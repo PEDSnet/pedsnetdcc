@@ -645,7 +645,8 @@ def partition_measurement(pwprompt, searchpath, dcc, model_version, dburi):
               help='Schema where the tables are located')
 @click.option('--target_schema', required=True,
               help='Schema where the views should be located')
-@click.option('--file_name', '-s', help='File name for SQL output.')
+@click.option('--file_name', required=True,
+              help='File name for SQL output')
 def create_oracle_views_sql(model_version, source_schema, target_schema, file_name):
     """Create lower case views for Oracle.
 
