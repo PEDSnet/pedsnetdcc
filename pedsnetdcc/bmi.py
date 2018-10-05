@@ -42,7 +42,7 @@ def _create_config_file(config_path, config_file, schema, table, password, conn_
         out_config.write('post_connect_sql = set search_path to ' + schema + ',vocabulary;' + os.linesep)
         out_config.write('</src_rdb>' + os.linesep)
         out_config.write('output_measurement_table = measurement_bmi'+ os.linesep)
-        out_config.write('person_finder_sql = select distinct person_id from ' + table)
+        out_config.write('person_finder_sql = select distinct person_id from ' + table + ' ')
         out_config.write('where measurement_concept_id in (3013762, 3023540, 3036277)' + os.linesep)
 
 
