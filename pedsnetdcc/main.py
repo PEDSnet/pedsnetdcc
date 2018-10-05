@@ -600,17 +600,19 @@ def run_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
 @click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--dcc', is_flag=True, default=False,
+              help='partition dcc vs site measurement table')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def partition_measurement(pwprompt, searchpath, model_version, dburi):
+def partition_measurement(pwprompt, searchpath, dcc, model_version, dburi):
     """Partition measurement using measurement_anthro, measurement_labs, and measurement_vitals split tables
 
     The steps are:
 
     - Truncate Measurement Table
     - Alter split tables to add check constraints by measurement concept id
-    - Alter split tables to inherit from the easurement table
+    - Alter split tables to inherit from the measurement table
     - Create trg_insert_measurement function to route measurements to correct split table
     - Add before insert trigger measurement_insert to measurement table
 
@@ -628,7 +630,37 @@ def partition_measurement(pwprompt, searchpath, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.partition_measurement import partition_measurement_table
-    success = partition_measurement_table(conn_str, model_version, searchpath)
+    success = partition_measurement_table(conn_str, model_version, searchpath, dcc)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--source_schema', required=True,
+              help='Schema where the tables are located')
+@click.option('--target_schema', required=True,
+              help='Schema where the views should be located')
+@click.option('--file_name', required=True,
+              help='File name for SQL output')
+def create_oracle_views_sql(model_version, source_schema, target_schema, file_name):
+    """Create lower case views for Oracle.
+
+    The steps are:
+
+      - Loop thru all the tables in the model.
+      - Lopp thru all the columns in thhe table
+      - Create view and grant SQL statements
+      - Output SQL statement to output file
+
+    """
+
+    from pedsnetdcc.views import create_oracle_views
+    success = create_oracle_views(model_version, source_schema, target_schema, file_name)
 
     if not success:
         sys.exit(1)
