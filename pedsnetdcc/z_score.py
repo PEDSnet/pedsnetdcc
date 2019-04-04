@@ -423,11 +423,11 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
         SET last_id = new.last_id + '{new_id_count}'::integer
         FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
     update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
-    create_seq_measurement_sql = "create sequence if not exists {0}.measurement_id_seq"
+    create_seq_measurement_sql = "create sequence if not exists {0}.{1}_measurement_id_seq"
     create_seq_measurement_msg = "creating measurement id sequence"
-    set_seq_number_sql = "alter sequence {0}.measurement_id_seq restart with {1};"
+    set_seq_number_sql = "alter sequence {0}.{1}_measurement_id_seq restart with {2};"
     set_seq_number_msg = "setting sequence number"
-    add_measurement_ids_sql = """update {0}.measurement_{1} set measurement_id = nextval('{0}.measurement_id_seq')
+    add_measurement_ids_sql = """update {0}.measurement_{1} set measurement_id = nextval('{0}.{2}_measurement_id_seq')
         where measurement_id is null"""
     add_measurement_ids_msg = "adding the measurement ids to the measurement_{0} table"
     pk_measurement_id_sql = "alter table {0}.measurement_{1} add primary key (measurement_id)"
@@ -500,7 +500,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
 
     logger.info({'msg': 'begin measurement id sequence creation'})
     # Create the measurement id sequence (if it doesn't exist)
-    measurement_seq_stmt = Statement( create_seq_measurement_sql.format(schema),
+    measurement_seq_stmt = Statement( create_seq_measurement_sql.format(schema, site),
                                       create_seq_measurement_msg)
 
     # Execute the create the measurement id sequence statement and ensure it didn't error
@@ -510,7 +510,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
 
     # Set the sequence number
     logger.info({'msg': 'begin set sequence number'})
-    seq_number_set_stmt = Statement(set_seq_number_sql.format(schema, tpl_vars['old_last_id'], schema),
+    seq_number_set_stmt = Statement(set_seq_number_sql.format(schema, site, tpl_vars['old_last_id']),
                                     set_seq_number_msg)
 
     # Execute the set the sequence number statement and ensure it didn't error
@@ -520,7 +520,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
 
     # Add the measurement ids
     logger.info({'msg': 'begin add measurement ids'})
-    add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema, z_type, schema),
+    add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema, z_type, site),
                                          add_measurement_ids_msg.format(z_type))
 
     # Execute the add the measurement ids statement and ensure it didn't error

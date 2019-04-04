@@ -44,8 +44,7 @@ VOCAB_TABLES = (
 FACT_RELATIONSHIP_DOMAINS = {
     'observation': 27,
     'measurement': 21,
-    'visit_occurrence': 8,
-    'drug_exposure': 13,
+    'visit_occurrence': 8
 }
 
 SITE_ROOT = '/data/site_data'
@@ -68,6 +67,7 @@ ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
     'condition_era',
     'condition_occurrence',
     'death',
+    'device_exposure',
     'dose_era',
     'drug_era',
     'drug_exposure',
