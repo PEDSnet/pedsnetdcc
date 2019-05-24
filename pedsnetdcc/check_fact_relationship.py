@@ -27,6 +27,11 @@ SELECT COUNT(*) FROM fact_relationship WHERE domain_concept_id_1 = 8
 '''
 tot_visit_msg = 'counting total visit records in fact relationship'
 
+tot_drug_sql = '''
+SELECT COUNT(*) FROM fact_relationship WHERE domain_concept_id_1 = 13
+'''
+tot_drug_msg = 'counting total drug records in fact relationship'
+
 # The below bad fact_relationship record count statements return the
 # number of bad *records* not the number of bad *references*. There may be
 # more than one (two) bad references per record.
@@ -76,6 +81,20 @@ UNION
 '''
 bad_visit_msg = 'counting invalid visit records in fact relationship'
 
+bad_drug_sql = '''
+SELECT COUNT(*) FROM (
+    SELECT f.*
+    FROM fact_relationship f
+        LEFT JOIN drug_exposure d ON f.fact_id_1 = d.drug_exposure_id
+    WHERE domain_concept_id_1 = 13 AND d.drug_exposure_id IS NULL
+UNION
+    SELECT f.*
+    FROM fact_relationship f
+        LEFT JOIN  drug_exposure d ON f.fact_id_2 = d.drug_exposure_id
+    WHERE domain_concept_id_2 = 13 AND d.drug_exposure_id IS NULL
+) q
+'''
+bad_drug_msg = 'counting invalid drug records in fact relationship'
 # The below bad fact_relationship sample statements check each fact_id field
 # independently for each domain.
 
@@ -133,6 +152,24 @@ LIMIT 1
 '''
 bad_visit_2_msg = 'searching for invalid visit ref in fact_id_2'
 
+bad_drug_1_sql = '''
+SELECT f.*
+FROM fact_relationship f
+    LEFT JOIN drug_exposure d ON f.fact_id_1 = d.drug_exposure_id
+WHERE domain_concept_id_1 = 13 AND d.drug_exposure_id IS NULL
+LIMIT 1
+'''
+bad_drug_1_msg = 'searching for invalid drug ref in fact_id_1'
+
+bad_drug_2_sql = '''
+SELECT f.*
+FROM fact_relationship f
+    LEFT JOIN drug_exposure d ON f.fact_id_2 = d.drug_exposure_id
+WHERE domain_concept_id_2 = 13 AND d.drug_exposure_id IS NULL
+LIMIT 1
+'''
+bad_drug_2_msg = 'searching for invalid drug ref in fact_id_2'
+
 logger = logging.getLogger(__name__)
 
 
@@ -177,9 +214,12 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
         stmts.add(Statement(tot_obs_sql, tot_obs_msg))
         stmts.add(Statement(tot_meas_sql, tot_meas_msg))
         stmts.add(Statement(tot_visit_sql, tot_visit_msg))
+        stmts.add(Statement(tot_drug_sql, tot_drug_msg))
         stmts.add(Statement(bad_obs_sql, bad_obs_msg))
         stmts.add(Statement(bad_meas_sql, bad_meas_msg))
         stmts.add(Statement(bad_visit_sql, bad_visit_msg))
+        stmts.add(Statement(bad_drug_sql, bad_drug_msg))
+
 
     if output in ['samples', 'both']:
 
@@ -189,6 +229,8 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
         stmts.add(Statement(bad_meas_2_sql, bad_meas_2_msg))
         stmts.add(Statement(bad_visit_1_sql, bad_visit_1_msg))
         stmts.add(Statement(bad_visit_2_sql, bad_visit_2_msg))
+        stmts.add(Statement(bad_drug_1_sql, bad_drug_1_msg))
+        stmts.add(Statement(bad_drug_2_sql, bad_drug_2_msg))
 
     stmts.parallel_execute(conn_str, pool_size)
 
@@ -198,7 +240,10 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
         'meas': {'total': None, 'bad': None, 'percent': None,
                  'samples': [], 'valid': True},
         'visit': {'total': None, 'bad': None, 'percent': None,
-                  'samples': [], 'valid': True}
+                  'samples': [], 'valid': True},
+        'drug': {'total': None, 'bad': None, 'percent': None,
+                  'samples': [], 'valid': True},
+
     }
 
     for stmt in stmts:
@@ -225,6 +270,10 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
             check_stmt_data(stmt, 'fact relationship check')
             results['visit']['total'] = stmt.data[0][0]
 
+        elif stmt.msg == tot_drug_msg:
+            check_stmt_data(stmt, 'fact relationship check')
+            results['drug']['total'] = stmt.data[0][0]
+
         elif stmt.msg == bad_obs_msg:
             check_stmt_data(stmt, 'fact relationship check')
             results['obs']['bad'] = stmt.data[0][0]
@@ -236,6 +285,10 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
         elif stmt.msg == bad_visit_msg:
             check_stmt_data(stmt, 'fact relationship check')
             results['visit']['bad'] = stmt.data[0][0]
+
+        elif stmt.msg == bad_drug_msg:
+            check_stmt_data(stmt, 'fact relationship check')
+            results['drug']['bad'] = stmt.data[0][0]
 
         elif stmt.msg == bad_obs_1_msg:
             if len(stmt.data) > 0:
@@ -270,6 +323,18 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
         elif stmt.msg == bad_visit_2_msg:
             if len(stmt.data) > 0:
                 domain = 'visit'
+                field = 'fact_id_2'
+                sample = dict(zip(stmt.fields, stmt.data[0]))
+
+        elif stmt.msg == bad_drug_1_msg:
+            if len(stmt.data) > 0:
+                domain = 'drug'
+                field = 'fact_id_1'
+                sample = dict(zip(stmt.fields, stmt.data[0]))
+
+        elif stmt.msg == bad_drug_2_msg:
+            if len(stmt.data) > 0:
+                domain = 'drug'
                 field = 'fact_id_2'
                 sample = dict(zip(stmt.fields, stmt.data[0]))
 
@@ -314,9 +379,18 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
                                    ' visit references'},
                                   results['visit']))
 
+    if results['drug']['valid']:
+        logger.info({
+            'msg': 'all fact relationship drug references are valid'
+        })
+    else:
+        logger.warn(combine_dicts({'msg': 'fact relationship table has bad'
+                                   ' drug references'},
+                                  results['drug']))
+
     # Overall fact relationship validity.
     valid = (results['obs']['valid'] and results['meas']['valid'] and
-             results['visit']['valid'])
+             results['visit']['valid'] and results['drug']['valid'])
 
     # Output summary message.
     logger.info({'msg': 'finished fact relationship check', 'valid': valid,
