@@ -43,7 +43,7 @@ def _create_config_file(config_path, config_file, schema, table, password, conn_
         out_config.write('</src_rdb>' + os.linesep)
         out_config.write('output_measurement_table = measurement_bmi'+ os.linesep)
         out_config.write('person_finder_sql = select distinct person_id from ' + table + ' ')
-        out_config.write('where measurement_concept_id in (3013762, 3023540, 3036277)' + os.linesep)
+        out_config.write('where measurement_concept_id in (3013762, 3023540, 3036277, 3025315)' + os.linesep)
 
 
 def _make_index_name(table_name, column_name):
@@ -158,7 +158,7 @@ def _copy_to_dcc_table(conn_str, table):
     return True
 
 
-def run_bmi_calc(config_file, conn_str, site, copy, table, password, search_path, model_version):
+def run_bmi_calc(config_file, conn_str, site, copy, ids, concept, table, password, search_path, model_version):
     """Run the BMI tool.
 
     * Create config file
@@ -275,16 +275,18 @@ def run_bmi_calc(config_file, conn_str, site, copy, table, password, search_path
     logger.info({'msg': 'add indexes complete'})
 
     # add measurement_ids
-    okay = _add_measurement_ids(conn_str, site, search_path, model_version)
-    if not okay:
-        return False
+    if ids:
+        okay = _add_measurement_ids(conn_str, site, search_path, model_version)
+        if not okay:
+            return False
 
     # Add the concept_names
-    logger.info({'msg': 'add concept names'})
-    okay = _fill_concept_names(conn_str)
-    if not okay:
-        return False
-    logger.info({'msg': 'concept names added'})
+    if concept:
+        logger.info({'msg': 'add concept names'})
+        okay = _fill_concept_names(conn_str)
+        if not okay:
+            return False
+        logger.info({'msg': 'concept names added'})
 
     # Copy to the measurement table
     if copy:

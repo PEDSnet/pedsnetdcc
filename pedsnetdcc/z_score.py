@@ -231,7 +231,7 @@ def _copy_to_dcc_table(conn_str, schema, table, z_type):
     return True
 
 
-def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, search_path, model_version):
+def run_z_calc(z_type, config_file, conn_str, site, copy, ids, concept, table, password, search_path, model_version):
     """Run the Z Score tool.
 
     * Create config file
@@ -361,16 +361,18 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, table, password, searc
     logger.info({'msg': 'add indexes complete'})
 
     # add measurement_ids
-    okay = _add_measurement_ids(z_type, conn_str, site, search_path, model_version)
-    if not okay:
-        return False
+    if ids:
+        okay = _add_measurement_ids(z_type, conn_str, site, search_path, model_version)
+        if not okay:
+            return False
 
     # Add the concept_names
-    logger.info({'msg': 'add concept names'})
-    okay = _fill_concept_names(conn_str, schema, z_type)
-    if not okay:
-        return False
-    logger.info({'msg': 'concept names added'})
+    if concept:
+        logger.info({'msg': 'add concept names'})
+        okay = _fill_concept_names(conn_str, schema, z_type)
+        if not okay:
+            return False
+        logger.info({'msg': 'concept names added'})
 
     # Copy to the measurement table
     if copy:
