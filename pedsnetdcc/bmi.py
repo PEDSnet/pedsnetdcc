@@ -342,11 +342,11 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
         SET last_id = new.last_id + '{new_id_count}'::integer
         FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
     update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
-    create_seq_measurement_sql = "create sequence if not exists {0}.{1}_measurement_id_seq"
+    create_seq_measurement_sql = "create sequence if not exists {0}.{1}_bmi_measurement_id_seq"
     create_seq_measurement_msg = "creating measurement id sequence"
-    set_seq_number_sql = "alter sequence {0}.{1}_measurement_id_seq restart with {2};"
+    set_seq_number_sql = "alter sequence {0}.{1}_bmi_measurement_id_seq restart with {2};"
     set_seq_number_msg = "setting sequence number"
-    add_measurement_ids_sql = """update {0}.measurement_bmi set measurement_id = nextval('{0}.{1}_measurement_id_seq')
+    add_measurement_ids_sql = """update {0}.measurement_bmi set measurement_id = nextval('{0}.{1}_bmi_measurement_id_seq')
         where measurement_id is null"""
     add_measurement_ids_msg = "adding the measurement ids to the measurement_bmi table"
     pk_measurement_id_sql = "alter table {0}.measurement_bmi add primary key (measurement_id)"
