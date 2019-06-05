@@ -158,7 +158,7 @@ def _copy_to_dcc_table(conn_str, table):
     return True
 
 
-def run_bmi_calc(config_file, conn_str, site, copy, ids, concept, table, password, search_path, model_version):
+def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, search_path, model_version):
     """Run the BMI tool.
 
     * Create config file
@@ -174,6 +174,9 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, concept, table, passwor
     :param str conn_str:      database connection string
     :param str site:    site to run BMI for
     :param bool copy: if True, copy results to dcc_pedsnet.measurement_anthro
+    :param bool ids: if True, add measurement_ids to output table
+    :param bool indexes: if True, create indexes on output table
+    :param bool concept: if True, add concept names to output table
     :param str table:    name of input/copy table (measurement/measurement_anthro)
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
@@ -245,34 +248,35 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, concept, table, passwor
     derive_bmi(config_file[:-5], '--verbose=1', _cwd='/app', _fg=True)
 
     # Add indexes to measurement_bmi (same as measurement)
-    logger.info({'msg': 'begin add indexes'})
-    stmts.clear()
-    col_index = ('measurement_age_in_months', 'measurement_concept_id', 'measurement_date',
-                 'measurement_type_concept_id', 'person_id', 'site', 'visit_occurrence_id',
-                 'measurement_source_value', 'value_as_concept_id', 'value_as_number',)
+    if indexes:
+        logger.info({'msg': 'begin add indexes'})
+        stmts.clear()
+        col_index = ('measurement_age_in_months', 'measurement_concept_id', 'measurement_date',
+                     'measurement_type_concept_id', 'person_id', 'site', 'visit_occurrence_id',
+                     'measurement_source_value', 'value_as_concept_id', 'value_as_number',)
 
-    for col in col_index:
-        idx_name = _make_index_name('bmi', col)
-        idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.
-                                 format(idx_name, col))
-        stmts.add(idx_stmt)
+        for col in col_index:
+            idx_name = _make_index_name('bmi', col)
+            idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.
+                                     format(idx_name, col))
+            stmts.add(idx_stmt)
 
-    # Execute the statements in parallel.
-    stmts.parallel_execute(conn_str)
+        # Execute the statements in parallel.
+        stmts.parallel_execute(conn_str)
 
-    # Check for any errors and raise exception if they are found.
-    for stmt in stmts:
-        try:
-            check_stmt_err(stmt, 'Run BMI calculation')
-        except:
-            logger.error(combine_dicts({'msg': 'Fatal error',
-                                        'sql': stmt.sql,
-                                        'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'adding indexes failed',
-                                       'elapsed': secs_since(start_time)},
-                                      log_dict))
-            raise
-    logger.info({'msg': 'add indexes complete'})
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                check_stmt_err(stmt, 'Run BMI calculation')
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'adding indexes failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
+        logger.info({'msg': 'add indexes complete'})
 
     # add measurement_ids
     if ids:
