@@ -463,3 +463,42 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
 
     # If reached without error, then success!
     return True
+
+
+def copy_bmi_dcc(conn_str, site, table):
+    """Copy the bmi measurement table.
+
+    * Copy to the measurement table
+
+    :param str conn_str:      database connection string
+    :param str site:    site to run BMI for
+    :param str table:    name of input/copy table (measurement/measurement_anthro)
+    :param str search_path: PostgreSQL schema search path
+    :returns:                 True if the function succeeds
+    :rtype:                   bool
+    :raises DatabaseError:    if any of the statement executions cause errors
+    """
+
+    conn_info_dict = get_conn_info_dict(conn_str)
+
+    # Log start of the function and set the starting time.
+    log_dict = combine_dicts({'site': site, },
+                             conn_info_dict)
+    logger.info(combine_dicts({'msg': 'starting BMI calculation'},
+                              log_dict))
+    start_time = time.time()
+
+    # Copy to the measurement table
+
+    logger.info({'msg': 'copy bmi measurements to dcc_pedsnet'})
+    okay = _copy_to_dcc_table(conn_str, table)
+    if not okay:
+        return False
+    logger.info({'msg': 'bmi measurements copied to dcc_pedsnet'})
+
+    # Log end of function.
+    logger.info(combine_dicts({'msg': 'finished BMI copy',
+                               'elapsed': secs_since(start_time)}, log_dict))
+
+    # If reached without error, then success!
+    return True

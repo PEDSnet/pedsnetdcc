@@ -550,3 +550,51 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
 
     # If reached without error, then success!
     return True
+
+
+def copy_z_dcc(z_type, conn_str, site, table, search_path):
+    """Run the Z Score tool.
+
+    * Copy to the measurement table
+
+    :param str z_type:   type of Z score calculation (bmiz, htz, or wtz)
+    :param str conn_str:      database connection string
+    :param str site:    site to run BMI for
+    :param str table:    name of input/copy table (measurement/measurement_anthro)
+    :param str search_path: PostgreSQL schema search path
+    :returns:                 True if the function succeeds
+    :rtype:                   bool
+    :raises DatabaseError:    if any of the statement executions cause errors
+    """
+
+    if z_type == 'ht_z':
+        z_type_name ="Height-Z"
+    elif z_type == 'wt_z':
+        z_type_name = "Weight-Z"
+    else:
+        z_type_name = "BMI-Z"
+
+    conn_info_dict = get_conn_info_dict(conn_str)
+    logger_msg = '{0} {1} calculation'
+
+    # Log start of the function and set the starting time.
+    log_dict = combine_dicts({'site': site, },
+                             conn_info_dict)
+    logger.info(combine_dicts({'msg': logger_msg.format('Starting copy of', z_type_name)},
+                              log_dict))
+    start_time = time.time()
+    schema = primary_schema(search_path)
+
+    # Copy to the measurement table
+    logger.info({'msg': 'copy measurements to dcc_pedsnet'})
+    okay = _copy_to_dcc_table(conn_str, schema, table, z_type)
+    if not okay:
+        return False
+    logger.info({'msg': 'measurements copied to dcc_pedsnet'})
+
+    # Log end of function.
+    logger.info(combine_dicts({'msg': logger_msg.format('Finished copying', z_type_name),
+                               'elapsed': secs_since(start_time)}, log_dict))
+
+    # If reached without error, then success!
+    return True

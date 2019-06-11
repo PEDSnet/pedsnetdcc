@@ -586,3 +586,43 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
 
     # If reached without error, then success!
     return True
+
+
+def copy_era_dcc(era_type, conn_str, site, search_path):
+    """Run the Condition or Drug Era copy.
+
+    * Copy to dcc_pedsnet
+
+    :param str era_type:    type of derivation (condition or drug)
+    :param str conn_str:      database connection string
+    :param str site:    site to run derivation for
+    :param str search_path: PostgreSQL schema search path
+    :returns:                 True if the function succeeds
+    :rtype:                   bool
+    :raises DatabaseError:    if any of the statement executions cause errors
+    """
+
+    conn_info_dict = get_conn_info_dict(conn_str)
+
+    # Log start of the function and set the starting time.
+    logger_msg = '{0} {1} era calculation'
+    log_dict = combine_dicts({'site': site, },
+                             conn_info_dict)
+    logger.info(combine_dicts({'msg': logger_msg.format("start copying",era_type)},
+                              log_dict))
+    start_time = time.time()
+    schema = primary_schema(search_path)
+
+    # Copy to the dcc_pedsnet table
+    logger.info({'msg': 'copy {0}_era to dcc_pedsnet'.format(era_type)})
+    okay = _copy_to_dcc_table(conn_str, era_type, schema)
+    if not okay:
+        return False
+    logger.info({'msg': '{0}_era copied to dcc_pedsnet'.format(era_type)})
+
+    # Log end of function.
+    logger.info(combine_dicts({'msg': logger_msg.format("finished copying",era_type),
+                               'elapsed': secs_since(start_time)}, log_dict))
+
+    # If reached without error, then success!
+    return True
