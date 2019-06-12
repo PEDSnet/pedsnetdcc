@@ -407,7 +407,7 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
-    config_file = site + "_temp.conf"
+    config_file = site + "_bmi_temp.conf"
 
     ids = True
     if noids:
@@ -427,6 +427,7 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
     if not success:
         sys.exit(1)
 
+    config_file = site + "_bmiz_temp.conf"
     from pedsnetdcc.z_score import run_z_calc
     success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
                          model_version)
@@ -434,12 +435,14 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
     if not success:
         sys.exit(1)
 
+    config_file = site + "_htz_temp.conf"
     success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
                          model_version)
 
     if not success:
         sys.exit(1)
 
+    config_file = site + "_wtz_temp.conf"
     success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
                          model_version)
 
@@ -505,7 +508,7 @@ def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
-    config_file = site + "_temp.conf"
+    config_file = site + "_bmi_temp.conf"
 
     ids = True
     if noids:
@@ -607,7 +610,7 @@ def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, tabl
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
-    config_file = site + "_temp.conf"
+    config_file = site + "_bmiz_temp.conf"
 
     ids = True
     if noids:
@@ -639,7 +642,7 @@ def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, tabl
 @click.option('--table', required=True,
               help='Table to use for copy (measurement, measurement_anthro.')
 @click.argument('dburi')
-def copy_htz(pwprompt, searchpath, site, table, dburi):
+def copy_bmiz(pwprompt, searchpath, site, table, dburi):
     """Copy BMIZ table to dcc_pedsnet.
 
     The database should be specified using a DBURI:
@@ -709,7 +712,7 @@ def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
-    config_file = site + "_temp.conf"
+    config_file = site + "_htz_temp.conf"
 
     ids = True
     if noids:
@@ -811,7 +814,7 @@ def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
-    config_file = site + "_temp.conf"
+    config_file = site + "_wtz_temp.conf"
 
     ids = True
     if noids:
