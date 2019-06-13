@@ -688,7 +688,7 @@ def copy_bmiz(pwprompt, searchpath, site, table, dburi):
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
 def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
-    """Run all derivations.
+    """Run BMI and BMI-Z derivations.
 
     The steps are:
 
@@ -962,7 +962,7 @@ def copy_weight_z(pwprompt, searchpath, site, table, dburi):
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
 def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
-    """Run all derivations.
+    """Run height-z and weight-z.
 
     The steps are:
 
@@ -1025,7 +1025,7 @@ def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, t
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
 def run_drug_era(pwprompt, searchpath, site, copy, model_version, dburi):
-    """Run Weight-Z derivation.
+    """Run Drug Era derivation.
 
     The steps are:
 
@@ -1177,7 +1177,7 @@ def copy_condition_era(pwprompt, searchpath, site, dburi):
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
 def run_drug_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
-    """Run all derivations.
+    """Run Drug Condition.
 
     The steps are:
 
