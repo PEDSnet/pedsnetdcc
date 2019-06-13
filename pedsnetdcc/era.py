@@ -464,7 +464,7 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
         SET last_id = new.last_id + '{new_id_count}'::integer
         FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
     update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
-    create_seq_sql = "create sequence if not exists {0}.{1}_{2)_era_id_seq"
+    create_seq_sql = "create sequence if not exists {0}.{1}_{2}_era_id_seq"
     create_seq_msg = "creating {0} era id sequence"
     set_seq_number_sql = "alter sequence {0}.{1}_{2}_era_id_seq restart with {3};"
     set_seq_number_msg = "setting sequence number"
