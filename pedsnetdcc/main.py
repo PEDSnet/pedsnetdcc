@@ -44,13 +44,13 @@ def pedsnetdcc(logfmt, loglvl):
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
 @click.option('--searchpath', '-s', help='Schema search path in database.')
-@click.argument('dburi')
 @click.option('--site', required=True,
               help='PEDSnet site name to add to tables.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
 def post_load(searchpath, pwprompt, dburi, site, force, model_version):
     """Run all post load operations
 
@@ -407,7 +407,6 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
-    config_file = site + "_bmi_temp.conf"
 
     ids = True
     if noids:
@@ -421,6 +420,7 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
     if noconcept:
         concept = False
 
+    config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
     success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath, model_version)
 
@@ -462,6 +462,7 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
         sys.exit(1)
 
     sys.exit(0)
+
 
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
@@ -686,6 +687,76 @@ def copy_bmiz(pwprompt, searchpath, site, table, dburi):
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
+def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
+    """Run all derivations.
+
+    The steps are:
+
+      - Run BMI.
+      - Run BMIZ.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    ids = True
+    if noids:
+        ids = False
+
+    indexes = True
+    if noindexes:
+        indexes = False
+
+    concept = True
+    if noconcept:
+        concept = False
+
+    config_file = site + "_bmi_temp.conf"
+    from pedsnetdcc.bmi import run_bmi_calc
+    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath, model_version)
+
+    if not success:
+        sys.exit(1)
+
+    config_file = site + "_bmiz_temp.conf"
+    from pedsnetdcc.z_score import run_z_calc
+    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+                         model_version)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for the config file.')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to dcc_pedsnet.')
+@click.option('--noids', is_flag=True, default=False,
+              help='DO NOT add measurement ids.')
+@click.option('--noindexes', is_flag=True, default=False,
+              help='DO NOT add indexes.')
+@click.option('--noconcept', is_flag=True, default=False,
+              help='DO NOT add concept names.')
+@click.option('--table', required=True,
+              help='Table to use for input as well as copy (measurement, measurement_anthro.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
 def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
     """Run HEIGHT-Z derivation.
 
@@ -876,6 +947,77 @@ def copy_weight_z(pwprompt, searchpath, site, table, dburi):
               help='Prompt for database password.')
 @click.option('--searchpath', '-s', help='Schema search path in database.')
 @click.option('--site', required=True,
+              help='PEDSnet site name for the config file.')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to dcc_pedsnet.')
+@click.option('--noids', is_flag=True, default=False,
+              help='DO NOT add measurement ids.')
+@click.option('--noindexes', is_flag=True, default=False,
+              help='DO NOT add indexes.')
+@click.option('--noconcept', is_flag=True, default=False,
+              help='DO NOT add concept names.')
+@click.option('--table', required=True,
+              help='Table to use for input as well as copy (measurement, measurement_anthro.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
+    """Run all derivations.
+
+    The steps are:
+
+      - Run HeightZ.
+      - Run WeightZ
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    ids = True
+    if noids:
+        ids = False
+
+    indexes = True
+    if noindexes:
+        indexes = False
+
+    concept = True
+    if noconcept:
+        concept = False
+
+    from pedsnetdcc.z_score import run_z_calc
+
+    config_file = site + "_htz_temp.conf"
+    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+                         model_version)
+
+    if not success:
+        sys.exit(1)
+
+    config_file = site + "_wtz_temp.conf"
+    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+                         model_version)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
               help='PEDSnet site name for derivation.')
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to dcc_pedsnet')
@@ -1016,6 +1158,53 @@ def copy_condition_era(pwprompt, searchpath, site, dburi):
 
     from pedsnetdcc.era import copy_era_dcc
     success = copy_era_dcc("condition", conn_str, site, searchpath)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for the config file.')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to dcc_pedsnet.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def run_drug_condition_era(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
+    """Run all derivations.
+
+    The steps are:
+
+      - Run Drug Era
+      - Run Condition Era
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.era import run_era
+    success = run_era("drug", conn_str, site, copy, searchpath, model_version)
+
+    if not success:
+        sys.exit(1)
+
+    from pedsnetdcc.era import run_era
+    success = run_era("condition", conn_str, site, copy, searchpath, model_version)
 
     if not success:
         sys.exit(1)
