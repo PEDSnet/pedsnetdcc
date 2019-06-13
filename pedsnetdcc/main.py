@@ -1176,7 +1176,7 @@ def copy_condition_era(pwprompt, searchpath, site, dburi):
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_drug_condition_era(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
+def run_drug_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
     """Run all derivations.
 
     The steps are:
