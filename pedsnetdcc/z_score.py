@@ -575,7 +575,7 @@ def copy_z_dcc(z_type, conn_str, site, table, search_path):
         z_type_name = "BMI-Z"
 
     conn_info_dict = get_conn_info_dict(conn_str)
-    logger_msg = '{0} {1} calculation'
+    logger_msg = '{0} {1} entries'
 
     # Log start of the function and set the starting time.
     log_dict = combine_dicts({'site': site, },

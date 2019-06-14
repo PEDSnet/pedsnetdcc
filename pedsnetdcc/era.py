@@ -605,7 +605,7 @@ def copy_era_dcc(era_type, conn_str, site, search_path):
     conn_info_dict = get_conn_info_dict(conn_str)
 
     # Log start of the function and set the starting time.
-    logger_msg = '{0} {1} era calculation'
+    logger_msg = '{0} {1} era entries'
     log_dict = combine_dicts({'site': site, },
                              conn_info_dict)
     logger.info(combine_dicts({'msg': logger_msg.format("start copying",era_type)},
