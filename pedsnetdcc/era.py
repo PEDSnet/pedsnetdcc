@@ -464,11 +464,11 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
         SET last_id = new.last_id + '{new_id_count}'::integer
         FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
     update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
-    create_seq_sql = "create sequence if not exists {0}.{1}_era_id_seq"
+    create_seq_sql = "create sequence if not exists {0}.{1}_{2}_era_id_seq"
     create_seq_msg = "creating {0} era id sequence"
-    set_seq_number_sql = "alter sequence {0}.{1}_era_id_seq restart with {2};"
+    set_seq_number_sql = "alter sequence {0}.{1}_{2}_era_id_seq restart with {3};"
     set_seq_number_msg = "setting sequence number"
-    add_era_ids_sql = """update {0}.{1}_era set {1}_era_id = nextval('{0}.{1}_era_id_seq')
+    add_era_ids_sql = """update {0}.{1}_era set {1}_era_id = nextval('{0}.{2}_{1}_era_id_seq')
         where {1}_era_id is null"""
     add_era_ids_msg = "adding the measurement ids to the {0}_era table"
     pk_era_id_sql = "alter table {0}.{1}_era add primary key ({1}_era_id)"
@@ -542,7 +542,7 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     logger.info({'msg': 'begin id sequence creation'})
 
     # Create the id sequence (if it doesn't exist)
-    era_seq_stmt = Statement(create_seq_sql.format(schema, era_type),
+    era_seq_stmt = Statement(create_seq_sql.format(schema, site, era_type),
                                       create_seq_msg.format(era_type))
 
     # Execute the create the era id sequence statement and ensure it didn't error
@@ -552,7 +552,7 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
 
     # Set the sequence number
     logger.info({'msg': 'begin set sequence number'})
-    seq_number_set_stmt = Statement(set_seq_number_sql.format(schema, era_type, tpl_vars['old_last_id']),
+    seq_number_set_stmt = Statement(set_seq_number_sql.format(schema, site, era_type, tpl_vars['old_last_id']),
                                     set_seq_number_msg)
 
     # Execute the set the sequence number statement and ensure it didn't error
@@ -562,7 +562,7 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
 
     # Add the measurement ids
     logger.info({'msg': 'begin adding ids'})
-    add_era_ids_stmt = Statement(add_era_ids_sql.format(schema, era_type),
+    add_era_ids_stmt = Statement(add_era_ids_sql.format(schema, era_type, site),
                                          add_era_ids_msg.format(era_type))
 
     # Execute the add the era ids statement and ensure it didn't error
@@ -582,6 +582,46 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished adding {0} era ids for the {0}_era table'.format(era_type),
+                               'elapsed': secs_since(start_time)}, log_dict))
+
+    # If reached without error, then success!
+    return True
+
+
+def copy_era_dcc(era_type, conn_str, site, search_path):
+    """Run the Condition or Drug Era copy.
+
+    * Copy to dcc_pedsnet
+
+    :param str era_type:    type of derivation (condition or drug)
+    :param str conn_str:      database connection string
+    :param str site:    site to run derivation for
+    :param str search_path: PostgreSQL schema search path
+    :returns:                 True if the function succeeds
+    :rtype:                   bool
+    :raises DatabaseError:    if any of the statement executions cause errors
+    """
+
+    conn_info_dict = get_conn_info_dict(conn_str)
+
+    # Log start of the function and set the starting time.
+    logger_msg = '{0} {1} era entries'
+    log_dict = combine_dicts({'site': site, },
+                             conn_info_dict)
+    logger.info(combine_dicts({'msg': logger_msg.format("start copying",era_type)},
+                              log_dict))
+    start_time = time.time()
+    schema = primary_schema(search_path)
+
+    # Copy to the dcc_pedsnet table
+    logger.info({'msg': 'copy {0}_era to dcc_pedsnet'.format(era_type)})
+    okay = _copy_to_dcc_table(conn_str, era_type, schema)
+    if not okay:
+        return False
+    logger.info({'msg': '{0}_era copied to dcc_pedsnet'.format(era_type)})
+
+    # Log end of function.
+    logger.info(combine_dicts({'msg': logger_msg.format("finished copying",era_type),
                                'elapsed': secs_since(start_time)}, log_dict))
 
     # If reached without error, then success!
