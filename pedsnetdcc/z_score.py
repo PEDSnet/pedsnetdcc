@@ -429,11 +429,11 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
         SET last_id = new.last_id + '{new_id_count}'::integer
         FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
     update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
-    create_seq_measurement_sql = "create sequence if not exists {0}.{1}_measurement_id_seq"
+    create_seq_measurement_sql = "create sequence if not exists {0}.{1}_{2}_measurement_id_seq"
     create_seq_measurement_msg = "creating measurement id sequence"
-    set_seq_number_sql = "alter sequence {0}.{1}_measurement_id_seq restart with {2};"
+    set_seq_number_sql = "alter sequence {0}.{1}_{2}_measurement_id_seq restart with {3};"
     set_seq_number_msg = "setting sequence number"
-    add_measurement_ids_sql = """update {0}.measurement_{1} set measurement_id = nextval('{0}.{2}_measurement_id_seq')
+    add_measurement_ids_sql = """update {0}.measurement_{1} set measurement_id = nextval('{0}.{2}_{1}_measurement_id_seq')
         where measurement_id is null"""
     add_measurement_ids_msg = "adding the measurement ids to the measurement_{0} table"
     pk_measurement_id_sql = "alter table {0}.measurement_{1} add primary key (measurement_id)"
@@ -506,7 +506,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
 
     logger.info({'msg': 'begin measurement id sequence creation'})
     # Create the measurement id sequence (if it doesn't exist)
-    measurement_seq_stmt = Statement( create_seq_measurement_sql.format(schema, site),
+    measurement_seq_stmt = Statement( create_seq_measurement_sql.format(schema, site, z_type),
                                       create_seq_measurement_msg)
 
     # Execute the create the measurement id sequence statement and ensure it didn't error
@@ -516,7 +516,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
 
     # Set the sequence number
     logger.info({'msg': 'begin set sequence number'})
-    seq_number_set_stmt = Statement(set_seq_number_sql.format(schema, site, tpl_vars['old_last_id']),
+    seq_number_set_stmt = Statement(set_seq_number_sql.format(schema, site, z_type, tpl_vars['old_last_id']),
                                     set_seq_number_msg)
 
     # Execute the set the sequence number statement and ensure it didn't error
@@ -546,6 +546,54 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished adding measurement ids',
+                               'elapsed': secs_since(start_time)}, log_dict))
+
+    # If reached without error, then success!
+    return True
+
+
+def copy_z_dcc(z_type, conn_str, site, table, search_path):
+    """Run the Z Score tool.
+
+    * Copy to the measurement table
+
+    :param str z_type:   type of Z score calculation (bmiz, htz, or wtz)
+    :param str conn_str:      database connection string
+    :param str site:    site to run BMI for
+    :param str table:    name of input/copy table (measurement/measurement_anthro)
+    :param str search_path: PostgreSQL schema search path
+    :returns:                 True if the function succeeds
+    :rtype:                   bool
+    :raises DatabaseError:    if any of the statement executions cause errors
+    """
+
+    if z_type == 'ht_z':
+        z_type_name ="Height-Z"
+    elif z_type == 'wt_z':
+        z_type_name = "Weight-Z"
+    else:
+        z_type_name = "BMI-Z"
+
+    conn_info_dict = get_conn_info_dict(conn_str)
+    logger_msg = '{0} {1} entries'
+
+    # Log start of the function and set the starting time.
+    log_dict = combine_dicts({'site': site, },
+                             conn_info_dict)
+    logger.info(combine_dicts({'msg': logger_msg.format('Starting copy of', z_type_name)},
+                              log_dict))
+    start_time = time.time()
+    schema = primary_schema(search_path)
+
+    # Copy to the measurement table
+    logger.info({'msg': 'copy measurements to dcc_pedsnet'})
+    okay = _copy_to_dcc_table(conn_str, schema, table, z_type)
+    if not okay:
+        return False
+    logger.info({'msg': 'measurements copied to dcc_pedsnet'})
+
+    # Log end of function.
+    logger.info(combine_dicts({'msg': logger_msg.format('Finished copying', z_type_name),
                                'elapsed': secs_since(start_time)}, log_dict))
 
     # If reached without error, then success!
