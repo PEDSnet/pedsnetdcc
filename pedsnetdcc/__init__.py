@@ -74,6 +74,7 @@ ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
     'drug_era',
     'drug_exposure',
     'location',
+    'location_history',
     'immunization',
     'measurement',
     'measurement_organism',

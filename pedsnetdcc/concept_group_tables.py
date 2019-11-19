@@ -11,7 +11,7 @@ def create_index_replacement_tables(conn_str, model_version):
     logger = logging.getLogger(__name__)
     create_by_table = {
         'condition_occurrence': ('condition_source_value', 'condition_concept_name',),
-        'drug_exposure': ('drug_concept_name',),
+        'drug_exposure': ('drug_source_value','drug_concept_name',),
         'measurement': ('measurement_source_value', 'measurement_concept_name',),
         'procedure_occurrence': ('procedure_concept_name', 'procedure_source_value',),
     }
