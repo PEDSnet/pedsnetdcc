@@ -142,21 +142,22 @@ def merge_site_data(model_version, conn_str, force=False):
         stmts.add(Statement(sql, 'merge site {0} data into dcc schema'.
                             format(table_name)))
 
+
     # Execute the merge statements in parallel.
     stmts.parallel_execute(conn_str)
 
     # Check the statements for any errors and log and raise if found.
-    for stmt in stmts:
-        try:
-            _check_stmt_err(stmt, force)
-        except:
-            logger.error(combine_dicts({'msg': 'fatal error in {0}'.
-                                        format(task), 'sql': stmt.sql,
-                                        'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': '{0} failed'.format(task),
-                                       'elapsed': secs_since(start_time)},
-                                      log_dict))
-            raise
+    # for stmt in stmts:
+    #    try:
+    #         _check_stmt_err(stmt, force)
+    #    except:
+    #         logger.error(combine_dicts({'msg': 'fatal error in {0}'.
+    #                                     format(task), 'sql': stmt.sql,
+    #                                     'err': str(stmt.err)}, log_dict))
+    #         logger.info(combine_dicts({'msg': '{0} failed'.format(task),
+    #                                    'elapsed': secs_since(start_time)},
+    #                                   log_dict))
+    #         raise
 
     # Set tables logged.
     set_logged(conn_str, model_version)
