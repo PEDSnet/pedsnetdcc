@@ -76,7 +76,7 @@ def _check_stmt_err(stmt, force):
     raise stmt.err
 
 
-def merge_site_data(model_version, conn_str, force=False):
+def merge_site_data(model_version, conn_str, force=False, notable=False, nolog=False):
     """Merge data from site schemas into the DCC schema
 
     Any schema passed with the conn_str is ignored. The user and password must
@@ -88,6 +88,8 @@ def merge_site_data(model_version, conn_str, force=False):
     :param str model_version: PEDSnet model version, e.g. X.Y.Z
     :param str conn_str:      libpq connection string
     :param bool force:        ignore benign errors if true; see https://github.com/PEDSnet/pedsnetdcc/issues/10
+    :param bool notable:      skip creating tables is they already exist
+    :param bool nolog:        skip setting tables to logged if already done
     :return:                  True on success, False otherwise
     :rtype:                   bool
     :raises RuntimeError:     If any of the sql statements cause an error
@@ -143,10 +145,11 @@ def merge_site_data(model_version, conn_str, force=False):
                             format(table_name)))
 
 
-    # Execute the merge statements in parallel.
-    stmts.parallel_execute(conn_str)
+    # Execute the merge statements in parallel if not alreadsy done.
+    if not notable:
+        stmts.parallel_execute(conn_str)
 
-    # Check the statements for any errors and log and raise if found.
+    # # Check the statements for any errors and log and raise if found.
     # for stmt in stmts:
     #    try:
     #         _check_stmt_err(stmt, force)
@@ -159,8 +162,9 @@ def merge_site_data(model_version, conn_str, force=False):
     #                                   log_dict))
     #         raise
 
-    # Set tables logged.
-    set_logged(conn_str, model_version)
+    # Set tables logged if not already done.
+    if not nolog:
+        set_logged(conn_str, model_version)
 
     # Add primary keys, not nulls, indexes, drop unneeded indexes, add foreign keys.
     # Create new tables to replace concept name/source value indexes

@@ -7,6 +7,7 @@ class AddIndexTransform(Transform):
         'adt_occurrence': ('person_id', 'adt_date',),
         'care_site': ('place_of_service_concept_id', 'specialty_concept_id',),
         'condition_occurrence': ('condition_start_date', 'condition_type_concept_id',),
+        'device_exposure': ('device_type_concept_id', 'device_exposure_start_date',),
         'drug_exposure': ('drug_type_concept_id', 'drug_exposure_start_date',),
         'fact_relationship': ('fact_id_1', 'fact_id_2',),
         'location': ('zip', 'state',),

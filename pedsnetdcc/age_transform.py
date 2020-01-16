@@ -49,6 +49,7 @@ class AgeTransform(Transform):
     columns_by_table = {
         'condition_occurrence': ('condition_start_datetime',),
         'death': ('death_datetime',),
+        'device_exposure': ('device_exposure_start_datetime',),
         'drug_exposure': ('drug_exposure_start_datetime',),
         'measurement': ('measurement_datetime', 'measurement_result_datetime'),
         'procedure_occurrence': ('procedure_datetime',),

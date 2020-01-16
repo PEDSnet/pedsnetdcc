@@ -9,6 +9,7 @@ class ConceptNameTransform(Transform):
         'care_site': ('specialty_concept_name','place_of_service_concept_name',),
         'condition_occurrence': ('condition_source_concept_name', 'condition_status_concept_name',
                                  'condition_type_concept_name', 'poa_concept_name', 'condition_concept_name'),
+        'device_exposure': ('device_source_concept_name', 'device_concept_name',),
         'drug_exposure': ('dispense_as_written_concept_name', 'dose_unit_concept_name',
                           'drug_source_concept_name', 'drug_type_concept_name', 'route_concept_name',
                           'drug_concept_name',),

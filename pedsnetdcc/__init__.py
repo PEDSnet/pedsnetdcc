@@ -88,6 +88,7 @@ INDEX_REPLACEMENT_TABLES = (
     'condition_occurrence_concept_name',
     'condition_occurrence_source_value,'
     'drug_exposure_concept_name',
+    'drug_exposure_source_value',
     'measurement_concept_name',
     'measurement_source_value'
 )

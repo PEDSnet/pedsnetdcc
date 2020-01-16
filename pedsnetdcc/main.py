@@ -275,18 +275,70 @@ def transform(pwprompt, searchpath, site, force, model_version, undo, dburi):
 
     sys.exit(0)
 
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name to add to tables.')
+@click.option('--force', is_flag=True, default=False,
+              help='Ignore any "already exists" errors from the database.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--table', required=True,
+              help='table to transform.')
+@click.option('--undo', is_flag=True, default=False,
+              help='Replace transformed tables with backup tables.')
+@click.argument('dburi')
+def age_transform(pwprompt, searchpath, site, force, model_version, table, undo, dburi):
+    """Transform PEDSnet data into the DCC format.
+
+    Using the hard-coded set of transformations in this tool, transform data
+    from the given PEDSnet model version format into the DCC format. Existing
+    tables are backed up to a new '<searchpath>_backup' schema.
+
+    The currently defined transformations are:
+
+      - Add '_age_in_months' columns alongside specified time columns.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    if not undo:
+        from pedsnetdcc.transform_runner import run_age_transformation
+        success = run_age_transformation(conn_str, model_version, site, searchpath, table, force)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
 
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
+@click.option('--notable', is_flag=True, default=False,
+              help='Skip the union when tables already exist.')
+@click.option('--nolog', is_flag=True, default=False,
+              help='Skip set logged if already done.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--undo', is_flag=True, default=False,
               help='Remove merged DCC data tables.')
 @click.argument('dburi')
-def merge(pwprompt, force, model_version, undo, dburi):
+def merge(pwprompt, force, notable, nolog, model_version, undo, dburi):
     """Merge site data into a single, aggregated DCC dataset
 
     Site data from the site data schemas (named like '<site>_pedsnet') into the
@@ -306,7 +358,7 @@ def merge(pwprompt, force, model_version, undo, dburi):
 
     if not undo:
         from pedsnetdcc.merge_site_data import merge_site_data
-        success = merge_site_data(model_version, conn_str, force)
+        success = merge_site_data(model_version, conn_str, force, notable, nolog)
     else:
         from pedsnetdcc.merge_site_data import clear_dcc_data
         success = clear_dcc_data(model_version, conn_str, force)
