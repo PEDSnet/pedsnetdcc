@@ -39,8 +39,9 @@ def create_index_replacement_tables(conn_str, model_version):
                 col_id = '_'.join(col.split('_')[0:1]) + '_concept_id'
             create_stmt = Statement(create_concept_group_sql.format(new_tbl_name, col, col_id, tbl))
             table_stmts.add(create_stmt)
-            pk_stmt = Statement(pk_concept_group_sql.format(new_tbl_name, col, col_id))
-            pk_stmts.add(pk_stmt)
+            if new_tbl_name != "drug_exposure_source_value":
+                pk_stmt = Statement(pk_concept_group_sql.format(new_tbl_name, col, col_id))
+                pk_stmts.add(pk_stmt)
 
     logger.info({'msg': 'begin creating index replacement tables'})
 

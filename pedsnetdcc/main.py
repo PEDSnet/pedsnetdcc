@@ -333,12 +333,26 @@ def age_transform(pwprompt, searchpath, site, force, model_version, table, undo,
               help='Skip the union when tables already exist.')
 @click.option('--nolog', is_flag=True, default=False,
               help='Skip set logged if already done.')
+@click.option('--nopk', is_flag=True, default=False,
+              help='Skip primary keys if already exist.')
+@click.option('--nonull', is_flag=True, default=False,
+              help='Skip set not null if already done.')
+@click.option('--noidx', is_flag=True, default=False,
+              help='Skip indexes if already exist.')
+@click.option('--nodrop', is_flag=True, default=False,
+              help='Skip drop unused indexes if already done.')
+@click.option('--norep', is_flag=True, default=False,
+              help='Skip index replacement tables if already exist.')
+@click.option('--nofk', is_flag=True, default=False,
+              help='Skip foreign keys if already exist.')
+@click.option('--novac', is_flag=True, default=False,
+              help='Skip vaccuum if already done.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--undo', is_flag=True, default=False,
               help='Remove merged DCC data tables.')
 @click.argument('dburi')
-def merge(pwprompt, force, notable, nolog, model_version, undo, dburi):
+def merge(pwprompt, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, nofk, novac, model_version, undo, dburi):
     """Merge site data into a single, aggregated DCC dataset
 
     Site data from the site data schemas (named like '<site>_pedsnet') into the
@@ -358,10 +372,72 @@ def merge(pwprompt, force, notable, nolog, model_version, undo, dburi):
 
     if not undo:
         from pedsnetdcc.merge_site_data import merge_site_data
-        success = merge_site_data(model_version, conn_str, force, notable, nolog)
+        success = merge_site_data(model_version, conn_str, force, notable, nolog, nopk,
+                                  nonull, noidx, nodrop, norep, nofk, novac)
     else:
         from pedsnetdcc.merge_site_data import clear_dcc_data
         success = clear_dcc_data(model_version, conn_str, force)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--schema', required=True,
+              help='schema to merge into.')
+@click.option('--force', is_flag=True, default=False,
+              help='Ignore any "already exists" errors from the database.')
+@click.option('--notable', is_flag=True, default=False,
+              help='Skip the union when tables already exist.')
+@click.option('--nolog', is_flag=True, default=False,
+              help='Skip set logged if already done.')
+@click.option('--nopk', is_flag=True, default=False,
+              help='Skip primary keys if already exist.')
+@click.option('--nonull', is_flag=True, default=False,
+              help='Skip set not null if already done.')
+@click.option('--noidx', is_flag=True, default=False,
+              help='Skip indexes if already exist.')
+@click.option('--nodrop', is_flag=True, default=False,
+              help='Skip drop unused indexes if already done.')
+@click.option('--norep', is_flag=True, default=False,
+              help='Skip index replacement tables if already exist.')
+@click.option('--nofk', is_flag=True, default=False,
+              help='Skip foreign keys if already exist.')
+@click.option('--novac', is_flag=True, default=False,
+              help='Skip vaccuum if already done.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--undo', is_flag=True, default=False,
+              help='Remove merged DCC data tables.')
+@click.argument('dburi')
+def merge_schema(pwprompt, schema, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, nofk, novac, model_version, undo, dburi):
+    """Merge site data into a single, aggregated DCC dataset
+
+    Site data from the site data schemas (named like '<site>_pedsnet') into the
+    DCC data schema (named 'dcc_pedsnet'). The `transform` command must have
+    already been run on each of the site data sets.
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, '', password)
+
+    if not undo:
+        from pedsnetdcc.merge_site_data import merge_data_to_schema
+        success = merge_data_to_schema(model_version, conn_str, schema, force, notable, nolog, nopk,
+                                       nonull, noidx, nodrop, norep, nofk, novac)
+    else:
+        from pedsnetdcc.merge_site_data import clear_schema_data
+        success = clear_schema_data(model_version, conn_str, schema, force)
 
     if not success:
         sys.exit(1)
