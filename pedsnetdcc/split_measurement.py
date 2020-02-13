@@ -267,7 +267,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
     # Set permissions
     stmts.clear()
     logger.info({'msg': 'setting permissions'})
-    users = ('harvest_user', 'achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff')
+    users = ('achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff')
     for measure_like_table in measure_like_tables:
         for usr in users:
             grant_stmt = Statement(GRANT_MEASURE_LIKE_TABLE_SQL.format(schema, measure_like_table, usr))

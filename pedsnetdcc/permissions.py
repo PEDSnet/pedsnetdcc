@@ -12,21 +12,18 @@ logger = logging.getLogger(__name__)
 
 PREP_DB_SQL_TEMPLATE = """
 grant all on schema {{.Site}}_pcornet to loading_user with grant option;
-grant all on schema {{.Site}}_harvest to loading_user with grant option;
-grant all on schema {{.Site}}_achilles to loading_user with grant option;
 """
 
 # SQL template for creating site schemas in an internal database instance.
 PERMISSIONS_SQL_TEMPLATE = """
-grant usage  on               schema {{.Site}}_pedsnet  to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
-grant select on all tables in schema {{.Site}}_pedsnet  to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
+grant usage  on               schema {{.Site}}_pedsnet  to achilles_user, dqa_user, pcor_et_user, peds_staff;
+grant select on all tables in schema {{.Site}}_pedsnet  to achilles_user, dqa_user, pcor_et_user, peds_staff;
 grant all    on               schema {{.Site}}_pedsnet  to loading_user;
 grant all    on               schema {{.Site}}_pcornet  to pcor_et_user;
 grant usage  on               schema {{.Site}}_pcornet  to peds_staff;
 grant select on all tables in schema {{.Site}}_pcornet  to peds_staff;
-grant all    on               schema {{.Site}}_harvest  to harvest_user;
 grant all    on               schema {{.Site}}_achilles to achilles_user;
-alter default privileges for role loading_user in schema {{.Site}}_pedsnet grant select on tables to harvest_user, achilles_user, dqa_user, pcor_et_user, peds_staff;
+alter default privileges for role loading_user in schema {{.Site}}_pedsnet grant select on tables to achilles_user, dqa_user, pcor_et_user, peds_staff;
 alter default privileges for role loading_user in schema {{.Site}}_pcornet grant select on tables to peds_staff;
 """
 
@@ -38,9 +35,9 @@ alter default privileges for role loading_user in schema {{.Site}}_id_maps grant
 VOCABULARY_PERMISSIONS_SQL_TEMPL = """
 grant all                  on schema dcc_ids    to loading_user;
 grant all                  on schema vocabulary to loading_user;
-grant usage                on schema vocabulary to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
-grant select on all tables in schema vocabulary to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
-alter default privileges for role loading_user in schema vocabulary grant select on tables to achilles_user, dqa_user, pcor_et_user, harvest_user, peds_staff;
+grant usage                on schema vocabulary to achilles_user, dqa_user, pcor_et_user, peds_staff;
+grant select on all tables in schema vocabulary to achilles_user, dqa_user, pcor_et_user, peds_staff;
+alter default privileges for role loading_user in schema vocabulary grant select on tables to achilles_user, dqa_user, pcor_et_user, peds_staff;
 """
 
 def _loading_user_privileges_sql(site):
@@ -102,7 +99,7 @@ def _vocabulary_permissions_sql():
     return [_despace(x) for x in sql.split("\n") if x]
 
 def grant_loading_user_permissions(conn_str, inc_external = False):
-    """Grant loading_user grant permissions for pcornet, achilles, harvest
+    """Grant loading_user grant permissions for pcornet
 
     :param conn_str: connection string to database
     :type: str

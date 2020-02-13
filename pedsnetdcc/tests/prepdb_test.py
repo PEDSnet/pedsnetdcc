@@ -70,7 +70,7 @@ def tearDownModule(self):
 
 class TestPrepareDatabase(unittest.TestCase):
 
-    roles = ('peds_staff', 'harvest_user', 'achilles_user', 'dqa_user',
+    roles = ('peds_staff', 'achilles_user', 'dqa_user',
              'pcor_et_user', 'loading_user', 'dcc_owner', 'pcornet_sas')
 
     def create_roles(self):
@@ -122,8 +122,7 @@ class TestPrepareDatabase(unittest.TestCase):
 
         # Make a list of expected schemas
         schema_list = []
-        schema_suffixes = ('achilles', 'harvest', 'pcornet', 'pedsnet',
-                           'id_maps')
+        schema_suffixes = ('pcornet', 'pedsnet', 'id_maps')
 
         for site in _sites_and_dcc(dcc_only=dcc_only):
             for schema_suffix in schema_suffixes:

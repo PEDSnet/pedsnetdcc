@@ -94,8 +94,6 @@ def _create_database_sql(database_name):
 SQL_SITE_TEMPLATE = """
 create schema if not exists {{.Site}}_pedsnet  authorization dcc_owner;
 create schema if not exists {{.Site}}_pcornet  authorization dcc_owner;
-create schema if not exists {{.Site}}_harvest  authorization dcc_owner;
-create schema if not exists {{.Site}}_achilles authorization dcc_owner;
 """
 
 SQL_ID_MAPS_TEMPLATE = """create schema if not exists {{.Site}}_id_maps authorization dcc_owner;"""
@@ -145,8 +143,6 @@ def _delete_external_schemas(conn_str, site):
     delete_schemas_sql = """
     DROP SCHEMA {0}_pedsnet CASCADE;
     DROP SCHEMA {0}_pcornet CASCADE;
-    DROP SCHEMA {0}_harvest CASCADE;
-    DROP SCHEMA {0}_achilles CASCADE;
     """
     delete_schemas_msg = "cleaning up unused {0} schemas"
 
