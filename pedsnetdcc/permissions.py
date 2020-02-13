@@ -22,7 +22,6 @@ grant all    on               schema {{.Site}}_pedsnet  to loading_user;
 grant all    on               schema {{.Site}}_pcornet  to pcor_et_user;
 grant usage  on               schema {{.Site}}_pcornet  to peds_staff;
 grant select on all tables in schema {{.Site}}_pcornet  to peds_staff;
-grant all    on               schema {{.Site}}_achilles to achilles_user;
 alter default privileges for role loading_user in schema {{.Site}}_pedsnet grant select on tables to achilles_user, dqa_user, pcor_et_user, peds_staff;
 alter default privileges for role loading_user in schema {{.Site}}_pcornet grant select on tables to peds_staff;
 """
