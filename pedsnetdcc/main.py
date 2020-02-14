@@ -1624,6 +1624,48 @@ def vocab_indexes(pwprompt, searchpath, force, model_version, dburi):
     sys.exit(0)
 
 
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for the config file.')
+@click.option('--package', required=True,
+              help='R package to run.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def run_r_test(pwprompt, searchpath, site, package, model_version, dburi):
+    """Run R Script.
+
+    The steps are:
+
+      - Create the Argos file.
+      - Run the script.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+    config_file = site + "_" + package + "_argos_temp.json"
+
+    from pedsnetdcc.r_test import run_r_test
+    success = run_r_test(config_file, conn_str, site, package, password, searchpath, model_version)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
 @pedsnetdcc.command()		  
 @click.argument('dburi', required=True)		 
 @click.option('--pwprompt', '-p', is_flag=True, default=False)
