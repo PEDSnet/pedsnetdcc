@@ -30,7 +30,21 @@ def _create_argos_file(config_path, config_file, schema, password, conn_info_dic
         out_config.write('}' + os.linesep)
 
 
-def run_r_test(config_file, conn_str, site, package, password, search_path, model_version):
+def _fix_site_info(config_path, site):
+    try:
+        with open(os.path.join(config_path,'site','site_info.R'), 'r') as site_file:
+            site_data = site_file.read()
+        site_data = site_data.replace('<SITE>', site)
+        with open(os.path.join(config_path,'site','site_info.R'), 'w') as site_file:
+            site_file.write(site_data)
+    except:
+        # this query package may not have this file
+        return False
+
+    return True
+
+
+def run_r_query(config_file, conn_str, site, package, password, search_path, model_version):
     """Run an R script.
 
     * Create argos file
@@ -65,6 +79,7 @@ def run_r_test(config_file, conn_str, site, package, password, search_path, mode
     # create the congig file
     config_path = "/app/" + package
     _create_argos_file(config_path, config_file, schema, password, conn_info_dict)
+    _fix_site_info(config_path, site)
 
     # Add a creation statement.
     stmts = StatementSet()

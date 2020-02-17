@@ -1635,7 +1635,7 @@ def vocab_indexes(pwprompt, searchpath, force, model_version, dburi):
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_r_test(pwprompt, searchpath, site, package, model_version, dburi):
+def run_r_query(pwprompt, searchpath, site, package, model_version, dburi):
     """Run R Script.
 
     The steps are:
@@ -1657,8 +1657,8 @@ def run_r_test(pwprompt, searchpath, site, package, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
     config_file = site + "_" + package + "_argos_temp.json"
 
-    from pedsnetdcc.r_test import run_r_test
-    success = run_r_test(config_file, conn_str, site, package, password, searchpath, model_version)
+    from pedsnetdcc.r_query import run_r_query
+    success = run_r_query(config_file, conn_str, site, package, password, searchpath, model_version)
 
     if not success:
         sys.exit(1)
