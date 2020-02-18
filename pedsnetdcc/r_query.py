@@ -90,7 +90,7 @@ def run_r_query(config_file, conn_str, site, package, password, search_path, mod
         pass_match = re.search(r"password=(\S*)", conn_str)
         password = pass_match.group(1)
 
-    source_path = os.path.join('/app', package)
+    source_path = os.path.join(os.sep,'app', package)
     dest_path = os.path.join(source_path, site)
     # delete any old versions
     if os.path.isdir(dest_path):
@@ -103,7 +103,7 @@ def run_r_query(config_file, conn_str, site, package, password, search_path, mod
     _fix_site_info(dest_path, site)
     _fix_run(dest_path, site)
 
-    query_path = os.path.join('/app', package, site, 'site/run.R')
+    query_path = os.path.join(os.sep,'app', package, site, 'site', 'run.R')
     # Run R script
     Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
 
