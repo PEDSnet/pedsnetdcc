@@ -1,6 +1,6 @@
 import logging
 import time
-import hashlib
+import shutil
 import os
 import re
 
@@ -30,13 +30,27 @@ def _create_argos_file(config_path, config_file, schema, password, conn_info_dic
         out_config.write('}' + os.linesep)
 
 
-def _fix_site_info(config_path, site):
+def _fix_site_info(file_path, site):
     try:
-        with open(os.path.join(config_path,'site','site_info.R'), 'r') as site_file:
-            site_data = site_file.read()
-        site_data = site_data.replace('<SITE>', site)
-        with open(os.path.join(config_path,'site','site_info.R'), 'w') as site_file:
-            site_file.write(site_data)
+        with open(os.path.join(file_path,'site','site_info.R'), 'r') as site_file:
+            file_data = site_file.read()
+        file_data = file_data.replace('<SITE>', site)
+        with open(os.path.join(file_path,'site','site_info.R'), 'w') as site_file:
+            site_file.write(file_data)
+    except:
+        # this query package may not have this file
+        return False
+
+    return True
+
+
+def _fix_run(file_path, site):
+    try:
+        with open(os.path.join(file_path,'site','run.R'), 'r') as site_file:
+            file_data = site_file.read()
+        file_data = file_data.replace('<SITE>', site)
+        with open(os.path.join(file_path,'site','run.R'), 'w') as site_file:
+            site_file.write(file_data)
     except:
         # this query package may not have this file
         return False
@@ -76,16 +90,25 @@ def run_r_query(config_file, conn_str, site, package, password, search_path, mod
         pass_match = re.search(r"password=(\S*)", conn_str)
         password = pass_match.group(1)
 
-    # create the congig file
-    config_path = "/app/" + package
-    _create_argos_file(config_path, config_file, schema, password, conn_info_dict)
-    _fix_site_info(config_path, site)
+    source_path = os.path.join('/app', package)
+    dest_path = os.path.join(source_path, site)
+    # delete any old versions
+    if os.path.isdir(dest_path):
+        shutil.rmtree(dest_path)
+    # copy base files to site specific
+    shutil.copytree(source_path, dest_path)
+    # create the Argos congig file
+    _create_argos_file(dest_path, config_file, schema, password, conn_info_dict)
+    # modify site_info and run.R to add actual site
+    _fix_site_info(dest_path, site)
+    _fix_run(dest_path, site)
 
     # Add a creation statement.
     stmts = StatementSet()
 
+    query_path = os.path.join('/app', package, site, 'site/run.R')
     # Run R script
-    Rscript("/app/" + package + "/site/run.R", '--verbose=1', _cwd='/app', _fg=True)
+    Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
 
     # If reached without error, then success!
     return True
