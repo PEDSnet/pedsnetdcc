@@ -103,12 +103,13 @@ def run_r_query(config_file, conn_str, site, package, password, search_path, mod
     _fix_site_info(dest_path, site)
     _fix_run(dest_path, site)
 
-    # Add a creation statement.
-    stmts = StatementSet()
-
     query_path = os.path.join('/app', package, site, 'site/run.R')
     # Run R script
     Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
+
+    # Log end of function.
+    logger.info(combine_dicts({'msg': 'finished R Script',
+                               'elapsed': secs_since(start_time)}, log_dict))
 
     # If reached without error, then success!
     return True
