@@ -112,6 +112,8 @@ def run_r_query(config_file, conn_str, site, package, password, search_path, mod
         results_path = os.path.join(dest_path, 'results')
         if os.path.isdir(results_path):
             output_path = os.path.join(os.sep,'output', package, site)
+            if os.path.exists(output_path):
+                shutil.rmtree(output_path)
             shutil.copytree(results_path, output_path)
             logger.info({'msg': 'results copied to output'})
         else:
