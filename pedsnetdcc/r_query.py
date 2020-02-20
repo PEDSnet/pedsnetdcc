@@ -58,7 +58,7 @@ def _fix_run(file_path, site):
     return True
 
 
-def run_r_query(config_file, conn_str, site, package, password, search_path, model_version):
+def run_r_query(config_file, conn_str, site, package, password, search_path, model_version, copy):
     """Run an R script.
 
     * Create argos file
@@ -71,6 +71,7 @@ def run_r_query(config_file, conn_str, site, package, password, search_path, mod
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param bool copy: if True, copy results to output directory
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -106,6 +107,15 @@ def run_r_query(config_file, conn_str, site, package, password, search_path, mod
     query_path = os.path.join(os.sep,'app', package, site, 'site', 'run.R')
     # Run R script
     Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
+
+    if copy:
+        results_path = os.path.join(dest_path, 'results')
+        if os.path.isdir(results_path):
+            output_path = os.path.join(os.sep,'output', package, site)
+            shutil.copytree(results_path, output_path)
+            logger.info({'msg': 'results copied to output'})
+        else:
+            logger.info({'msg': 'no results found'})
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished R Script',
