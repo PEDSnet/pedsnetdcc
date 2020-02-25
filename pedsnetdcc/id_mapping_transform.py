@@ -82,8 +82,10 @@ class IDMappingTransform(Transform):
             # Error if the table has no primary key column (except death).
             if len(table.primary_key.columns) == 0:
                 # In some versions the death table has no primary key.
-                if table_name == 'death':
+                # lab_site_mapping has no primary key
+                if table_name == 'death' or table_name == 'lab_site_mapping':
                     continue
+
                 err = ValueError('cannot generate IDs for table {0} with no'
                                  ' primary key'.format(table_name))
                 logger.error({'msg': 'exiting ID mapping pre-transform',
