@@ -60,6 +60,10 @@ class IDMappingTransform(Transform):
             if table_name == 'fact_relationship' or table_name == 'lab_site_mapping':
                 continue
 
+            # Drug Strength table has two primary keys (really belongs in vocab).
+            if table_name == 'drug_strength':
+                continue
+
             # Get table object and start to build tpl_vars map, which will be
             # used throughout for formatting SQL statements.
             table = metadata.tables[table_name]
