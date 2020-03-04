@@ -56,8 +56,8 @@ class IDMappingTransform(Transform):
 
         for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
 
-            # Fact relationship table has no primary key to map.
-            if table_name == 'fact_relationship':
+            # Fact relationship and lab_site_mapping tables have no primary key to map.
+            if table_name == 'fact_relationship' or table_name == 'lab_site_mapping':
                 continue
 
             # Get table object and start to build tpl_vars map, which will be
@@ -82,8 +82,7 @@ class IDMappingTransform(Transform):
             # Error if the table has no primary key column (except death).
             if len(table.primary_key.columns) == 0:
                 # In some versions the death table has no primary key.
-                # lab_site_mapping has no primary key
-                if table_name == 'death' or table_name == 'lab_site_mapping':
+                if table_name == 'death':
                     continue
 
                 err = ValueError('cannot generate IDs for table {0} with no'

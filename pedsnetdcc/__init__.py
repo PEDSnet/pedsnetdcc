@@ -34,7 +34,6 @@ VOCAB_TABLES = (
     'concept_relationship',
     'concept_synonym',
     'domain',
-    'drug_strength',
     'relationship',
     'source_to_concept_map'
 )
@@ -73,6 +72,8 @@ ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
     'dose_era',
     'drug_era',
     'drug_exposure',
+    'drug_strength',
+    'hash_token',
     'location',
     'location_history',
     'immunization',
