@@ -1507,6 +1507,41 @@ def prepdb(model_version, dcc_only, pwprompt, dburi):
 
     sys.exit(0)
 
+@pedsnetdcc.command()
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--name', required=True,
+              help='Extra part to be added to database name')
+@click.option('--dcc-only', type=bool, is_flag=True, default=False,
+              help='Only create schemas for the dcc.')
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.argument('dburi')
+def prepdb_altname(model_version, name, dcc_only, pwprompt, dburi):
+    """Create a database and schemas.
+
+    The database should be specified using a model version and a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    from pedsnetdcc.prepdb import prepare_database_altname
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, password=password)
+    success = prepare_database_altname(model_version, conn_str, name, update=False,
+                               dcc_only=dcc_only)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
 
 @pedsnetdcc.command()
 @click.option('--site-root', '-s',
