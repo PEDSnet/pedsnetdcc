@@ -23,6 +23,8 @@ VOCAB_SCHEMA = "vocabulary"
 
 _sql_schema_tmpl = "{site_name}_pedsnet"
 
+_sql_schema_alt_tmpl = "{site_name}_{alt_name}"
+
 _sql_select_tmpl = """
 SELECT {fields} FROM {site_schema}.{table_name}
 UNION ALL
@@ -263,7 +265,7 @@ def clear_dcc_data(model_version, conn_str, force=False):
     return True
 
 
-def merge_data_to_schema(model_version, conn_str, schema, force=False, notable=False, nolog=False, nopk=False,
+def merge_data_to_schema(model_version, conn_str, schema, altname, skipsites, force=False, notable=False, nolog=False, nopk=False,
                     nonull=False, noidx=False, nodrop=False, norep=False, nofk=False, novac=False):
     """Merge data from site schemas into the DCC schema
 
@@ -276,6 +278,8 @@ def merge_data_to_schema(model_version, conn_str, schema, force=False, notable=F
     :param str model_version: PEDSnet model version, e.g. X.Y.Z
     :param str conn_str:      libpq connection string
     :param str schema:        schema to merge into
+    :param str altname:       alternate site schema naming
+    :param str skipsites:     sites to skip
     :param bool force:        ignore benign errors if true; see https://github.com/PEDSnet/pedsnetdcc/issues/10
     :param bool notable:      skip creating tables is they already exist
     :param bool nolog:        skip setting tables to logged if already done
@@ -309,6 +313,11 @@ def merge_data_to_schema(model_version, conn_str, schema, force=False, notable=F
     for t in TRANSFORMS:
         metadata = t.modify_metadata(metadata)
 
+    # Get Sites to skip
+    skip_sites = skipsites.split(",")
+
+    merge_sites = list(set(SITES) - set(skip_sites))
+
     # Build a merge statement for each non-vocab table.
     for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
 
@@ -319,9 +328,12 @@ def merge_data_to_schema(model_version, conn_str, schema, force=False, notable=F
         unions = ''
 
         # Add a union statement for each site.
-        for site_name in SITES:
+        for site_name in merge_sites:
 
-            site_schema = _sql_schema_tmpl.format(site_name=site_name)
+            if altname == '':
+                site_schema = _sql_schema_tmpl.format(site_name=site_name)
+            else:
+                site_schema = _sql_schema_alt_tmpl.format(site_name=site_name, alt_name=altname)
 
             select = _sql_select_tmpl.format(fields=fields,
                                              site_schema=site_schema,
@@ -337,11 +349,11 @@ def merge_data_to_schema(model_version, conn_str, schema, force=False, notable=F
         sql = _sql_create_tmpl.format(table_name=table_name, unions=unions)
 
         # Add the statement to the set with an informative m})sage for logging.
-        stmts.add(Statement(sql, 'merge site {0} data into dcc schema'.
+        stmts.add(Statement(sql, 'merge site {0} data into selected schema'.
                             format(table_name)))
 
 
-    # Execute the merge statements in parallel if not alreadsy done.
+    # Execute the merge statements in parallel if not already done.
     if not notable:
         stmts.parallel_execute(conn_str)
         # Check the statements for any errors and log and raise if found.
