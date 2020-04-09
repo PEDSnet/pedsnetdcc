@@ -1517,6 +1517,8 @@ def prepdb(model_version, dcc_only, pwprompt, dburi):
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--name', required=True,
               help='Alternate name for database name')
+@click.option('--addsites', required=False, default='',
+              help='sites to add delimited by ,')
 @click.option('--new', type=bool, is_flag=True, default=False,
               help='for db version > 10')
 @click.option('--limit', type=bool, is_flag=True, default=False,
@@ -1526,7 +1528,7 @@ def prepdb(model_version, dcc_only, pwprompt, dburi):
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
 @click.argument('dburi')
-def prepdb_altname(model_version, name, new, limit, dcc_only, pwprompt, dburi):
+def prepdb_altname(model_version, name, addsites, new, limit, dcc_only, pwprompt, dburi):
     """Create a database and schemas.
 
     The database should be specified using a model version and a DBURI:
@@ -1537,13 +1539,23 @@ def prepdb_altname(model_version, name, new, limit, dcc_only, pwprompt, dburi):
 
     from pedsnetdcc.prepdb import prepare_database_altname
 
+    if new:
+        new = True
+    else:
+        new = False
+
+    if limit:
+        limit = True
+    else:
+        limit = False
+
     password = None
 
     if pwprompt:
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, password=password)
-    success = prepare_database_altname(model_version, conn_str, name, new=new, limit=limit, update=False,
+    success = prepare_database_altname(model_version, conn_str, name, addsites, new, limit, update=False,
                                dcc_only=dcc_only)
 
     if not success:

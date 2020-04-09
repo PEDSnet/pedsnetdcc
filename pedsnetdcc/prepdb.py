@@ -82,6 +82,16 @@ def _make_database_name(model_version):
     return 'pedsnet_dcc_v{}'.format(short_version)
 
 
+def _make_database_name_alt(model_version, name):
+    """Return a database name, given a version string, e.g. '21' for '2.1'.
+    :param model_version: PEDSnet model version: X.Y.Z or X.Y
+    :type: str
+    :rtype: str
+    """
+    short_version = _version_to_shorthand(model_version)
+    return name
+
+
 def _create_database_sql(database_name):
     """Return a tuple of statements to create the database with the given name.
     :param database_name: Database name
@@ -296,7 +306,7 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     return True
 
 
-def prepare_database_altname(model_version, conn_str, name, new=False, limit=False, update=False, dcc_only=False):
+def prepare_database_altname(model_version, conn_str, name, addsites, new, limit, update=False, dcc_only=False):
     """Create a new database containing vocabulary and site schemas.
 
     The initial conn_str is used for issuing a CREATE DATABASE statement.
@@ -309,7 +319,9 @@ def prepare_database_altname(model_version, conn_str, name, new=False, limit=Fal
     :type: str
     :param conn_str: libpq connection string
     :type: str
-    :param name: additional alternate name
+    :param name: alternate db name
+    :type: str
+    :param addsites: sites to add
     :type: str
     :param new: db version > 10
     :type: bool
@@ -325,7 +337,10 @@ def prepare_database_altname(model_version, conn_str, name, new=False, limit=Fal
                  'model': model_version})
     starttime = time.time()
 
-    database_name = name
+    # Get Sites to add (must be existing external site)
+    add_sites = addsites.split(",")
+
+    database_name = _make_database_name_alt(model_version, name)
 
     stmts = StatementList()
 
@@ -371,7 +386,8 @@ def prepare_database_altname(model_version, conn_str, name, new=False, limit=Fal
     for stmt in stmts:
         check_stmt_err(stmt, 'database preparation')
 
-    for ext_site in EXTERNAL_SITES:
+    external_sites = list(set(EXTERNAL_SITES) - set(add_sites))
+    for ext_site in external_sites:
         _delete_external_schemas(new_conn_str, ext_site)
 
     logger.info({
