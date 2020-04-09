@@ -16,13 +16,13 @@ grant all on schema {{.Site}}_pcornet to loading_user with grant option;
 
 # SQL template for creating site schemas in an internal database instance.
 PERMISSIONS_SQL_TEMPLATE = """
-grant usage  on               schema {{.Site}}_pedsnet  to achilles_user, dqa_user, pcor_et_user, peds_staff;
-grant select on all tables in schema {{.Site}}_pedsnet  to achilles_user, dqa_user, pcor_et_user, peds_staff;
+grant usage  on               schema {{.Site}}_pedsnet  to pcor_et_user, peds_staff, dcc_analytics;
+grant select on all tables in schema {{.Site}}_pedsnet  to pcor_et_user, peds_staff, dcc_analytics;
 grant all    on               schema {{.Site}}_pedsnet  to loading_user;
 grant all    on               schema {{.Site}}_pcornet  to pcor_et_user;
 grant usage  on               schema {{.Site}}_pcornet  to peds_staff;
 grant select on all tables in schema {{.Site}}_pcornet  to peds_staff;
-alter default privileges for role loading_user in schema {{.Site}}_pedsnet grant select on tables to achilles_user, dqa_user, pcor_et_user, peds_staff;
+alter default privileges for role loading_user in schema {{.Site}}_pedsnet grant select on tables to pcor_et_user, peds_staff, dcc_analytics;
 alter default privileges for role loading_user in schema {{.Site}}_pcornet grant select on tables to peds_staff;
 """
 
@@ -43,9 +43,9 @@ grant all    on               schema {{.Site}}_id_maps  to loading_user;
 VOCABULARY_PERMISSIONS_SQL_TEMPL = """
 grant all                  on schema dcc_ids    to loading_user;
 grant all                  on schema vocabulary to loading_user;
-grant usage                on schema vocabulary to achilles_user, dqa_user, pcor_et_user, peds_staff;
-grant select on all tables in schema vocabulary to achilles_user, dqa_user, pcor_et_user, peds_staff;
-alter default privileges for role loading_user in schema vocabulary grant select on tables to achilles_user, dqa_user, pcor_et_user, peds_staff;
+grant usage                on schema vocabulary to pcor_et_user, peds_staff, dcc_analytics;
+grant select on all tables in schema vocabulary to pcor_et_user, peds_staff, dcc_analytics;
+alter default privileges for role loading_user in schema vocabulary grant select on tables to pcor_et_user, peds_staff, dcc_analytics;
 """
 
 VOCABULARY_PERM_SQL_TEMPL_LIMITED = """

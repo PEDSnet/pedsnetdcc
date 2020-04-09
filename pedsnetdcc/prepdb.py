@@ -82,16 +82,6 @@ def _make_database_name(model_version):
     return 'pedsnet_dcc_v{}'.format(short_version)
 
 
-def _make_database_name_alt(model_version, name):
-    """Return a database name, given a version string, e.g. '21' for '2.1'.
-    :param model_version: PEDSnet model version: X.Y.Z or X.Y
-    :type: str
-    :rtype: str
-    """
-    short_version = _version_to_shorthand(model_version)
-    return 'pedsnet_dcc_' + name + '_v{}'.format(short_version)
-
-
 def _create_database_sql(database_name):
     """Return a tuple of statements to create the database with the given name.
     :param database_name: Database name
@@ -306,7 +296,7 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     return True
 
 
-def prepare_database_altname(model_version, conn_str, name, update=False, dcc_only=False):
+def prepare_database_altname(model_version, conn_str, name, new=False, limit=False, update=False, dcc_only=False):
     """Create a new database containing vocabulary and site schemas.
 
     The initial conn_str is used for issuing a CREATE DATABASE statement.
@@ -321,6 +311,10 @@ def prepare_database_altname(model_version, conn_str, name, update=False, dcc_on
     :type: str
     :param name: additional alternate name
     :type: str
+    :param new: db version > 10
+    :type: bool
+    :param limit: limit access to super users
+    :type: bool
     :param update: assume the database is already created
     :type: bool
     :param dcc_only: only create schemas for `dcc` (no sites)
@@ -331,13 +325,17 @@ def prepare_database_altname(model_version, conn_str, name, update=False, dcc_on
                  'model': model_version})
     starttime = time.time()
 
-    database_name = _make_database_name_alt(model_version, name)
+    database_name = name
 
     stmts = StatementList()
 
     if not update:
-        stmts.extend(
-            [Statement(x) for x in _create_database_sql_new(database_name)])
+        if new:
+            stmts.extend(
+                [Statement(x) for x in _create_database_sql_new(database_name)])
+        else:
+            stmts.extend(
+                [Statement(x) for x in _create_database_sql(database_name)])
 
     stmts.serial_execute(conn_str)
 
@@ -345,7 +343,11 @@ def prepare_database_altname(model_version, conn_str, name, update=False, dcc_on
         for stmnt in stmts:
             check_stmt_err(stmnt, 'creating database')
 
-    grant_database_permissions_limited(conn_str, database_name)
+    if limit:
+        grant_database_permissions_limited(conn_str, database_name)
+    else:
+        grant_database_permissions(conn_str, database_name)
+
     # Operate on the newly created database.
     stmts = StatementList()
     for site in _sites_and_dcc(dcc_only, True):
@@ -359,8 +361,12 @@ def prepare_database_altname(model_version, conn_str, name, update=False, dcc_on
     stmts.serial_execute(new_conn_str)
 
     grant_loading_user_permissions(new_conn_str, True)
-    grant_schema_permissions_limited(new_conn_str, True)
-    grant_vocabulary_permissions_limited(new_conn_str)
+    if limit:
+        grant_schema_permissions_limited(new_conn_str, True)
+        grant_vocabulary_permissions_limited(new_conn_str)
+    else:
+        grant_schema_permissions(new_conn_str, True)
+        grant_vocabulary_permissions(new_conn_str)
 
     for stmt in stmts:
         check_stmt_err(stmt, 'database preparation')
