@@ -257,22 +257,156 @@ DRUG_ERA_SQL = """TRUNCATE {0}.drug_era;
         ,era_end_date;
     """
 
+DRUG_ERA_SCDF_SQL = """
+    DROP TABLE IF EXISTS {0}.drug_scdf_era;
+    CREATE TABLE {0}.drug_scdf_era (LIKE {0}.drug_era);
+    alter table {0}.drug_scdf_era alter column drug_era_id drop not null;
+    DROP TABLE IF EXISTS {2}_cteDrug2Target;
+    -- Normalize drug_exposure_end_date to either the existing drug exposure end date, or add days supply, or add 1 day to the start date
+    CREATE TEMP TABLE {2}_cteDrug2Target
+    AS
+    SELECT
+        d.drug_exposure_id
+        ,d.person_id
+        ,c.concept_id
+        ,d.drug_type_concept_id
+        ,drug_exposure_start_date
+        ,COALESCE(drug_exposure_end_date, (drug_exposure_start_date + days_supply*INTERVAL'1 day'), (drug_exposure_start_date + 1*INTERVAL'1 day')) AS drug_exposure_end_date
+        ,c.concept_id AS scdf_concept_id
+    FROM
+    {0}.drug_exposure d
+    INNER JOIN {1}.concept_ancestor ca ON ca.descendant_concept_id = d.drug_concept_id
+    INNER JOIN {1}.concept c ON ca.ancestor_concept_id = c.concept_id
+    WHERE c.vocabulary_id = 'RxNorm'
+        AND c.concept_class_id = 'Clinical Drug Form';
+    ------------------------------------																								 
+    DROP TABLE IF EXISTS {2}_cteEnd2Dates;
+    CREATE TEMP TABLE {2}_cteEnd2Dates
+    AS
+    SELECT
+        person_id
+        ,scdf_concept_id
+        ,(event_date + - 30*INTERVAL'1 day') AS end_date -- unpad the end date
+    FROM
+    (
+        SELECT e1.person_id
+            ,e1.scdf_concept_id
+            ,e1.event_date
+            ,COALESCE(e1.start_ordinal, MAX(e2.start_ordinal)) start_ordinal
+            ,e1.overall_ord
+        FROM (
+            SELECT person_id
+                ,scdf_concept_id
+                ,event_date
+                ,event_type
+                ,start_ordinal
+                ,ROW_NUMBER() OVER (
+                    PARTITION BY person_id
+                    ,scdf_concept_id ORDER BY event_date
+                        ,event_type
+                    ) AS overall_ord -- this re-numbers the inner UNION so all rows are numbered ordered by the event date
+            FROM (
+                -- select the start dates, assigning a row number to each
+                SELECT person_id
+                    ,scdf_concept_id
+                    ,drug_exposure_start_date AS event_date
+                    ,0 AS event_type
+                    ,ROW_NUMBER() OVER (
+                        PARTITION BY person_id
+                        ,scdf_concept_id ORDER BY drug_exposure_start_date
+                        ) AS start_ordinal
+                FROM {2}_cteDrug2Target
+                UNION ALL
+                -- add the end dates with NULL as the row number, padding the end dates by 30 to allow a grace period for overlapping ranges.
+                SELECT person_id
+                    ,scdf_concept_id
+                    ,(drug_exposure_end_date + 30*INTERVAL'1 day')
+                    ,1 AS event_type
+                    ,NULL
+                FROM {2}_cteDrug2Target
+                ) RAWDATA
+            ) e1
+        INNER JOIN (
+            SELECT person_id
+                ,scdf_concept_id
+                ,drug_exposure_start_date AS event_date
+                ,ROW_NUMBER() OVER (
+                    PARTITION BY person_id
+                    ,scdf_concept_id ORDER BY drug_exposure_start_date
+                    ) AS start_ordinal
+            FROM {2}_cteDrug2Target
+            ) e2 ON e1.person_id = e2.person_id
+            AND e1.scdf_concept_id = e2.scdf_concept_id
+            AND e2.event_date <= e1.event_date
+        GROUP BY e1.person_id
+            ,e1.scdf_concept_id
+            ,e1.event_date
+            ,e1.start_ordinal
+            ,e1.overall_ord
+        ) e
+    WHERE 2 * e.start_ordinal - e.overall_ord = 0;
+    ----------------------------------------------
+    DROP TABLE IF EXISTS {2}_cteDrug2ExpEnds;
+    CREATE TEMP TABLE {2}_cteDrug2ExpEnds
+    AS
+    SELECT
+        d.person_id
+        ,d.scdf_concept_id
+        ,d.drug_type_concept_id
+        ,d.drug_exposure_start_date
+        ,MIN(e.end_date) AS era_end_date
+    FROM
+    {2}_cteDrug2Target d
+    INNER JOIN {2}_cteEnd2Dates e ON d.person_id = e.person_id
+        AND d.scdf_concept_id = e.scdf_concept_id
+        AND e.end_date >= d.drug_exposure_start_date
+    GROUP BY d.person_id
+        ,d.scdf_concept_id
+        ,d.drug_type_concept_id
+        ,d.drug_exposure_start_date;
+    ------------------------------------------				  
+    INSERT INTO {0}.drug_scdf_era
+    SELECT scdf_concept_id AS drug_concept_id
+        ,era_end_date AS drug_era_end_date
+        ,min(drug_exposure_start_date) AS drug_era_start_date
+        ,COUNT(*) AS drug_exposure_count
+        ,30 AS gap_days
+        ,NULL AS drug_concept_name
+        ,'{2}' AS site
+        ,NULL as drug_era_id
+        ,ROW_NUMBER() OVER (
+            ORDER BY person_id
+            ) AS site_id
+        ,person_id AS person_id
+    FROM {2}_cteDrug2ExpEnds
+    GROUP BY person_id
+        ,scdf_concept_id
+        ,drug_type_concept_id
+        ,era_end_date;
+    """
+drop_drug_scdf_era_sql = "DROP TABLE IF EXISTS {0}.drug_scdf_era;"
+drop_drug_scdf_era_msg = "dropping {0}.drug_scdf_era"
+
 
 def _fill_concept_names(conn_str, era_type, site):
     fill_concept_names_sql = """UPDATE {0}_era era
-        SET {0}_concept_name=v.{0}_concept_name,site='{1}'
+        SET {2}_concept_name=v.{2}_concept_name,site='{1}'
         FROM ( SELECT
-        e.{0}_era_id AS {0}_id,
-        v1.concept_name AS {0}_concept_name
+        e.{2}_era_id AS {2}_id,
+        v1.concept_name AS {2}_concept_name
         FROM {0}_era AS e
-        LEFT JOIN vocabulary.concept AS v1 ON e.{0}_concept_id = v1.concept_id
+        LEFT JOIN vocabulary.concept AS v1 ON e.{2}_concept_id = v1.concept_id
         ) v
-        WHERE era.{0}_era_id = v.{0}_id"""
+        WHERE era.{2}_era_id = v.{2}_id"""
 
     fill_concept_names_msg = "adding concept names"
 
+    temp_era_type = era_type
+    if era_type == 'drug_scdf':
+        temp_era_type = 'drug'
+
     # Add concept names
-    add_era_ids_stmt = Statement(fill_concept_names_sql.format(era_type, site), fill_concept_names_msg)
+    add_era_ids_stmt = Statement(fill_concept_names_sql.format(era_type, site, temp_era_type), fill_concept_names_msg)
 
     # Execute the add concept names statement and ensure it didn't error
     add_era_ids_stmt.execute(conn_str)
@@ -298,18 +432,44 @@ def _copy_to_dcc_table(conn_str, era_type, schema):
         (select drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
         gap_days, drug_concept_name, site, drug_era_id, site_id, person_id
         from {0}.drug_era) ON CONFLICT DO NOTHING"""
-
+    copy_to_drug_scdf_sql = """INSERT INTO dcc_pedsnet.drug_era(
+            drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
+            gap_days, drug_concept_name, site, drug_era_id, site_id, person_id)
+            (select drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
+            gap_days, drug_concept_name, site, drug_era_id, site_id, person_id
+            from {0}.drug_scdf_era) ON CONFLICT DO NOTHING"""
     copy_to_msg = "copying {0}_era to dcc_pedsnet"
 
     # Insert era data into dcc_pedsnet era table
     if era_type == "condition":
         copy_to_stmt = Statement(copy_to_condition_sql.format(schema), copy_to_msg.format(era_type))
+    if era_type == "drug_scdf":
+        copy_to_stmt = Statement(copy_to_drug_scdf_sql.format(schema), copy_to_msg.format(era_type))
     else:
         copy_to_stmt = Statement(copy_to_drug_sql.format(schema), copy_to_msg.format(era_type))
 
-    # Execute the insert BMI measurements statement and ensure it didn't error
+    # Execute the insert era statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
     check_stmt_err(copy_to_stmt, 'insert {0}_era data'.format(era_type))
+
+    # If reached without error, then success!
+    return True
+
+def _copy_to_drug_era_table(conn_str, schema):
+    copy_to_drug_era_sql = """INSERT INTO {0}.drug_era(
+                drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
+                gap_days, drug_concept_name, site, drug_era_id, site_id, person_id)
+                (select drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
+                gap_days, drug_concept_name, site, drug_era_id, site_id, person_id
+                from {0}.drug_scdf_era) ON CONFLICT DO NOTHING"""
+    copy_to_msg = "copying drug_scdf_era to {0}.drug_era"
+
+    # Insert era data into dcc_pedsnet era table
+    copy_to_stmt = Statement(copy_to_drug_era_sql.format(schema), copy_to_msg.format(schema))
+
+    # Execute the insert era statement and ensure it didn't error
+    copy_to_stmt.execute(conn_str)
+    check_stmt_err(copy_to_stmt, 'insert drug_scdf_era data')
 
     # If reached without error, then success!
     return True
@@ -346,43 +506,45 @@ def run_era(era_type, conn_str, site, copy, search_path, model_version):
     start_time = time.time()
     schema = primary_schema(search_path)
 
-    # Drop primary key.
     stmts = StatementSet()
-    drop_pk_stmt = Statement(DROP_PK_CONSTRAINT_ERA_SQL.format(era_type))
-    stmts.add(drop_pk_stmt)
 
-    # Check for any errors and raise exception if they are found.
-    for stmt in stmts:
-        try:
-            stmt.execute(conn_str)
-            check_stmt_err(stmt, logger_msg.format('Run', era_type))
-        except:
-            logger.error(combine_dicts({'msg': 'Fatal error',
-                                        'sql': stmt.sql,
-                                        'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'drop pk failed',
-                                       'elapsed': secs_since(start_time)},
-                                      log_dict))
-            raise
+    if era_type != "drug_scdf":
+        # Drop primary key.
+        drop_pk_stmt = Statement(DROP_PK_CONSTRAINT_ERA_SQL.format(era_type))
+        stmts.add(drop_pk_stmt)
 
-    # Add drop null statement.
-    stmts.clear()
-    drop_stmt = Statement(DROP_NULL_ERA_SQL.format(era_type))
-    stmts.add(drop_stmt)
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                stmt.execute(conn_str)
+                check_stmt_err(stmt, logger_msg.format('Run', era_type))
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'drop pk failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
 
-    # Check for any errors and raise exception if they are found.
-    for stmt in stmts:
-        try:
-            stmt.execute(conn_str)
-            check_stmt_err(stmt, logger_msg.format('Run', era_type))
-        except:
-            logger.error(combine_dicts({'msg': 'Fatal error',
-                                        'sql': stmt.sql,
-                                        'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'drop null failed',
-                                       'elapsed': secs_since(start_time)},
-                                      log_dict))
-            raise
+        # Add drop null statement.
+        stmts.clear()
+        drop_stmt = Statement(DROP_NULL_ERA_SQL.format(era_type))
+        stmts.add(drop_stmt)
+
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                stmt.execute(conn_str)
+                check_stmt_err(stmt, logger_msg.format('Run', era_type))
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'drop null failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
 
    # Run the derivation query
     logger.info({'msg': 'run {0} era derivation query'.format(era_type)})
@@ -392,6 +554,9 @@ def run_era(era_type, conn_str, site, copy, search_path, model_version):
     stmts.clear()
     if era_type == "condition":
         era_query_stmt = Statement(CONDITION_ERA_SQL.format(schema, site), run_query_msg.format(era_type))
+    if era_type == "drug_scdf":
+        era_query_stmt = Statement(DRUG_ERA_SCDF_SQL.format(schema, "vocabulary", site),
+                                   run_query_msg.format(era_type))
     else:
         era_query_stmt = Statement(DRUG_ERA_SQL.format(schema, "vocabulary", site),
                                        run_query_msg.format(era_type))
@@ -413,6 +578,14 @@ def run_era(era_type, conn_str, site, copy, search_path, model_version):
         return False
     logger.info({'msg': 'concept names added'})
 
+    # Copy drug_scdf era to drug era
+    if era_type == "drug_scdf":
+        logger.info({'msg': 'copy drug_scdf_era to {0}.drug_era'.format(schema)})
+        okay = _copy_to_drug_era_table(conn_str, schema)
+        if not okay:
+            return False
+        logger.info({'msg': 'drug_scdf_era copied to {0}.drug_era'.format(schema)})
+
     # Copy to the dcc_pedsnet table
     if copy:
         logger.info({'msg': 'copy {0}_era to dcc_pedsnet'.format(era_type)})
@@ -421,10 +594,18 @@ def run_era(era_type, conn_str, site, copy, search_path, model_version):
             return False
         logger.info({'msg': '{0}_era copied to dcc_pedsnet'.format(era_type)})
 
-    # Vacuum analyze tables for piney freshness.
-    logger.info({'msg': 'begin vacuum'})
-    vacuum(conn_str, model_version, analyze=True, tables=[era_type + "_era"])
-    logger.info({'msg': 'vacuum finished'})
+    if era_type == "drug_scdf":
+        # Drop drug_scdf era to drug era
+        logger.info({'msg': 'begin drug_scdf drop'})
+        drop_drug_scdf_era_stmt = Statement(drop_drug_scdf_era_sql.format(schema),
+                                            drop_drug_scdf_era_msg.format(schema))
+        drop_drug_scdf_era_stmt.execute(conn_str)
+        logger.info({'msg': 'drug_scdf dropped'})
+    else:
+        # Vacuum analyze tables for piney freshness.
+        logger.info({'msg': 'begin vacuum'})
+        vacuum(conn_str, model_version, analyze=True, tables=[era_type + "_era"])
+        logger.info({'msg': 'vacuum finished'})
 
     # Log end of function.
     logger.info(combine_dicts({'msg': logger_msg.format("finished",era_type),
@@ -441,8 +622,8 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     * Update dcc_id with new value
     * Create sequence
     * Set sequence starting number
-    * Assign measurement ids
-    * Make measurement Id the primary key
+    * Assign era ids
+    * Make era Id the primary key
 
     :param str era_type:      type of era derivation (condition or drug)
     :param str conn_str:      database connection string
@@ -455,7 +636,7 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     """
 
     new_id_count_sql = """SELECT COUNT(*)
-        FROM {0}_era WHERE {0}_era_id IS NULL"""
+        FROM {0}_era WHERE {1}_era_id IS NULL"""
     new_id_count_msg = "counting new IDs needed for {0}_era"
     lock_last_id_sql = """LOCK {last_id_table_name}"""
     lock_last_id_msg = "locking {table_name} last ID tracking table for update"
@@ -468,10 +649,10 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     create_seq_msg = "creating {0} era id sequence"
     set_seq_number_sql = "alter sequence {0}.{1}_{2}_era_id_seq restart with {3};"
     set_seq_number_msg = "setting sequence number"
-    add_era_ids_sql = """update {0}.{1}_era set {1}_era_id = nextval('{0}.{2}_{1}_era_id_seq')
-        where {1}_era_id is null"""
-    add_era_ids_msg = "adding the measurement ids to the {0}_era table"
-    pk_era_id_sql = "alter table {0}.{1}_era add primary key ({1}_era_id)"
+    add_era_ids_sql = """update {0}.{1}_era set {3}_era_id = nextval('{0}.{2}_{1}_era_id_seq')
+        where {3}_era_id is null"""
+    add_era_ids_msg = "adding the era ids to the {0}_era table"
+    pk_era_id_sql = "alter table {0}.{1}_era add primary key ({2}_era_id)"
     pk_era_id_msg = "making {0}_era_id the priomary key"
 
     conn_info_dict = get_conn_info_dict(conn_str)
@@ -487,6 +668,11 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     start_time = time.time()
     schema = primary_schema(search_path)
     table_name = era_type + "_era"
+    temp_table_name = table_name
+    temp_era_type = era_type
+    if era_type == 'drug_scdf':
+        temp_era_type = 'drug'
+        temp_table_name = 'drug_era'
 
     # Mapping and last ID table naming conventions.
     last_id_table_name_tmpl = "dcc_{table_name}_id"
@@ -494,12 +680,12 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
 
     # Get table object and start to build tpl_vars map, which will be
     # used throughout for formatting SQL statements.
-    table = metadata.tables[table_name]
-    tpl_vars = {'table_name': table_name}
+    table = metadata.tables[temp_table_name]
+    tpl_vars = {'table_name': temp_table_name}
     tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.format(**tpl_vars)
 
     # Build the statement to count how many new ID mappings are needed.
-    new_id_count_stmt = Statement(new_id_count_sql.format(era_type), new_id_count_msg.format(era_type))
+    new_id_count_stmt = Statement(new_id_count_sql.format(era_type, temp_era_type), new_id_count_msg.format(era_type))
 
     # Execute the new ID mapping count statement and ensure it didn't
     # error and did return a result.
@@ -535,7 +721,7 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     tpl_vars['old_last_id'] = update_last_id_stmts[1].data[0][0]
     tpl_vars['new_last_id'] = update_last_id_stmts[1].data[0][1]
     logger.info({'msg': 'last ID tracking table updated',
-                 'table': table_name,
+                 'table': temp_table_name,
                  'old_last_id': tpl_vars['old_last_id'],
                  'new_last_id': tpl_vars['new_last_id']})
 
@@ -560,9 +746,9 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     check_stmt_err(seq_number_set_stmt, 'set the sequence number')
     logger.info({'msg': 'set sequence number complete'})
 
-    # Add the measurement ids
+    # Add the era ids
     logger.info({'msg': 'begin adding ids'})
-    add_era_ids_stmt = Statement(add_era_ids_sql.format(schema, era_type, site),
+    add_era_ids_stmt = Statement(add_era_ids_sql.format(schema, era_type, site, temp_era_type),
                                          add_era_ids_msg.format(era_type))
 
     # Execute the add the era ids statement and ensure it didn't error
@@ -572,8 +758,8 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
 
     # Make era Id the primary key
     logger.info({'msg': 'begin add primary key'})
-    pk_era_id_stmt = Statement(pk_era_id_sql.format(schema, era_type),
-                                         pk_era_id_msg.format(era_type))
+    pk_era_id_stmt = Statement(pk_era_id_sql.format(schema, era_type, temp_era_type),
+                                         pk_era_id_msg.format(temp_era_type))
 
     # Execute the make era Id the primary key statement and ensure it didn't error
     pk_era_id_stmt.execute(conn_str)
