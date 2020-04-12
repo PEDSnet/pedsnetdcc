@@ -384,6 +384,7 @@ DRUG_ERA_SCDF_SQL = """
         ,drug_type_concept_id
         ,era_end_date;
     """
+
 drop_drug_scdf_era_sql = "DROP TABLE IF EXISTS {0}.drug_scdf_era;"
 drop_drug_scdf_era_msg = "dropping {0}.drug_scdf_era"
 
@@ -455,6 +456,7 @@ def _copy_to_dcc_table(conn_str, era_type, schema):
     # If reached without error, then success!
     return True
 
+
 def _copy_to_drug_era_table(conn_str, schema):
     copy_to_drug_era_sql = """INSERT INTO {0}.drug_era(
                 drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
@@ -470,6 +472,31 @@ def _copy_to_drug_era_table(conn_str, schema):
     # Execute the insert era statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
     check_stmt_err(copy_to_stmt, 'insert drug_scdf_era data')
+
+    # If reached without error, then success!
+    return True
+
+
+def _renumber_drug_era_table(conn_str, schema):
+    renumber_drug_era_sql = """
+        update {0}.drug_era d
+        set site_id = nn.new_number
+        from (
+            select drug_era_id, 
+                person_id,
+                row_number() over (order by person_id) as new_number
+        from {0}.drug_era
+        ) nn
+        where nn.drug_era_id = d.drug_era_id;
+    """
+    renumber_drug_era_msg = "renumbering site_id for {0}.drug_era"
+
+    # Renumber site_id
+    renumber_stmt = Statement(renumber_drug_era_sql.format(schema), renumber_drug_era_msg.format(schema))
+
+    # Execute the insert era statement and ensure it didn't error
+    renumber_stmt.execute(conn_str)
+    check_stmt_err(renumber_stmt, 'renumber site_id')
 
     # If reached without error, then success!
     return True
@@ -601,11 +628,21 @@ def run_era(era_type, conn_str, site, copy, search_path, model_version):
                                             drop_drug_scdf_era_msg.format(schema))
         drop_drug_scdf_era_stmt.execute(conn_str)
         logger.info({'msg': 'drug_scdf dropped'})
-    else:
-        # Vacuum analyze tables for piney freshness.
-        logger.info({'msg': 'begin vacuum'})
-        vacuum(conn_str, model_version, analyze=True, tables=[era_type + "_era"])
-        logger.info({'msg': 'vacuum finished'})
+
+    if era_type != "condition":
+        # Renumber site_id
+        logger.info({'msg': 'begin drug_era_renumbering'})
+        _renumber_drug_era_table(conn_str, schema)
+        logger.info({'msg': 'finished drug_era_renumbering'})
+
+    era_table = era_type + "_era"
+    if era_type == "drug_scdf":
+        era_table = "drug_era"
+
+    # Vacuum analyze tables for piney freshness.
+    logger.info({'msg': 'begin vacuum'})
+    vacuum(conn_str, model_version, analyze=True, tables=[era_table])
+    logger.info({'msg': 'vacuum finished'})
 
     # Log end of function.
     logger.info(combine_dicts({'msg': logger_msg.format("finished",era_type),
