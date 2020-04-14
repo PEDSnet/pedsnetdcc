@@ -581,7 +581,7 @@ def run_era(era_type, conn_str, site, copy, search_path, model_version):
     stmts.clear()
     if era_type == "condition":
         era_query_stmt = Statement(CONDITION_ERA_SQL.format(schema, site), run_query_msg.format(era_type))
-    if era_type == "drug_scdf":
+    elif era_type == "drug_scdf":
         era_query_stmt = Statement(DRUG_ERA_SCDF_SQL.format(schema, "vocabulary", site),
                                    run_query_msg.format(era_type))
     else:
@@ -592,6 +592,8 @@ def run_era(era_type, conn_str, site, copy, search_path, model_version):
     era_query_stmt.execute(conn_str)
     check_stmt_err(era_query_stmt, 'run {0} era derivation query'.format(era_type))
     logger.info({'msg': '{0} era derivation query complete'.format(era_type)})
+
+
 
     # add ids
     okay = _add_era_ids(era_type, conn_str, site, search_path, model_version)
@@ -635,6 +637,9 @@ def run_era(era_type, conn_str, site, copy, search_path, model_version):
         _renumber_drug_era_table(conn_str, schema)
         logger.info({'msg': 'finished drug_era_renumbering'})
 
+    # Add primary keys
+    _add_primary_key(era_type, conn_str, schema)
+
     era_table = era_type + "_era"
     if era_type == "drug_scdf":
         era_table = "drug_era"
@@ -647,6 +652,28 @@ def run_era(era_type, conn_str, site, copy, search_path, model_version):
     # Log end of function.
     logger.info(combine_dicts({'msg': logger_msg.format("finished",era_type),
                                'elapsed': secs_since(start_time)}, log_dict))
+
+    # If reached without error, then success!
+    return True
+
+
+def _add_primary_key(era_type, conn_str, schema):
+    # Add primary keys
+    pk_era_id_sql = "alter table {0}.{1}_era add primary key ({2}_era_id)"
+    pk_era_id_msg = "making {0}_era_id the priomary key"
+    temp_era_type = era_type
+    if era_type == 'drug_scdf':
+        temp_era_type = 'drug'
+
+    # Make era Id the primary key
+    logger.info({'msg': 'begin add primary key'})
+    pk_era_id_stmt = Statement(pk_era_id_sql.format(schema, era_type, temp_era_type),
+                               pk_era_id_msg.format(temp_era_type))
+
+    # Execute the make era Id the primary key statement and ensure it didn't error
+    pk_era_id_stmt.execute(conn_str)
+    check_stmt_err(pk_era_id_stmt, 'make {0}_era_id the primary key'.format(era_type))
+    logger.info({'msg': 'primary key created'})
 
     # If reached without error, then success!
     return True
@@ -689,8 +716,6 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     add_era_ids_sql = """update {0}.{1}_era set {3}_era_id = nextval('{0}.{2}_{1}_era_id_seq')
         where {3}_era_id is null"""
     add_era_ids_msg = "adding the era ids to the {0}_era table"
-    pk_era_id_sql = "alter table {0}.{1}_era add primary key ({2}_era_id)"
-    pk_era_id_msg = "making {0}_era_id the priomary key"
 
     conn_info_dict = get_conn_info_dict(conn_str)
 
@@ -792,16 +817,6 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     add_era_ids_stmt.execute(conn_str)
     check_stmt_err(add_era_ids_stmt, 'add the {0} era ids'.format(era_type))
     logger.info({'msg': 'add {0} era ids complete'.format(era_type)})
-
-    # Make era Id the primary key
-    logger.info({'msg': 'begin add primary key'})
-    pk_era_id_stmt = Statement(pk_era_id_sql.format(schema, era_type, temp_era_type),
-                                         pk_era_id_msg.format(temp_era_type))
-
-    # Execute the make era Id the primary key statement and ensure it didn't error
-    pk_era_id_stmt.execute(conn_str)
-    check_stmt_err(pk_era_id_stmt, 'make {0}_era_id the primary key'.format(era_type))
-    logger.info({'msg': 'primary key created'})
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished adding {0} era ids for the {0}_era table'.format(era_type),
