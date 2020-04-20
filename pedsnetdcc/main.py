@@ -1277,6 +1277,51 @@ def copy_drug_era(pwprompt, searchpath, site, dburi):
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
+def run_r_drug_era(pwprompt, searchpath, site, copy, model_version, dburi):
+    """Run Drug Era derivation.
+
+    The steps are:
+
+      - Run the derivation.
+      - Add ids
+      - Add concept names
+      - Copy to dcc_pedsnet
+      - Vacuum the output table
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.r_drug_era import run_r_drug_era
+    success = run_r_drug_era("drug", conn_str, site, copy, searchpath, password, model_version)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for derivation.')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to dcc_pedsnet')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
 def run_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
     """Run Condition Era derivation.
 
