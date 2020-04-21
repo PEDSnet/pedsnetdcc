@@ -156,11 +156,6 @@ def run_r_drug_era(conn_str, site, copy, search_path, password, model_version, n
         drop_stmt = Statement(DROP_NULL_ERA_SQL.format(era_type))
         stmts.add(drop_stmt)
 
-        # Truncate table
-        stmts.clear()
-        trunc_stmt = Statement(TRUNCATE_ERA_SQL.format(schema))
-        stmts.add(trunc_stmt)
-
         # Check for any errors and raise exception if they are found.
         for stmt in stmts:
             try:
@@ -175,7 +170,25 @@ def run_r_drug_era(conn_str, site, copy, search_path, password, model_version, n
                                           log_dict))
                 raise
 
-       # Run the derivation query
+        # Truncate table
+        trunc_stmt = Statement(TRUNCATE_ERA_SQL.format(schema))
+        stmts.add(trunc_stmt)
+
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                stmt.execute(conn_str)
+                check_stmt_err(stmt, logger_msg.format('Run', era_type))
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'truncate failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
+
+        # Run the derivation query
         logger.info({'msg': 'run {0} era derivation R Script'.format(era_type)})
         run_query_msg = "running {0} era derivation R Script"
 
