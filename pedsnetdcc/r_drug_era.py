@@ -16,10 +16,8 @@ logger = logging.getLogger(__name__)
 DROP_PK_CONSTRAINT_ERA_SQL = """alter table {0}_era drop constraint if exists xpk_{0}_era;
     alter table {0}_era drop constraint if exists {0}_era_pkey;"""
 DROP_NULL_ERA_SQL = 'alter table {0}_era alter column {0}_era_id drop not null;'
+TRUNCATE_ERA_SQL = 'TRUNCATE {0}.drug_era;'
 IDX_ERA_SQL = 'create index {0} on {1}_era ({2})'
-drop_drug_scdf_era_sql = "DROP TABLE IF EXISTS {0}.drug_scdf_era;"
-drop_drug_scdf_era_msg = "dropping {0}.drug_scdf_era"
-
 
 def _create_argos_file(config_path, config_file, schema, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
@@ -66,35 +64,16 @@ def _fix_run(file_path, site):
 
 
 def _copy_to_dcc_table(conn_str, era_type, schema):
-    copy_to_condition_sql = """INSERT INTO dcc_pedsnet.condition_era(
-        condition_concept_id, condition_era_end_date, condition_era_start_date, 
-        condition_occurrence_count, condition_concept_name, site, condition_era_id, 
-        site_id, person_id)
-        (select condition_concept_id, condition_era_end_date, condition_era_start_date, 
-        condition_occurrence_count, condition_concept_name, site, condition_era_id, 
-        site_id, person_id
-        from {0}.condition_era) ON CONFLICT DO NOTHING"""
     copy_to_drug_sql = """INSERT INTO dcc_pedsnet.drug_era(
         drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
         gap_days, drug_concept_name, site, drug_era_id, site_id, person_id)
         (select drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
         gap_days, drug_concept_name, site, drug_era_id, site_id, person_id
         from {0}.drug_era) ON CONFLICT DO NOTHING"""
-    copy_to_drug_scdf_sql = """INSERT INTO dcc_pedsnet.drug_era(
-            drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
-            gap_days, drug_concept_name, site, drug_era_id, site_id, person_id)
-            (select drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
-            gap_days, drug_concept_name, site, drug_era_id, site_id, person_id
-            from {0}.drug_scdf_era) ON CONFLICT DO NOTHING"""
     copy_to_msg = "copying {0}_era to dcc_pedsnet"
 
     # Insert era data into dcc_pedsnet era table
-    if era_type == "condition":
-        copy_to_stmt = Statement(copy_to_condition_sql.format(schema), copy_to_msg.format(era_type))
-    if era_type == "drug_scdf":
-        copy_to_stmt = Statement(copy_to_drug_scdf_sql.format(schema), copy_to_msg.format(era_type))
-    else:
-        copy_to_stmt = Statement(copy_to_drug_sql.format(schema), copy_to_msg.format(era_type))
+    copy_to_stmt = Statement(copy_to_drug_sql.format(schema), copy_to_msg.format(era_type))
 
     # Execute the insert era statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
@@ -104,52 +83,9 @@ def _copy_to_dcc_table(conn_str, era_type, schema):
     return True
 
 
-def _copy_to_drug_era_table(conn_str, schema):
-    copy_to_drug_era_sql = """INSERT INTO {0}.drug_era(
-                drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
-                gap_days, drug_concept_name, site, drug_era_id, site_id, person_id)
-                (select drug_concept_id, drug_era_end_date, drug_era_start_date, drug_exposure_count, 
-                gap_days, drug_concept_name, site, drug_era_id, site_id, person_id
-                from {0}.drug_scdf_era) ON CONFLICT DO NOTHING"""
-    copy_to_msg = "copying drug_scdf_era to {0}.drug_era"
+def run_r_drug_era(conn_str, site, copy, search_path, password, model_version, notable=False,
+                   noids=False, nopk=False, novac=False):
 
-    # Insert era data into dcc_pedsnet era table
-    copy_to_stmt = Statement(copy_to_drug_era_sql.format(schema), copy_to_msg.format(schema))
-
-    # Execute the insert era statement and ensure it didn't error
-    copy_to_stmt.execute(conn_str)
-    check_stmt_err(copy_to_stmt, 'insert drug_scdf_era data')
-
-    # If reached without error, then success!
-    return True
-
-
-def _renumber_drug_era_table(conn_str, schema):
-    renumber_drug_era_sql = """
-        update {0}.drug_era d
-        set site_id = nn.new_number
-        from (
-            select drug_era_id, 
-                person_id,
-                row_number() over (order by person_id) as new_number
-        from {0}.drug_era
-        ) nn
-        where nn.drug_era_id = d.drug_era_id;
-    """
-    renumber_drug_era_msg = "renumbering site_id for {0}.drug_era"
-
-    # Renumber site_id
-    renumber_stmt = Statement(renumber_drug_era_sql.format(schema), renumber_drug_era_msg.format(schema))
-
-    # Execute the insert era statement and ensure it didn't error
-    renumber_stmt.execute(conn_str)
-    check_stmt_err(renumber_stmt, 'renumber site_id')
-
-    # If reached without error, then success!
-    return True
-
-
-def run_r_drug_era(era_type, conn_str, site, copy, search_path, password, model_version):
     """Run the Condition or Drug Era derivation.
 
     * Execute SQL
@@ -165,11 +101,17 @@ def run_r_drug_era(era_type, conn_str, site, copy, search_path, password, model_
     :param str search_path: PostgreSQL schema search path
     :param str password:    user's password
     :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param bool notable:      skip creating tables if it already exists
+    :param bool noids:        skip ids if already exist
+    :param bool nopk:         skip primary keys if already exist
+    :param bool noidx:        skip ndexes if already exist
+    :param bool novac:        skip vaccuum if already done
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
 
     """
+    era_type = 'drug'
     package = 'drug_era'
     config_file = site + "_" + package + "_argos_temp.json";
 
@@ -190,7 +132,7 @@ def run_r_drug_era(era_type, conn_str, site, copy, search_path, password, model_
 
     stmts = StatementSet()
 
-    if era_type != "drug_scdf":
+    if not notable:
         # Drop primary key.
         drop_pk_stmt = Statement(DROP_PK_CONSTRAINT_ERA_SQL.format(era_type))
         stmts.add(drop_pk_stmt)
@@ -214,6 +156,11 @@ def run_r_drug_era(era_type, conn_str, site, copy, search_path, password, model_
         drop_stmt = Statement(DROP_NULL_ERA_SQL.format(era_type))
         stmts.add(drop_stmt)
 
+        # Truncate table
+        stmts.clear()
+        trunc_stmt = Statement(TRUNCATE_ERA_SQL.format(schema))
+        stmts.add(trunc_stmt)
+
         # Check for any errors and raise exception if they are found.
         for stmt in stmts:
             try:
@@ -228,41 +175,34 @@ def run_r_drug_era(era_type, conn_str, site, copy, search_path, password, model_
                                           log_dict))
                 raise
 
-   # Run the derivation query
-    logger.info({'msg': 'run {0} era derivation R Script'.format(era_type)})
-    run_query_msg = "running {0} era derivation R Script"
+       # Run the derivation query
+        logger.info({'msg': 'run {0} era derivation R Script'.format(era_type)})
+        run_query_msg = "running {0} era derivation R Script"
 
-    source_path = os.path.join(os.sep, 'app', package)
-    dest_path = os.path.join(source_path, site)
-    # delete any old versions
-    if os.path.isdir(dest_path):
-        shutil.rmtree(dest_path)
-    # copy base files to site specific
-    shutil.copytree(source_path, dest_path)
-    # create the Argos congig file
-    _create_argos_file(dest_path, config_file, schema, password, conn_info_dict)
-    # modify site_info and run.R to add actual site
-    _fix_site_info(dest_path, site)
-    _fix_run(dest_path, site)
+        source_path = os.path.join(os.sep, 'app', package)
+        dest_path = os.path.join(source_path, site)
+        # delete any old versions
+        if os.path.isdir(dest_path):
+            shutil.rmtree(dest_path)
+        # copy base files to site specific
+        shutil.copytree(source_path, dest_path)
+        # create the Argos congig file
+        _create_argos_file(dest_path, config_file, schema, password, conn_info_dict)
+        # modify site_info and run.R to add actual site
+        _fix_site_info(dest_path, site)
+        _fix_run(dest_path, site)
 
-    query_path = os.path.join(os.sep, 'app', package, site, 'site', 'run.R')
-    # Run R script
-    Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
-    ogger.info(combine_dicts({'msg': 'finished R Script',
-                              'elapsed': secs_since(start_time)}, log_dict))
+        query_path = os.path.join(os.sep, 'app', package, site, 'site', 'run.R')
+        # Run R script
+        Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
+        logger.info(combine_dicts({'msg': 'finished R Script',
+                                  'elapsed': secs_since(start_time)}, log_dict))
 
     # add ids
-    okay = _add_era_ids(era_type, conn_str, site, search_path, model_version)
-    if not okay:
-        return False
-
-    # Copy drug_scdf era to drug era
-    if era_type == "drug_scdf":
-        logger.info({'msg': 'copy drug_scdf_era to {0}.drug_era'.format(schema)})
-        okay = _copy_to_drug_era_table(conn_str, schema)
+    if not noids:
+        okay = _add_era_ids(era_type, conn_str, site, search_path, model_version)
         if not okay:
             return False
-        logger.info({'msg': 'drug_scdf_era copied to {0}.drug_era'.format(schema)})
 
     # Copy to the dcc_pedsnet table
     if copy:
@@ -272,29 +212,19 @@ def run_r_drug_era(era_type, conn_str, site, copy, search_path, password, model_
             return False
         logger.info({'msg': '{0}_era copied to dcc_pedsnet'.format(era_type)})
 
-    if era_type == "drug_scdf":
-        # Drop drug_scdf era to drug era
-        logger.info({'msg': 'begin drug_scdf drop'})
-        drop_drug_scdf_era_stmt = Statement(drop_drug_scdf_era_sql.format(schema),
-                                            drop_drug_scdf_era_msg.format(schema))
-        drop_drug_scdf_era_stmt.execute(conn_str)
-        logger.info({'msg': 'drug_scdf dropped'})
-
     # Add primary keys
-    _add_primary_key(era_type, conn_str, schema)
-
-    era_table = era_type + "_era"
-    if era_type == "drug_scdf":
-        era_table = "drug_era"
+    if not nopk:
+        _add_primary_key(era_type, conn_str, schema)
 
     # Vacuum analyze tables for piney freshness.
-    logger.info({'msg': 'begin vacuum'})
-    vacuum(conn_str, model_version, analyze=True, tables=[era_table])
-    logger.info({'msg': 'vacuum finished'})
+    if not novac:
+        logger.info({'msg': 'begin vacuum'})
+        vacuum(conn_str, model_version, analyze=True, tables=['drug_era'])
+        logger.info({'msg': 'vacuum finished'})
 
-    # Log end of function.
-    logger.info(combine_dicts({'msg': logger_msg.format("finished",era_type),
-                               'elapsed': secs_since(start_time)}, log_dict))
+        # Log end of function.
+        logger.info(combine_dicts({'msg': logger_msg.format("finished",era_type),
+                                   'elapsed': secs_since(start_time)}, log_dict))
 
     # If reached without error, then success!
     return True
@@ -305,8 +235,6 @@ def _add_primary_key(era_type, conn_str, schema):
     pk_era_id_sql = "alter table {0}.{1}_era add primary key ({2}_era_id)"
     pk_era_id_msg = "making {0}_era_id the priomary key"
     temp_era_type = era_type
-    if era_type == 'drug_scdf':
-        temp_era_type = 'drug'
 
     # Make era Id the primary key
     logger.info({'msg': 'begin add primary key'})
@@ -375,9 +303,6 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     table_name = era_type + "_era"
     temp_table_name = table_name
     temp_era_type = era_type
-    if era_type == 'drug_scdf':
-        temp_era_type = 'drug'
-        temp_table_name = 'drug_era'
 
     # Mapping and last ID table naming conventions.
     last_id_table_name_tmpl = "dcc_{table_name}_id"

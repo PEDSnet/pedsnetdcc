@@ -1276,8 +1276,18 @@ def copy_drug_era(pwprompt, searchpath, site, dburi):
               help='Copy results to dcc_pedsnet')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--notable', is_flag=True, default=False,
+              help='Skip fill table when exists.')
+@click.option('--noids', is_flag=True, default=False,
+              help='Skip ids if already exist.')
+@click.option('--nopk', is_flag=True, default=False,
+              help='Skip primary keys if already exist.')
+@click.option('--noids', is_flag=True, default=False,
+              help='Skip ids if already exist.')
+@click.option('--novac', is_flag=True, default=False,
+              help='Skip vaccuum if already done.')
 @click.argument('dburi')
-def run_r_drug_era(pwprompt, searchpath, site, copy, model_version, dburi):
+def run_r_drug_era(pwprompt, searchpath, site, copy, model_version, notable, noids, nopk, novac, dburi):
     """Run Drug Era derivation.
 
     The steps are:
@@ -1303,7 +1313,7 @@ def run_r_drug_era(pwprompt, searchpath, site, copy, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.r_drug_era import run_r_drug_era
-    success = run_r_drug_era("drug", conn_str, site, copy, searchpath, password, model_version)
+    success = run_r_drug_era(conn_str, site, copy, searchpath, password, model_version, notable, noids, nopk, novac)
 
     if not success:
         sys.exit(1)
