@@ -253,8 +253,14 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc, site3
     start_time = time.time()
     schema = primary_schema(search_path)
 
+    move = True
+    if dcc:
+        move = False
+    elif site3:
+        move = False
+
     # move site bmi measurements if site (not dcc or site3)
-    if not dcc or not site3:
+    if move:
         move_measures = {
             'bmi': (3038553,),
             'bmiz': (2000000043,),
