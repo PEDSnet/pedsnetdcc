@@ -54,6 +54,52 @@ FUNCTION_INSERT_DCC_MEASUREMENT_SQL = """CREATE OR REPLACE FUNCTION trg_insert_d
     $$
     LANGUAGE plpgsql;"""
 
+FUNCTION_INSERT_SITE3_MEASUREMENT_SQL = """CREATE OR REPLACE FUNCTION trg_insert_site_measurement()
+    RETURNS TRIGGER AS $$
+    DECLARE
+        old_measurement_id {0}.measurement.measurement_id%TYPE := NULL;
+        partition_table varchar(7);
+    BEGIN
+        SELECT measurement_id INTO old_measurement_id
+        FROM {0}.measurement
+        WHERE measurement_id = NEW.measurement_id;
+        IF found THEN
+            RAISE unique_violation
+            USING MESSAGE = 'Duplicate measurement_id: ' || old_measurement_id;
+        END IF;
+
+        -- Here we use measurement_concept_id to insert into appropriate partition
+        CASE 
+           WHEN NEW.measurement_concept_id IN (3013762, 3023540, 3038553, 2000000041, 2000000042, 2000000043, 
+                                   2000000044, 2000000045, 3001537, 3025315, 3036277)
+                                   THEN partition_table := 'anthro';
+           WHEN NEW.measurement_concept_id IN (21490852, 21492241, 3027018, 40762499, 3024171, 3034703, 
+                                   3019962, 3013940, 3012888, 3018586, 3035856, 3009395, 
+                                   3004249, 3020891)
+                                   THEN partition_table := 'vitals';
+           WHEN NEW.measurement_concept_id NOT IN (3013762, 3023540, 3038553, 2000000041, 2000000042, 
+                                       2000000043,2000000044, 2000000045, 3001537, 3025315, 
+                                       3036277, 21490852, 21492241, 3027018, 40762499, 3024171, 
+                                       3034703, 3019962, 3013940, 3012888, 3018586, 3035856, 
+                                       3009395, 3004249, 3020891)
+                                       THEN partition_table := 'labs';
+           ELSE
+              -- else required
+              partition_table := 'unknown';
+        END CASE;
+        EXECUTE 'insert into {0}.measurement_' || partition_table ||
+            ' values ( $1.* )' USING NEW;
+
+        -- Prevent insertion into master table
+        RETURN NULL;
+    EXCEPTION
+    WHEN undefined_table THEN
+        -- Prevent insertion into master table
+        RETURN NULL;
+    END;
+    $$
+    LANGUAGE plpgsql;"""
+
 FUNCTION_INSERT_SITE_MEASUREMENT_SQL = """CREATE OR REPLACE FUNCTION trg_insert_site_measurement()
     RETURNS TRIGGER AS $$
     DECLARE
@@ -178,7 +224,7 @@ def _delete_measure_from_anthro(conn_str, table, concepts):
     return True
 
 
-def partition_measurement_table(conn_str, model_version, search_path, dcc):
+def partition_measurement_table(conn_str, model_version, search_path, dcc, site3):
     """Partition measurement using tables based on site (dcc or one of the 6 sites):
     dcc: measurement_anthro, measurement_labs, and measurement_vitals
     site: measurement_anthro, measurement_labs, and measurement_vitals,
@@ -194,6 +240,7 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc):
     :param model_version: PEDSnet model version, e.g. 2.3.0
     :param str search_path: PostgreSQL schema search path
     :param bool dcc:      is dcc versus site table
+    :param bool site3:      is site but partition as dcc
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -206,8 +253,8 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc):
     start_time = time.time()
     schema = primary_schema(search_path)
 
-    # move site bmi measurements if site (not dcc)
-    if not dcc:
+    # move site bmi measurements if site (not dcc or site3)
+    if not dcc or site3:
         move_measures = {
             'bmi': (3038553,),
             'bmiz': (2000000043,),
@@ -233,7 +280,7 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc):
     logger.info({'msg': 'measurement table truncated'})
 
     # List of tables to use as partitions
-    if dcc:
+    if dcc or site3:
         measure_like_tables = {
             'anthro': 'in',
             'labs': 'not in',
@@ -336,6 +383,9 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc):
             if dcc:
                 cursor.execute(FUNCTION_INSERT_DCC_MEASUREMENT_SQL.format(schema))
                 cursor.execute(TRIGGER_DCC_MEASUREMENT_INSERT_SQL.format(schema))
+            elif site3:
+                cursor.execute(FUNCTION_INSERT_SITE3_MEASUREMENT_SQL.format(schema))
+                cursor.execute(TRIGGER_SITE_MEASUREMENT_INSERT_SQL.format(schema))
             else:
                 cursor.execute(FUNCTION_INSERT_SITE_MEASUREMENT_SQL.format(schema))
                 cursor.execute(TRIGGER_SITE_MEASUREMENT_INSERT_SQL.format(schema))
