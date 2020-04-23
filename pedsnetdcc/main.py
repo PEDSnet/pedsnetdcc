@@ -1512,10 +1512,12 @@ def copy_to_dcc(pwprompt, searchpath, site, table, dburi):
 @click.option('--searchpath', '-s', help='Schema search path in database.')
 @click.option('--dcc', is_flag=True, default=False,
               help='partition dcc vs site measurement table')
+@click.option('--site3', is_flag=True, default=False,
+              help='partition site measurement table in 3')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def partition_measurement(pwprompt, searchpath, dcc, model_version, dburi):
+def partition_measurement(pwprompt, searchpath, dcc, site3, model_version, dburi):
     """Partition measurement using measurement_anthro, measurement_labs, and measurement_vitals split tables
 
     The steps are:
@@ -1540,7 +1542,7 @@ def partition_measurement(pwprompt, searchpath, dcc, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.partition_measurement import partition_measurement_table
-    success = partition_measurement_table(conn_str, model_version, searchpath, dcc)
+    success = partition_measurement_table(conn_str, model_version, searchpath, dcc, site3)
 
     if not success:
         sys.exit(1)
