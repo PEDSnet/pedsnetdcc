@@ -473,7 +473,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
     check_stmt_data(new_id_count_stmt, 'assign measurement ids')
 
     # Get the actual count of new ID maps needed and log it.
-    tpl_vars['new_id_count'] = new_id_count_stmt.data[0][0]
+    tpl_vars['new_id_count'] = new_id_count_stmt.data[0][0] + 1
     logger.info({'msg': 'counted new IDs needed', 'table': table_name,
                  'count': tpl_vars['new_id_count']})
 
@@ -516,7 +516,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
 
     # Set the sequence number
     logger.info({'msg': 'begin set sequence number'})
-    seq_number_set_stmt = Statement(set_seq_number_sql.format(schema, site, z_type, tpl_vars['old_last_id']),
+    seq_number_set_stmt = Statement(set_seq_number_sql.format(schema, site, z_type, (tpl_vars['old_last_id'] + 1)),
                                     set_seq_number_msg)
 
     # Execute the set the sequence number statement and ensure it didn't error
