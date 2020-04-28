@@ -637,14 +637,14 @@ def run_era(era_type, conn_str, site, copy, search_path, model_version):
         _renumber_drug_era_table(conn_str, schema)
         logger.info({'msg': 'finished drug_era_renumbering'})
 
+
+    # Add primary keys
+    if era_type != "drug_scdf":
+        _add_primary_key(era_type, conn_str, schema)
+
     era_table = era_type + "_era"
     if era_type == "drug_scdf":
         era_table = "drug_era"
-        era_type = "drug"
-
-    # Add primary keys
-    _add_primary_key(era_type, conn_str, schema)
-
 
     # Vacuum analyze tables for piney freshness.
     logger.info({'msg': 'begin vacuum'})
