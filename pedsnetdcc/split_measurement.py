@@ -23,6 +23,7 @@ ADD_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE_LABS = """alter table {0}.measurement_org
 TRUNCATE_MEASUREMENT_SQL = 'truncate table {0}.measurement;'
 SET_COLUMN_NOT_NULL = 'alter table {0}.measurement_{1} alter column {2} set not null;'
 
+
 def _make_index_name(table_name, column_name):
     """
     Create an index name for a given table/column combination with
@@ -267,7 +268,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
     # Set permissions
     stmts.clear()
     logger.info({'msg': 'setting permissions'})
-    users = ('achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff')
+    users = ('achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff', 'dcc_analytics')
     for measure_like_table in measure_like_tables:
         for usr in users:
             grant_stmt = Statement(GRANT_MEASURE_LIKE_TABLE_SQL.format(schema, measure_like_table, usr))

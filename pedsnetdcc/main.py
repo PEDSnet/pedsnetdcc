@@ -26,7 +26,7 @@ def pedsnetdcc(logfmt, loglvl):
 
     # Without explicit logfmt at tty use tty format.
     if not logfmt and sys.stderr.isatty():
-            logfmt = 'tty'
+        logfmt = 'tty'
 
     if logfmt == 'tty':
         sh.addFilter(DictLogFilter('tty'))
@@ -174,7 +174,7 @@ def create_id_maps(dburi, pwprompt):
     """Create id map tables to map the relationship between site ids and the dcc ids
 
     Mapping between external site ids and dcc ids are neccessary to ensure data stays consistent
-    data cycles. This creates the tables neccessary for preserving that data.  
+    data cycles. This creates the tables neccessary for preserving that data.
     Does not fill in any data.
 
     The database should be specified using a DBURI:
@@ -274,6 +274,7 @@ def transform(pwprompt, searchpath, site, force, model_version, undo, dburi):
         sys.exit(1)
 
     sys.exit(0)
+
 
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
@@ -418,7 +419,8 @@ def merge(pwprompt, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, n
 @click.option('--undo', is_flag=True, default=False,
               help='Remove merged DCC data tables.')
 @click.argument('dburi')
-def merge_schema(pwprompt, schema, altname, skipsites, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, nofk, novac, model_version, undo, dburi):
+def merge_schema(pwprompt, schema, altname, skipsites, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, nofk,
+                 novac, model_version, undo, dburi):
     """Merge site data into a single, aggregated DCC dataset
 
     Site data from the site data schemas (named like '<site>_pedsnet') into the
@@ -555,7 +557,8 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
 
     config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
-    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath, model_version)
+    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+                           model_version)
 
     if not success:
         sys.exit(1)
@@ -657,7 +660,8 @@ def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table
         concept = False
 
     from pedsnetdcc.bmi import run_bmi_calc
-    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath, model_version)
+    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+                           model_version)
 
     if not success:
         sys.exit(1)
@@ -759,7 +763,8 @@ def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, tabl
         concept = False
 
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath, model_version)
+    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+                         model_version)
 
     if not success:
         sys.exit(1)
@@ -855,7 +860,8 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 
     config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
-    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath, model_version)
+    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+                           model_version)
 
     if not success:
         sys.exit(1)
@@ -931,7 +937,8 @@ def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
         concept = False
 
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath, model_version)
+    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+                         model_version)
 
     if not success:
         sys.exit(1)
@@ -1033,7 +1040,8 @@ def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
         concept = False
 
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath, model_version)
+    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+                         model_version)
 
     if not success:
         sys.exit(1)
@@ -1308,7 +1316,6 @@ def run_r_drug_era(pwprompt, searchpath, site, copy, model_version, notable, noi
 
     if pwprompt:
         password = click.prompt('Database password', hide_input=True)
-
 
     conn_str = make_conn_str(dburi, searchpath, password)
 
@@ -1613,6 +1620,7 @@ def prepdb(model_version, dcc_only, pwprompt, dburi):
 
     sys.exit(0)
 
+
 @pedsnetdcc.command()
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
@@ -1657,7 +1665,7 @@ def prepdb_altname(model_version, name, addsites, new, limit, dcc_only, pwprompt
 
     conn_str = make_conn_str(dburi, password=password)
     success = prepare_database_altname(model_version, conn_str, name, addsites, new, limit, update=False,
-                               dcc_only=dcc_only)
+                                       dcc_only=dcc_only)
 
     if not success:
         sys.exit(1)
@@ -1725,7 +1733,7 @@ def map_external_ids(dburi, in_file, search_path, out_file, table_name, pwprompt
 @click.option('--full', '-f', is_flag=True, default=False)
 def grant_permissions(dburi, pwprompt, full):
     """Grants the appropriate permissions for all schemas and tables, as well as vocabulary schemas and tables
-    
+
     This is normally set during prepdb and transform, but this command can be used to manually set permissions
     if there is an issue
 
@@ -1734,7 +1742,7 @@ def grant_permissions(dburi, pwprompt, full):
     \b
     postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
     """
-    
+
     from pedsnetdcc.permissions import grant_schema_permissions, grant_vocabulary_permissions, \
         grant_loading_user_permissions
 
@@ -1825,8 +1833,49 @@ def run_r_query(pwprompt, searchpath, site, package, model_version, copy, dburi)
     sys.exit(0)
 
 
-@pedsnetdcc.command()		  
-@click.argument('dburi', required=True)		 
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for the config file.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to output.')
+@click.argument('dburi')
+def run_r_obs_covid(pwprompt, searchpath, site, model_version, copy, dburi):
+    """Run R Script.
+
+    The steps are:
+
+      - Create the Argos file.
+      - Run the script.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.r_obs_covid import run_r_obs_covid
+    success = run_r_obs_covid(conn_str, site, password, searchpath, model_version, copy)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.argument('dburi', required=True)
 @click.option('--pwprompt', '-p', is_flag=True, default=False)
 @click.option('--searchpath', '-s', required=True)
 @click.option('--site', required=True,
@@ -1839,7 +1888,7 @@ def generate_transform_statements(dburi, pwprompt, searchpath, model_version, si
     if pwprompt:
         password = click.prompt('Database password', hide_input=True)
 
-    # TODO: do we need to validate the primary schema at all?		
+    # TODO: do we need to validate the primary schema at all?
     schema = primary_schema(searchpath)
 
     tmp_schema = schema + '_' + 'transformed'
