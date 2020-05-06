@@ -252,30 +252,30 @@ def run_r_obs_covid(conn_str, site, password, search_path, model_version, copy):
     logger_msg = 'covid19_observation_derivations'
     schema = primary_schema(search_path)
 
-    # if password == None:
-    #     pass_match = re.search(r"password=(\S*)", conn_str)
-    #     password = pass_match.group(1)
-    #
-    # source_path = os.path.join(os.sep,'app', package)
-    # dest_path = os.path.join(source_path, site)
-    # # delete any old versions
-    # if os.path.isdir(dest_path):
-    #     shutil.rmtree(dest_path)
-    # # copy base files to site specific
-    # shutil.copytree(source_path, dest_path)
-    # # create the Argos congig file
-    # _create_argos_file(dest_path, config_file, schema, password, conn_info_dict)
-    # # modify site_info and run.R to add actual site
-    # _fix_site_info(dest_path, site)
-    # _fix_run(dest_path, site)
-    #
-    # query_path = os.path.join(os.sep,'app', package, site, 'site', 'run.R')
-    # # Run R script
-    # Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
-    #
-    # # Log end of function.
-    # logger.info(combine_dicts({'msg': 'finished R Script',
-    #                            'elapsed': secs_since(start_time)}, log_dict))
+    if password == None:
+        pass_match = re.search(r"password=(\S*)", conn_str)
+        password = pass_match.group(1)
+
+    source_path = os.path.join(os.sep,'app', package)
+    dest_path = os.path.join(source_path, site)
+    # delete any old versions
+    if os.path.isdir(dest_path):
+        shutil.rmtree(dest_path)
+    # copy base files to site specific
+    shutil.copytree(source_path, dest_path)
+    # create the Argos congig file
+    _create_argos_file(dest_path, config_file, schema, password, conn_info_dict)
+    # modify site_info and run.R to add actual site
+    _fix_site_info(dest_path, site)
+    _fix_run(dest_path, site)
+
+    query_path = os.path.join(os.sep,'app', package, site, 'site', 'run.R')
+    # Run R script
+    Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
+
+    # Log end of function.
+    logger.info(combine_dicts({'msg': 'finished R Script',
+                               'elapsed': secs_since(start_time)}, log_dict))
 
     # Drop primary key.
     stmts = StatementSet()
