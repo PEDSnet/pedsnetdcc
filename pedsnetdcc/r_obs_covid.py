@@ -121,7 +121,7 @@ def _fill_age_in_months(conn_str, schema):
 
 
 def _copy_to_obs_table(conn_str, schema):
-    copy_to_sql = """INSERT INTO {0).observation(
+    copy_to_sql = """INSERT INTO {0}.observation(
             observation_concept_id, observation_date, observation_datetime, 
             observation_source_concept_id, observation_source_value, 
             observation_type_concept_id, qualifier_concept_id, qualifier_source_value, 
@@ -139,7 +139,7 @@ def _copy_to_obs_table(conn_str, schema):
             observation_source_concept_name, observation_type_concept_name, 
             qualifier_concept_name, unit_concept_name, value_as_concept_name, site, 
             observation_id, site_id, provider_id, visit_occurrence_id, person_id
-        from {0}.observation) ON CONFLICT DO NOTHING"""
+        from {0}.observation_derivation_covid) ON CONFLICT DO NOTHING"""
 
     copy_to_msg = "copying {0} to observation"
 
