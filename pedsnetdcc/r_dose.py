@@ -18,11 +18,10 @@ GRANT_OBS_MGKG_METADATA_SQL = 'grant select on table {0}.drug_exposures_mgkg_met
 
 def _update_drug_exposure(conn_str, schema):
     update_drug_exposure_sql = """UPDATE {0}.drug_exposure de
-        SET de.dose_unit_concept_id = de_dev.dose_unit_concept_id,
-        de.effective_drug_dose = de_dev.effective_drug_dose,
-        de.dose_unit_concept_name = de_dev.dose_unit_concept_name 
-        FROM ( SELECT
-            drug_exposure_id, person_id, dose_unit_concept_id, 
+        SET dose_unit_concept_id = de_dev.dose_unit_concept_id,
+        effective_drug_dose = de_dev.effective_drug_dose,
+        dose_unit_concept_name = de_dev.dose_unit_concept_name 
+        FROM ( SELECT drug_exposure_id, person_id, dose_unit_concept_id, 
             effective_drug_dose, dose_unit_concept_name
             FROM {0}.drug_exposures_mgkg_derivations) AS de_dev
         WHERE de.person_id = de_dev.person_id AND 
