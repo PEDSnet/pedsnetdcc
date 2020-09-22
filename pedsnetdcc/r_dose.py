@@ -13,7 +13,6 @@ from pedsnetdcc.utils import (check_stmt_err, check_stmt_data, combine_dicts,
 from sh import Rscript
 
 logger = logging.getLogger(__name__)
-NAME_LIMIT = 30
 GRANT_OBS_MGKG_DERIVATION_SQL = 'grant select on table {0}.drug_exposures_mgkg_derivations to {1}'
 GRANT_OBS_MGKG_METADATA_SQL = 'grant select on table {0}.drug_exposures_mgkg_metadata to {1}'
 
@@ -97,7 +96,7 @@ def run_r_dose(conn_str, site, password, search_path, model_version, copy):
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
-    :param bool copy: if True, copy results to output directory
+    :param bool copy: if True, copy results to drug exposure
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -113,7 +112,6 @@ def run_r_dose(conn_str, site, password, search_path, model_version, copy):
     logger.info(combine_dicts({'msg': 'starting R Script'},
                               log_dict))
     start_time = time.time()
-    logger_msg = 'dose_derivations'
     schema = primary_schema(search_path)
 
     if password == None:
@@ -141,10 +139,8 @@ def run_r_dose(conn_str, site, password, search_path, model_version, copy):
     logger.info(combine_dicts({'msg': 'finished R Script',
                                'elapsed': secs_since(start_time)}, log_dict))
 
-    stmts = StatementSet()
-
     if copy:
-        # update_drug_exposure
+        # update drug_exposure
         logger.info({'msg': 'Update drug_exposure'})
         okay = _update_drug_exposure(conn_str, schema)
         if not okay:
@@ -152,7 +148,7 @@ def run_r_dose(conn_str, site, password, search_path, model_version, copy):
         logger.info({'msg': 'drug_exposure updated'})
 
     # Set permissions
-    stmts.clear()
+    stmts = StatementSet()
     logger.info({'msg': 'setting permissions'})
     users = ('achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff', 'dcc_analytics')
 
