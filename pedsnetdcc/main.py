@@ -1875,6 +1875,47 @@ def run_r_obs_covid(pwprompt, searchpath, site, model_version, copy, dburi):
 
 
 @pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for the config file.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to drug_exposure.')
+@click.argument('dburi')
+def run_r_dose(pwprompt, searchpath, site, model_version, copy, dburi):
+    """Run R Script.
+
+    The steps are:
+
+      - Create the Argos file.
+      - Run the script.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.r_dose import run_r_dose
+    success = run_r_dose(conn_str, site, password, searchpath, model_version, copy)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
 @click.argument('dburi', required=True)
 @click.option('--pwprompt', '-p', is_flag=True, default=False)
 @click.option('--searchpath', '-s', required=True)
