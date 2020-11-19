@@ -431,7 +431,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg
         FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
     update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
     create_seq_measurement_sql = "create sequence if not exists {0}.{1}_{2}_measurement_id_seq"
-    create_neg_seq_measurement_sql = """create sequence if not exists {0}.{1}_bmi_measurement_id_seq
+    create_neg_seq_measurement_sql = """create sequence if not exists {0}.{1}_{2}_measurement_id_seq
             INCREMENT 1 START -2147483647 MINVALUE -2147483647 MAXVALUE 0"""
     create_seq_measurement_msg = "creating measurement id sequence"
     set_seq_number_sql = "alter sequence {0}.{1}_{2}_measurement_id_seq restart with {3};"
