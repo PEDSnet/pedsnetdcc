@@ -899,12 +899,14 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
               help='DO NOT add indexes.')
 @click.option('--noconcept', is_flag=True, default=False,
               help='DO NOT add concept names.')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
+def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, model_version, dburi):
     """Run HEIGHT-Z derivation.
 
     The steps are:
@@ -945,7 +947,7 @@ def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
         concept = False
 
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                          model_version)
 
     if not success:
@@ -1002,12 +1004,14 @@ def copy_height_z(pwprompt, searchpath, site, table, dburi):
               help='DO NOT add indexes.')
 @click.option('--noconcept', is_flag=True, default=False,
               help='DO NOT add concept names.')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
+def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, model_version, dburi):
     """Run Weight-Z derivation.
 
     The steps are:
@@ -1048,7 +1052,7 @@ def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
         concept = False
 
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                          model_version)
 
     if not success:
@@ -1105,12 +1109,14 @@ def copy_weight_z(pwprompt, searchpath, site, table, dburi):
               help='DO NOT add indexes.')
 @click.option('--noconcept', is_flag=True, default=False,
               help='DO NOT add concept names.')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
+def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, model_version, dburi):
     """Run height-z and weight-z.
 
     The steps are:
@@ -1146,14 +1152,14 @@ def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, t
     from pedsnetdcc.z_score import run_z_calc
 
     config_file = site + "_htz_temp.conf"
-    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                          model_version)
 
     if not success:
         sys.exit(1)
 
     config_file = site + "_wtz_temp.conf"
-    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                          model_version)
 
     if not success:
