@@ -231,7 +231,7 @@ def _copy_to_dcc_table(conn_str, schema, table, z_type):
     return True
 
 
-def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept, table, password, search_path, model_version):
+def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, search_path, model_version):
     """Run the Z Score tool.
 
     * Create config file
@@ -251,6 +251,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     :param bool ids: if True, add measurement_ids to output table
     :param bool indexes: if True, create indexes on output table
     :param bool concept: if True, add concept names to output table
+    :param bool neg_ids: if True, use negative ids
     :param str table:    name of input/copy table (measurement/measurement_anthro)
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
@@ -366,7 +367,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
 
     # add measurement_ids
     if ids:
-        okay = _add_measurement_ids(z_type, conn_str, site, search_path, model_version)
+        okay = _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg_ids)
         if not okay:
             return False
 
@@ -399,7 +400,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     return True
 
 
-def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
+def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg_ids):
     """Add measurement ids for the bmi table
 
     * Find how many ids needed
@@ -430,6 +431,8 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
         FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
     update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
     create_seq_measurement_sql = "create sequence if not exists {0}.{1}_{2}_measurement_id_seq"
+    create_neg_seq_measurement_sql = """create sequence if not exists {0}.{1}_bmi_measurement_id_seq
+            INCREMENT 1 START -2147483647 MINVALUE -2147483647 MAXVALUE 0"""
     create_seq_measurement_msg = "creating measurement id sequence"
     set_seq_number_sql = "alter sequence {0}.{1}_{2}_measurement_id_seq restart with {3};"
     set_seq_number_msg = "setting sequence number"
@@ -506,8 +509,12 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version):
 
     logger.info({'msg': 'begin measurement id sequence creation'})
     # Create the measurement id sequence (if it doesn't exist)
-    measurement_seq_stmt = Statement( create_seq_measurement_sql.format(schema, site, z_type),
-                                      create_seq_measurement_msg)
+    if neg_ids:
+        measurement_seq_stmt = Statement(create_neg_seq_measurement_sql.format(schema, site, z_type),
+                                         create_seq_measurement_msg)
+    else:
+        measurement_seq_stmt = Statement( create_seq_measurement_sql.format(schema, site, z_type),
+                                          create_seq_measurement_msg)
 
     # Execute the create the measurement id sequence statement and ensure it didn't error
     measurement_seq_stmt.execute(conn_str)

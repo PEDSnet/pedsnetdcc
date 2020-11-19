@@ -513,12 +513,14 @@ def split_measurement(pwprompt, searchpath, truncate, view, model_version, dburi
               help='DO NOT add indexes.')
 @click.option('--noconcept', is_flag=True, default=False,
               help='DO NOT add concept names.')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
+def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, model_version, dburi):
     """Run all derivations.
 
     The steps are:
@@ -557,7 +559,7 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
 
     config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
-    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                            model_version)
 
     if not success:
@@ -565,34 +567,34 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
 
     config_file = site + "_bmiz_temp.conf"
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                          model_version)
 
     if not success:
         sys.exit(1)
 
     config_file = site + "_htz_temp.conf"
-    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                          model_version)
 
     if not success:
         sys.exit(1)
 
     config_file = site + "_wtz_temp.conf"
-    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                          model_version)
 
     if not success:
         sys.exit(1)
 
     from pedsnetdcc.era import run_era
-    success = run_era("drug", conn_str, site, copy, searchpath, model_version)
+    success = run_era("drug", conn_str, site, copy, neg_ids, searchpath, model_version)
 
     if not success:
         sys.exit(1)
 
     from pedsnetdcc.era import run_era
-    success = run_era("condition", conn_str, site, copy, searchpath, model_version)
+    success = run_era("condition", conn_str, site, copy, neg_ids, searchpath, model_version)
 
     if not success:
         sys.exit(1)
@@ -614,12 +616,14 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
               help='DO NOT add indexes.')
 @click.option('--noconcept', is_flag=True, default=False,
               help='DO NOT add concept names.')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
+def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, model_version, dburi):
     """Run BMI derivation.
 
     The steps are:
@@ -660,7 +664,7 @@ def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table
         concept = False
 
     from pedsnetdcc.bmi import run_bmi_calc
-    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                            model_version)
 
     if not success:
@@ -717,12 +721,14 @@ def copy_bmi(pwprompt, searchpath, site, table, dburi):
               help='DO NOT add indexes.')
 @click.option('--noconcept', is_flag=True, default=False,
               help='DO NOT add concept names.')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
+def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, model_version, dburi):
     """Run BMI-Z derivation.
 
     The steps are:
@@ -763,7 +769,7 @@ def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, tabl
         concept = False
 
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                          model_version)
 
     if not success:
@@ -820,12 +826,14 @@ def copy_bmiz(pwprompt, searchpath, site, table, dburi):
               help='DO NOT add indexes.')
 @click.option('--noconcept', is_flag=True, default=False,
               help='DO NOT add concept names.')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, table, model_version, dburi):
+def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, model_version, dburi):
     """Run BMI and BMI-Z derivations.
 
     The steps are:
@@ -860,7 +868,7 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 
     config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
-    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                            model_version)
 
     if not success:
@@ -868,7 +876,7 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 
     config_file = site + "_bmiz_temp.conf"
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, table, password, searchpath,
+    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                          model_version)
 
     if not success:
@@ -1162,10 +1170,12 @@ def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, t
               help='PEDSnet site name for derivation.')
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to dcc_pedsnet')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_drug_era(pwprompt, searchpath, site, copy, model_version, dburi):
+def run_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, dburi):
     """Run Drug Era derivation.
 
     The steps are:
@@ -1190,7 +1200,7 @@ def run_drug_era(pwprompt, searchpath, site, copy, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("drug", conn_str, site, copy, searchpath, model_version)
+    success = run_era("drug", conn_str, site, copy, neg_ids, searchpath, model_version)
 
     if not success:
         sys.exit(1)
@@ -1206,10 +1216,12 @@ def run_drug_era(pwprompt, searchpath, site, copy, model_version, dburi):
               help='PEDSnet site name for derivation.')
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to dcc_pedsnet')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_drug_scdf_era(pwprompt, searchpath, site, copy, model_version, dburi):
+def run_drug_scdf_era(pwprompt, searchpath, site, copy, neg_ids, model_version, dburi):
     """Run Drug Era derivation.
 
     The steps are:
@@ -1234,7 +1246,7 @@ def run_drug_scdf_era(pwprompt, searchpath, site, copy, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("drug_scdf", conn_str, site, copy, searchpath, model_version)
+    success = run_era("drug_scdf", conn_str, site, copy, neg_ids, searchpath, model_version)
 
     if not success:
         sys.exit(1)
@@ -1282,6 +1294,8 @@ def copy_drug_era(pwprompt, searchpath, site, dburi):
               help='PEDSnet site name for derivation.')
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to dcc_pedsnet')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--notable', is_flag=True, default=False,
@@ -1295,7 +1309,7 @@ def copy_drug_era(pwprompt, searchpath, site, dburi):
 @click.option('--novac', is_flag=True, default=False,
               help='Skip vaccuum if already done.')
 @click.argument('dburi')
-def run_r_drug_era(pwprompt, searchpath, site, copy, model_version, notable, noids, nopk, novac, dburi):
+def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, notable, noids, nopk, novac, dburi):
     """Run Drug Era derivation.
 
     The steps are:
@@ -1320,7 +1334,7 @@ def run_r_drug_era(pwprompt, searchpath, site, copy, model_version, notable, noi
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.r_drug_era import run_r_drug_era
-    success = run_r_drug_era(conn_str, site, copy, searchpath, password, model_version, notable, noids, nopk, novac)
+    success = run_r_drug_era(conn_str, site, copy, neg_ids, searchpath, password, model_version, notable, noids, nopk, novac)
 
     if not success:
         sys.exit(1)
@@ -1336,10 +1350,12 @@ def run_r_drug_era(pwprompt, searchpath, site, copy, model_version, notable, noi
               help='PEDSnet site name for derivation.')
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to dcc_pedsnet')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
+def run_condition_era(pwprompt, searchpath, site, copy, neg_ids, model_version, dburi):
     """Run Condition Era derivation.
 
     The steps are:
@@ -1364,7 +1380,7 @@ def run_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("condition", conn_str, site, copy, searchpath, model_version)
+    success = run_era("condition", conn_str, site, copy, neg_ids, searchpath, model_version)
 
     if not success:
         sys.exit(1)
@@ -1412,10 +1428,12 @@ def copy_condition_era(pwprompt, searchpath, site, dburi):
               help='PEDSnet site name for the config file.')
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to dcc_pedsnet.')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_drug_condition_era(pwprompt, searchpath, site, copy, model_version, dburi):
+def run_drug_condition_era(pwprompt, searchpath, site, copy, neg_ids, model_version, dburi):
     """Run Drug Condition.
 
     The steps are:
@@ -1437,13 +1455,13 @@ def run_drug_condition_era(pwprompt, searchpath, site, copy, model_version, dbur
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("drug", conn_str, site, copy, searchpath, model_version)
+    success = run_era("drug", conn_str, site, copy, neg_ids, searchpath, model_version)
 
     if not success:
         sys.exit(1)
 
     from pedsnetdcc.era import run_era
-    success = run_era("condition", conn_str, site, copy, searchpath, model_version)
+    success = run_era("condition", conn_str, site, copy, neg_ids, searchpath, model_version)
 
     if not success:
         sys.exit(1)

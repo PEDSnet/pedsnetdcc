@@ -158,7 +158,7 @@ def _copy_to_dcc_table(conn_str, table):
     return True
 
 
-def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table, password, search_path, model_version):
+def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, search_path, model_version):
     """Run the BMI tool.
 
     * Create config file
@@ -177,6 +177,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table
     :param bool ids: if True, add measurement_ids to output table
     :param bool indexes: if True, create indexes on output table
     :param bool concept: if True, add concept names to output table
+    :param bool neg_ids: if True, use negative ids
     :param str table:    name of input/copy table (measurement/measurement_anthro)
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
@@ -280,7 +281,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table
 
     # add measurement_ids
     if ids:
-        okay = _add_measurement_ids(conn_str, site, search_path, model_version)
+        okay = _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version)
         if not okay:
             return False
 
@@ -313,7 +314,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, table
     return True
 
 
-def _add_measurement_ids(conn_str, site, search_path, model_version):
+def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version):
     """Add measurement ids for the bmi table
 
     * Find how many ids needed
@@ -325,6 +326,7 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
 
     :param str conn_str:      database connection string
     :param str site:    site to run BMI for
+    :param bool if True use negative ids
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
     :returns:                 True if the function succeeds
@@ -343,6 +345,8 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
         FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
     update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
     create_seq_measurement_sql = "create sequence if not exists {0}.{1}_bmi_measurement_id_seq"
+    create_neg_seq_measurement_sql = """create sequence if not exists {0}.{1}_bmi_measurement_id_seq
+        INCREMENT 1 START -2147483647 MINVALUE -2147483647 MAXVALUE 0"""
     create_seq_measurement_msg = "creating measurement id sequence"
     set_seq_number_sql = "alter sequence {0}.{1}_bmi_measurement_id_seq restart with {2};"
     set_seq_number_msg = "setting sequence number"
@@ -419,7 +423,11 @@ def _add_measurement_ids(conn_str, site, search_path, model_version):
 
     logger.info({'msg': 'begin measurement id sequence creation'})
     # Create the measurement id sequence (if it doesn't exist)
-    measurement_seq_stmt = Statement( create_seq_measurement_sql.format(schema, site),
+    if neg_ids:
+        measurement_seq_stmt = Statement(create_neg_seq_measurement_sql.format(schema, site),
+                                         create_seq_measurement_msg)
+    else:
+        measurement_seq_stmt = Statement( create_seq_measurement_sql.format(schema, site),
                                       create_seq_measurement_msg)
 
     # Execute the create the measurement id sequence statement and ensure it didn't error

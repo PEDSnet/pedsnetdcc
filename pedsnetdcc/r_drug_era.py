@@ -83,7 +83,7 @@ def _copy_to_dcc_table(conn_str, era_type, schema):
     return True
 
 
-def run_r_drug_era(conn_str, site, copy, search_path, password, model_version, notable=False,
+def run_r_drug_era(conn_str, site, copy, neg_ids, search_path, password, model_version, notable=False,
                    noids=False, nopk=False, novac=False):
 
     """Run the Condition or Drug Era derivation.
@@ -98,6 +98,7 @@ def run_r_drug_era(conn_str, site, copy, search_path, password, model_version, n
     :param str conn_str:      database connection string
     :param str site:    site to run derivation for
     :param bool copy: if True, copy results to dcc_pedsnet
+    :param bool neg_ids: if True, use negative ids
     :param str search_path: PostgreSQL schema search path
     :param str password:    user's password
     :param str model_version: pedsnet model version, e.g. 2.3.0
@@ -213,7 +214,7 @@ def run_r_drug_era(conn_str, site, copy, search_path, password, model_version, n
 
     # add ids
     if not noids:
-        okay = _add_era_ids(era_type, conn_str, site, search_path, model_version)
+        okay = _add_era_ids(era_type, conn_str, site, neg_ids, search_path, model_version)
         if not okay:
             return False
 
@@ -263,7 +264,7 @@ def _add_primary_key(era_type, conn_str, schema):
     return True
 
 
-def _add_era_ids(era_type, conn_str, site, search_path, model_version):
+def _add_era_ids(era_type, conn_str, site, neg_ids, search_path, model_version):
     """Add ids for the era table
 
     * Find how many ids needed
@@ -294,6 +295,8 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
         FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
     update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
     create_seq_sql = "create sequence if not exists {0}.{1}_{2}_era_id_seq"
+    create_neg_seq_sql = """create sequence if not exists {0}.{1}_{2}_era_id_seq
+        INCREMENT 1 START -2147483647 MINVALUE -2147483647 MAXVALUE 0"""
     create_seq_msg = "creating {0} era id sequence"
     set_seq_number_sql = "alter sequence {0}.{1}_{2}_era_id_seq restart with {3};"
     set_seq_number_msg = "setting sequence number"
@@ -371,8 +374,12 @@ def _add_era_ids(era_type, conn_str, site, search_path, model_version):
     logger.info({'msg': 'begin id sequence creation'})
 
     # Create the id sequence (if it doesn't exist)
-    era_seq_stmt = Statement(create_seq_sql.format(schema, site, era_type),
-                                      create_seq_msg.format(era_type))
+    if neg_ids:
+        era_seq_stmt = Statement(create_neg_seq_sql.format(schema, site, era_type),
+                                 create_seq_msg.format(era_type))
+    else:
+        era_seq_stmt = Statement(create_seq_sql.format(schema, site, era_type),
+                                 create_seq_msg.format(era_type))
 
     # Execute the create the era id sequence statement and ensure it didn't error
     era_seq_stmt.execute(conn_str)
