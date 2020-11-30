@@ -78,7 +78,7 @@ def _check_stmt_err(stmt, force):
     raise stmt.err
 
 
-def merge_site_data(model_version, conn_str, force=False, notable=False, nolog=False, nopk=False,
+def merge_site_data(model_version, conn_str, addsites, force=False, notable=False, nolog=False, nopk=False,
                     nonull=False, noidx=False, nodrop=False, norep=False, nofk=False, novac=False):
     """Merge data from site schemas into the DCC schema
 
@@ -90,6 +90,7 @@ def merge_site_data(model_version, conn_str, force=False, notable=False, nolog=F
 
     :param str model_version: PEDSnet model version, e.g. X.Y.Z
     :param str conn_str:      libpq connection string
+    :param str addsites:      sites to add
     :param bool force:        ignore benign errors if true; see https://github.com/PEDSnet/pedsnetdcc/issues/10
     :param bool notable:      skip creating tables is they already exist
     :param bool nolog:        skip setting tables to logged if already done
@@ -123,6 +124,11 @@ def merge_site_data(model_version, conn_str, force=False, notable=False, nolog=F
     for t in TRANSFORMS:
         metadata = t.modify_metadata(metadata)
 
+    # Get Sites to add
+    add_sites = addsites.split(",")
+
+    merge_sites = list(set(SITES) + set(add_sites))
+
     # Build a merge statement for each non-vocab table.
     for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
 
@@ -133,7 +139,7 @@ def merge_site_data(model_version, conn_str, force=False, notable=False, nolog=F
         unions = ''
 
         # Add a union statement for each site.
-        for site_name in SITES:
+        for site_name in merge_sites:
 
             site_schema = _sql_schema_tmpl.format(site_name=site_name)
 
@@ -265,7 +271,7 @@ def clear_dcc_data(model_version, conn_str, force=False):
     return True
 
 
-def merge_data_to_schema(model_version, conn_str, schema, altname, skipsites, force=False, notable=False, nolog=False, nopk=False,
+def merge_data_to_schema(model_version, conn_str, schema, altname, skipsites, addsites, force=False, notable=False, nolog=False, nopk=False,
                     nonull=False, noidx=False, nodrop=False, norep=False, nofk=False, novac=False):
     """Merge data from site schemas into the DCC schema
 
@@ -280,6 +286,7 @@ def merge_data_to_schema(model_version, conn_str, schema, altname, skipsites, fo
     :param str schema:        schema to merge into
     :param str altname:       alternate site schema naming
     :param str skipsites:     sites to skip
+    :param str addsites:      sites to add
     :param bool force:        ignore benign errors if true; see https://github.com/PEDSnet/pedsnetdcc/issues/10
     :param bool notable:      skip creating tables is they already exist
     :param bool nolog:        skip setting tables to logged if already done
@@ -317,6 +324,11 @@ def merge_data_to_schema(model_version, conn_str, schema, altname, skipsites, fo
     skip_sites = skipsites.split(",")
 
     merge_sites = list(set(SITES) - set(skip_sites))
+
+    # Get Sites to add
+    add_sites = addsites.split(",")
+
+    merge_sites = list(set(SITES) + set(add_sites))
 
     # Build a merge statement for each non-vocab table.
     for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):

@@ -328,6 +328,8 @@ def age_transform(pwprompt, searchpath, site, force, model_version, table, undo,
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
+@click.option('--addsites', required=False, default='',
+              help='sites to add delimited by ,')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--notable', is_flag=True, default=False,
@@ -353,7 +355,7 @@ def age_transform(pwprompt, searchpath, site, force, model_version, table, undo,
 @click.option('--undo', is_flag=True, default=False,
               help='Remove merged DCC data tables.')
 @click.argument('dburi')
-def merge(pwprompt, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, nofk, novac, model_version, undo, dburi):
+def merge(pwprompt, addsites, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, nofk, novac, model_version, undo, dburi):
     """Merge site data into a single, aggregated DCC dataset
 
     Site data from the site data schemas (named like '<site>_pedsnet') into the
@@ -373,7 +375,7 @@ def merge(pwprompt, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, n
 
     if not undo:
         from pedsnetdcc.merge_site_data import merge_site_data
-        success = merge_site_data(model_version, conn_str, force, notable, nolog, nopk,
+        success = merge_site_data(model_version, conn_str, addsites, force, notable, nolog, nopk,
                                   nonull, noidx, nodrop, norep, nofk, novac)
     else:
         from pedsnetdcc.merge_site_data import clear_dcc_data
@@ -394,6 +396,8 @@ def merge(pwprompt, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, n
               help='alterate name of site schemas i.e. <site>_atltame.')
 @click.option('--skipsites', required=False, default='',
               help='sites to skip delimited by ,')
+@click.option('--addsites', required=False, default='',
+              help='sites to add delimited by ,')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--notable', is_flag=True, default=False,
@@ -419,7 +423,7 @@ def merge(pwprompt, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, n
 @click.option('--undo', is_flag=True, default=False,
               help='Remove merged DCC data tables.')
 @click.argument('dburi')
-def merge_schema(pwprompt, schema, altname, skipsites, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, nofk,
+def merge_schema(pwprompt, schema, altname, skipsites, addsites, force, notable, nolog, nopk, nonull, noidx, nodrop, norep, nofk,
                  novac, model_version, undo, dburi):
     """Merge site data into a single, aggregated DCC dataset
 
@@ -440,7 +444,7 @@ def merge_schema(pwprompt, schema, altname, skipsites, force, notable, nolog, no
 
     if not undo:
         from pedsnetdcc.merge_site_data import merge_data_to_schema
-        success = merge_data_to_schema(model_version, conn_str, schema, altname, skipsites, force, notable, nolog, nopk,
+        success = merge_data_to_schema(model_version, conn_str, schema, altname, skipsites, addsites ,force, notable, nolog, nopk,
                                        nonull, noidx, nodrop, norep, nofk, novac)
     else:
         from pedsnetdcc.merge_site_data import clear_schema_data
