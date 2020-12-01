@@ -597,7 +597,10 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
     if not success:
         sys.exit(1)
 
-    from pedsnetdcc.era import run_era
+    success = run_era("drug_scdf", conn_str, site, copy, neg_ids, searchpath, model_version)
+    if not success:
+        sys.exit(1)
+
     success = run_era("condition", conn_str, site, copy, neg_ids, searchpath, model_version)
 
     if not success:
