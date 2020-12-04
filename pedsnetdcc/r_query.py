@@ -30,11 +30,12 @@ def _create_argos_file(config_path, config_file, schema, password, conn_info_dic
         out_config.write('}' + os.linesep)
 
 
-def _fix_site_info(file_path, site):
+def _fix_site_info(file_path, site, schema):
     try:
         with open(os.path.join(file_path,'site','site_info.R'), 'r') as site_file:
             file_data = site_file.read()
         file_data = file_data.replace('<SITE>', site)
+        file_data = file_data.replace('<SCHEMA>', schema)
         with open(os.path.join(file_path,'site','site_info.R'), 'w') as site_file:
             site_file.write(file_data)
     except:
@@ -101,7 +102,7 @@ def run_r_query(config_file, conn_str, site, package, password, search_path, mod
     # create the Argos congig file
     _create_argos_file(dest_path, config_file, schema, password, conn_info_dict)
     # modify site_info and run.R to add actual site
-    _fix_site_info(dest_path, site)
+    _fix_site_info(dest_path, site, schema)
     _fix_run(dest_path, site)
 
     query_path = os.path.join(os.sep,'app', package, site, 'site', 'run.R')
