@@ -127,7 +127,9 @@ def merge_site_data(model_version, conn_str, addsites, force=False, notable=Fals
     # Get Sites to add
     add_sites = addsites.split(",")
 
-    merge_sites = list(set(SITES) + set(add_sites))
+    merge_sites = list(set(SITES) | set(add_sites))
+
+    merge_sites = list(filter(None, merge_sites))
 
     # Build a merge statement for each non-vocab table.
     for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
@@ -328,7 +330,9 @@ def merge_data_to_schema(model_version, conn_str, schema, altname, skipsites, ad
     # Get Sites to add
     add_sites = addsites.split(",")
 
-    merge_sites = list(set(SITES) + set(add_sites))
+    merge_sites = list(set(SITES) | set(add_sites))
+
+    merge_sites = list(filter(None, merge_sites))
 
     # Build a merge statement for each non-vocab table.
     for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
