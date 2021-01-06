@@ -349,7 +349,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
             stmts.add(idx_stmt)
 
         # Execute the statements in parallel.
-        stmts.parallel_execute(conn_str)
+        stmts.parallel_execute(conn_str, 5)
 
         # Check for any errors and raise exception if they are found.
         for stmt in stmts:
