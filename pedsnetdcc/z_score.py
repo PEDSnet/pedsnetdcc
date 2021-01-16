@@ -18,7 +18,7 @@ DROP_NULL_Z_TABLE_SQL = 'alter table {0}.measurement_{1} alter column measuremen
 IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on {1}.measurement_{2} ({3})'
 
 
-def _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict):
+def _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict, person_table):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3038553' + os.linesep)
@@ -32,7 +32,7 @@ def _create_bmiz_config_file(config_path, config_file, schema, password, conn_in
         out_config.write('z_measurement_type_concept_id = 45754907' + os.linesep)
         out_config.write('z_unit_source_value = SD' + os.linesep)
         out_config.write('clone_z_measurements = 1' + os.linesep)
-        out_config.write('input_person_table = person' + os.linesep)
+        out_config.write('input_person_table = ' + person_table + os.linesep)
         out_config.write('output_chunk_size = 1000' + os.linesep)
         out_config.write('person_chunk_size = 1000' + os.linesep)
         out_config.write('verbose = 1' + os.linesep)
@@ -51,7 +51,7 @@ def _create_bmiz_config_file(config_path, config_file, schema, password, conn_in
         out_config.write('output_measurement_table = measurement_bmiz' + os.linesep)
 
 
-def _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict):
+def _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3023540' + os.linesep)
@@ -65,7 +65,7 @@ def _create_height_z_config_file(config_path, config_file, schema, table, passwo
         out_config.write('z_measurement_type_concept_id = 45754907' + os.linesep)
         out_config.write('z_unit_source_value = SD' + os.linesep)
         out_config.write('clone_z_measurements = 1' + os.linesep)
-        out_config.write('input_person_table = person' + os.linesep)
+        out_config.write('input_person_table = ' + person_table + os.linesep)
         out_config.write('output_chunk_size = 1000' + os.linesep)
         out_config.write('person_chunk_size = 1000' + os.linesep)
         out_config.write('verbose = 1' + os.linesep)
@@ -84,7 +84,7 @@ def _create_height_z_config_file(config_path, config_file, schema, table, passwo
         out_config.write('output_measurement_table = measurement_ht_z' + os.linesep)
 
 
-def _create_weight_z_config_file(config_path, config_file, schema, table, password, conn_info_dict):
+def _create_weight_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3013762' + os.linesep)
@@ -98,7 +98,7 @@ def _create_weight_z_config_file(config_path, config_file, schema, table, passwo
         out_config.write('z_measurement_type_concept_id = 45754907' + os.linesep)
         out_config.write('z_unit_source_value = SD' + os.linesep)
         out_config.write('clone_z_measurements = 1' + os.linesep)
-        out_config.write('input_person_table = person' + os.linesep)
+        out_config.write('input_person_table = ' + person_table + os.linesep)
         out_config.write('output_chunk_size = 1000' + os.linesep)
         out_config.write('person_chunk_size = 1000' + os.linesep)
         out_config.write('verbose = 1' + os.linesep)
@@ -231,7 +231,7 @@ def _copy_to_dcc_table(conn_str, schema, table, z_type):
     return True
 
 
-def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, search_path, model_version):
+def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person_table, password, search_path, model_version):
     """Run the Z Score tool.
 
     * Create config file
@@ -253,6 +253,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     :param bool concept: if True, add concept names to output table
     :param bool neg_ids: if True, use negative ids
     :param str table:    name of input/copy table (measurement/measurement_anthro)
+    :param str person_table:    name of person table)
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
@@ -287,11 +288,11 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     config_path = "/app"
 
     if z_type == 'ht_z':
-        _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict)
+        _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table)
     elif z_type == 'wt_z':
-        _create_weight_z_config_file(config_path, config_file, schema, table, password, conn_info_dict)
+        _create_weight_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table)
     else:
-        _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict)
+        _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict, person_table)
 
     # create measurement z_score table
     # Add a creation statement.
