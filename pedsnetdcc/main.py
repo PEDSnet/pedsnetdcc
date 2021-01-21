@@ -882,7 +882,7 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 
     config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
-    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person, password, searchpath,
+    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
                            model_version)
 
     if not success:
