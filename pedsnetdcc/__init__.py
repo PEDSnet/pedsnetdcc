@@ -50,7 +50,7 @@ FACT_RELATIONSHIP_DOMAINS = {
 }
 
 SITE_ROOT = '/data/site_data'
-SITES = ('chop', 'colorado', 'nationwide', 'nemours', 'seattle', 'stlouis',)
+SITES = ('chop', 'colorado', 'nationwide', 'nemours', 'seattle', 'stanford', 'stlouis',)
 EXTERNAL_SITES = ('boston', 'cchmc',)
 SITES_AND_DCC = SITES + ('dcc',)
 SITES_AND_EXTERNAL =  EXTERNAL_SITES + SITES
