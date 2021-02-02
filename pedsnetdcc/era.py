@@ -502,7 +502,7 @@ def _renumber_drug_era_table(conn_str, schema):
     return True
 
 
-def run_era(era_type, conn_str, site, copy, neg_ids, search_path, model_version):
+def run_era(era_type, conn_str, site, copy, neg_ids, no_ids, no_concept, search_path, model_version):
     """Run the Condition or Drug Era derivation.
 
     * Execute SQL
@@ -515,7 +515,9 @@ def run_era(era_type, conn_str, site, copy, neg_ids, search_path, model_version)
     :param str conn_str:      database connection string
     :param str site:    site to run derivation for
     :param bool copy: if True, copy results to dcc_pedsnet
-    :param bool copy: if True, use negative ids
+    :param bool neg_ids: if True, use negative ids
+    :param bool no_ids: if True, don't assign ids
+    :param bool no_concept: if True, don't add concept names
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
     :returns:                 True if the function succeeds
@@ -536,7 +538,7 @@ def run_era(era_type, conn_str, site, copy, neg_ids, search_path, model_version)
 
     stmts = StatementSet()
 
-    if era_type != "drug_scdf":
+    if era_type != "drug_scdf" and not no_ids:
         # Drop primary key.
         drop_pk_stmt = Statement(DROP_PK_CONSTRAINT_ERA_SQL.format(era_type))
         stmts.add(drop_pk_stmt)
@@ -596,16 +598,18 @@ def run_era(era_type, conn_str, site, copy, neg_ids, search_path, model_version)
 
 
     # add ids
-    okay = _add_era_ids(era_type, conn_str, site, neg_ids, search_path, model_version)
-    if not okay:
-        return False
+    if not no_ids:
+        okay = _add_era_ids(era_type, conn_str, site, neg_ids, search_path, model_version)
+        if not okay:
+            return False
 
     # Add the concept_names
-    logger.info({'msg': 'add concept names'})
-    okay = _fill_concept_names(conn_str, era_type, site)
-    if not okay:
-        return False
-    logger.info({'msg': 'concept names added'})
+    if not no_concept:
+        logger.info({'msg': 'add concept names'})
+        okay = _fill_concept_names(conn_str, era_type, site)
+        if not okay:
+            return False
+        logger.info({'msg': 'concept names added'})
 
     # Copy drug_scdf era to drug era
     if era_type == "drug_scdf":
@@ -639,7 +643,7 @@ def run_era(era_type, conn_str, site, copy, neg_ids, search_path, model_version)
 
 
     # Add primary keys
-    if era_type != "drug_scdf":
+    if era_type != "drug_scdf" and not no_ids:
         _add_primary_key(era_type, conn_str, schema)
 
     era_table = era_type + "_era"

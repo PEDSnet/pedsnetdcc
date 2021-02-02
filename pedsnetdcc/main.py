@@ -512,13 +512,17 @@ def split_measurement(pwprompt, searchpath, truncate, view, model_version, dburi
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to dcc_pedsnet.')
 @click.option('--noids', is_flag=True, default=False,
-              help='DO NOT add measurement ids.')
+              help='DO NOT add measurement ids for z scores.')
 @click.option('--noindexes', is_flag=True, default=False,
               help='DO NOT add indexes.')
 @click.option('--noconcept', is_flag=True, default=False,
-              help='DO NOT add concept names.')
+              help='DO NOT add concept names for z scores.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--no_ids', is_flag=True, default=False,
+              help='Do not assign ids for drug/condition eras.')
+@click.option('--no_concept', is_flag=True, default=False,
+              help='Do not add concept names for drug/condtion eras.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--person', required=False, default='person',
@@ -526,7 +530,7 @@ def split_measurement(pwprompt, searchpath, truncate, view, model_version, dburi
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, person, model_version, dburi):
+def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, no_ids, no_concept, table, person, model_version, dburi):
     """Run all derivations.
 
     The steps are:
@@ -595,16 +599,16 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
         sys.exit(1)
 
     from pedsnetdcc.era import run_era
-    success = run_era("drug", conn_str, site, copy, neg_ids, searchpath, model_version)
+    success = run_era("drug", conn_str, site, copy, neg_ids, no_ids, no_concept, searchpath, model_version)
 
     if not success:
         sys.exit(1)
 
-    success = run_era("drug_scdf", conn_str, site, copy, neg_ids, searchpath, model_version)
+    success = run_era("drug_scdf", conn_str, site, copy, neg_ids, no_ids, no_concept, searchpath, model_version)
     if not success:
         sys.exit(1)
 
-    success = run_era("condition", conn_str, site, copy, neg_ids, searchpath, model_version)
+    success = run_era("condition", conn_str, site, copy, neg_ids, no_ids, no_concept, searchpath, model_version)
 
     if not success:
         sys.exit(1)
@@ -1198,10 +1202,14 @@ def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, n
               help='Copy results to dcc_pedsnet')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--no_ids', is_flag=True, default=False,
+              help='Do not assign ids.')
+@click.option('--no_concept', is_flag=True, default=False,
+              help='Do not add concept names.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, dburi):
+def run_drug_era(pwprompt, searchpath, site, copy, neg_ids, no_ids, no_concept, model_version, dburi):
     """Run Drug Era derivation.
 
     The steps are:
@@ -1226,7 +1234,7 @@ def run_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, dburi
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("drug", conn_str, site, copy, neg_ids, searchpath, model_version)
+    success = run_era("drug", conn_str, site, copy, neg_ids, no_ids, no_concept, searchpath, model_version)
 
     if not success:
         sys.exit(1)
@@ -1244,10 +1252,14 @@ def run_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, dburi
               help='Copy results to dcc_pedsnet')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--no_ids', is_flag=True, default=False,
+              help='Do not assign ids.')
+@click.option('--no_concept', is_flag=True, default=False,
+              help='Do not add concept names.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_drug_scdf_era(pwprompt, searchpath, site, copy, neg_ids, model_version, dburi):
+def run_drug_scdf_era(pwprompt, searchpath, site, copy, neg_ids, no_ids, no_concept, model_version, dburi):
     """Run Drug Era derivation.
 
     The steps are:
@@ -1272,7 +1284,7 @@ def run_drug_scdf_era(pwprompt, searchpath, site, copy, neg_ids, model_version, 
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("drug_scdf", conn_str, site, copy, neg_ids, searchpath, model_version)
+    success = run_era("drug_scdf", conn_str, site, copy, neg_ids, no_ids, no_concept, searchpath, model_version)
 
     if not success:
         sys.exit(1)
@@ -1378,10 +1390,14 @@ def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, not
               help='Copy results to dcc_pedsnet')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--no_ids', is_flag=True, default=False,
+              help='Do not assign ids.')
+@click.option('--no_concept', is_flag=True, default=False,
+              help='Do not add concept names.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_condition_era(pwprompt, searchpath, site, copy, neg_ids, model_version, dburi):
+def run_condition_era(pwprompt, searchpath, site, copy, neg_ids, no_ids, no_concept, model_version, dburi):
     """Run Condition Era derivation.
 
     The steps are:
@@ -1406,7 +1422,7 @@ def run_condition_era(pwprompt, searchpath, site, copy, neg_ids, model_version, 
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("condition", conn_str, site, copy, neg_ids, searchpath, model_version)
+    success = run_era("condition", conn_str, site, copy, neg_ids, no_ids, no_concept, searchpath, model_version)
 
     if not success:
         sys.exit(1)
@@ -1456,10 +1472,14 @@ def copy_condition_era(pwprompt, searchpath, site, dburi):
               help='Copy results to dcc_pedsnet.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--no_ids', is_flag=True, default=False,
+              help='Do not assign ids.')
+@click.option('--no_concept', is_flag=True, default=False,
+              help='Do not add concept names.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_drug_condition_era(pwprompt, searchpath, site, copy, neg_ids, model_version, dburi):
+def run_drug_condition_era(pwprompt, searchpath, site, copy, neg_ids, no_ids, no_concept, model_version, dburi):
     """Run Drug Condition.
 
     The steps are:
@@ -1481,13 +1501,13 @@ def run_drug_condition_era(pwprompt, searchpath, site, copy, neg_ids, model_vers
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("drug", conn_str, site, copy, neg_ids, searchpath, model_version)
+    success = run_era("drug", conn_str, site, copy, neg_ids, no_ids, no_concept, searchpath, model_version)
 
     if not success:
         sys.exit(1)
 
     from pedsnetdcc.era import run_era
-    success = run_era("condition", conn_str, site, copy, neg_ids, searchpath, model_version)
+    success = run_era("condition", conn_str, site, copy, neg_ids, no_ids, no_concept, searchpath, model_version)
 
     if not success:
         sys.exit(1)
