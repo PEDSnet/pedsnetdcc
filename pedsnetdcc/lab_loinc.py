@@ -52,7 +52,7 @@ def _rename_table(conn_str, schema, current_name, new_name):
     return True
 
 
-def run_post_lab_lonic(conn_str, site, search_path):
+def run_post_lab_loinc(conn_str, site, search_path):
     """Run the post Lab Loinc steps.
 
     * Add primary key
@@ -71,7 +71,7 @@ def run_post_lab_lonic(conn_str, site, search_path):
     conn_info_dict = get_conn_info_dict(conn_str)
 
     # Log start of the function and set the starting time.
-    logger_msg = '{0} post lab_lonic'
+    logger_msg = '{0} post lab_loinc'
     log_dict = combine_dicts({'site': site, },
                              conn_info_dict)
     logger.info(combine_dicts({'msg': logger_msg.format("Starting")},

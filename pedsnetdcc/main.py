@@ -1896,6 +1896,7 @@ def run_r_query(pwprompt, searchpath, site, package, model_version, copy, dburi)
 
     sys.exit(0)
 
+
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
@@ -1907,7 +1908,7 @@ def run_r_query(pwprompt, searchpath, site, package, model_version, copy, dburi)
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to output.')
 @click.argument('dburi')
-def run_r_lab_lonic(pwprompt, searchpath, site, model_version, copy, dburi):
+def run_r_lab_loinc(pwprompt, searchpath, site, model_version, copy, dburi):
     """Run Lab Loinc R Script and if successful do post tasks.
 
     The steps are:
@@ -1935,8 +1936,8 @@ def run_r_lab_lonic(pwprompt, searchpath, site, model_version, copy, dburi):
     if not success:
         sys.exit(1)
 
-    from pedsnetdcc.lab_loinc import run_post_lab_lonic
-    success = run_post_lab_lonic(conn_str, site, searchpath)
+    from pedsnetdcc.lab_loinc import run_post_lab_loinc
+    success = run_post_lab_loinc(conn_str, site, searchpath)
 
     if not success:
         sys.exit(1)
