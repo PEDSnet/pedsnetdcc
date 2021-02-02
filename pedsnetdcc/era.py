@@ -666,7 +666,7 @@ def run_era(era_type, conn_str, site, copy, neg_ids, no_ids, no_concept, search_
 def _add_primary_key(era_type, conn_str, schema):
     # Add primary keys
     pk_era_id_sql = "alter table {0}.{1}_era add primary key ({2}_era_id)"
-    pk_era_id_msg = "making {0}_era_id the priomary key"
+    pk_era_id_msg = "making {0}_era_id the primary key"
     temp_era_type = era_type
     if era_type == 'drug_scdf':
         temp_era_type = 'drug'

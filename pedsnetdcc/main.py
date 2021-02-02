@@ -1896,6 +1896,53 @@ def run_r_query(pwprompt, searchpath, site, package, model_version, copy, dburi)
 
     sys.exit(0)
 
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for the config file.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to output.')
+@click.argument('dburi')
+def run_r_lab_lonic(pwprompt, searchpath, site, model_version, copy, dburi):
+    """Run Lab Loinc R Script and if successful do post tasks.
+
+    The steps are:
+
+      - Create the Argos file.
+      - Run the script.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+    package = 'lab_loinc'
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+    config_file = site + "_" + package + "_argos_temp.json"
+
+    from pedsnetdcc.r_query import run_r_query
+    success = run_r_query(config_file, conn_str, site, package, password, searchpath, model_version, copy)
+
+    if not success:
+        sys.exit(1)
+
+    from pedsnetdcc.lab_loinc import run_post_lab_lonic
+    success = run_post_lab_lonic(conn_str, site, searchpath)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
 
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
