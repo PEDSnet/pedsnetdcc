@@ -330,7 +330,7 @@ def merge_data_to_schema(model_version, conn_str, schema, altname, skipsites, ad
     # Get Sites to add
     add_sites = addsites.split(",")
 
-    merge_sites = list(set(SITES) | set(add_sites))
+    merge_sites = list(set(merge_sites) | set(add_sites))
 
     merge_sites = list(filter(None, merge_sites))
 
