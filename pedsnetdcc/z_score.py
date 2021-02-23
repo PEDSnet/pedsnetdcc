@@ -285,6 +285,8 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
         pass_match = re.search(r"password=(\S*)", conn_str)
         password = pass_match.group(1)
 
+    stmts = StatementSet()
+
     if not skip_calc:
         # create the congig file
         config_path = "/app"
@@ -298,7 +300,6 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
 
         # create measurement z_score table
         # Add a creation statement.
-        stmts = StatementSet()
         create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.format(schema, z_type))
         stmts.add(create_stmt)
 

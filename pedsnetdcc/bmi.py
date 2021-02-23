@@ -202,6 +202,8 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_i
         pass_match = re.search(r"password=(\S*)", conn_str)
         password = pass_match.group(1)
 
+    stmts = StatementSet()
+
     if not skip_calc:
         # create the congig file
         config_path = "/app"
@@ -210,7 +212,6 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_i
         # create measurement_bmi table
 
         # Add a creation statement.
-        stmts = StatementSet()
         create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL)
         stmts.add(create_stmt)
 
