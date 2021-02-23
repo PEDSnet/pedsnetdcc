@@ -231,7 +231,7 @@ def _copy_to_dcc_table(conn_str, schema, table, z_type):
     return True
 
 
-def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person_table, password, search_path, model_version):
+def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, person_table, password, search_path, model_version):
     """Run the Z Score tool.
 
     * Create config file
@@ -252,6 +252,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     :param bool indexes: if True, create indexes on output table
     :param bool concept: if True, add concept names to output table
     :param bool neg_ids: if True, use negative ids
+    :param bool skip_calc: if True, skip the actual calculation
     :param str table:    name of input/copy table (measurement/measurement_anthro)
     :param str person_table:    name of person table)
     :param str password:    user's password
@@ -284,57 +285,58 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
         pass_match = re.search(r"password=(\S*)", conn_str)
         password = pass_match.group(1)
 
-    # create the congig file
-    config_path = "/app"
+    if not skip_calc:
+        # create the congig file
+        config_path = "/app"
 
-    if z_type == 'ht_z':
-        _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table)
-    elif z_type == 'wt_z':
-        _create_weight_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table)
-    else:
-        _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict, person_table)
+        if z_type == 'ht_z':
+            _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table)
+        elif z_type == 'wt_z':
+            _create_weight_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table)
+        else:
+            _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict, person_table)
 
-    # create measurement z_score table
-    # Add a creation statement.
-    stmts = StatementSet()
-    create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.format(schema, z_type))
-    stmts.add(create_stmt)
+        # create measurement z_score table
+        # Add a creation statement.
+        stmts = StatementSet()
+        create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.format(schema, z_type))
+        stmts.add(create_stmt)
 
-    # Check for any errors and raise exception if they are found.
-    for stmt in stmts:
-        try:
-            stmt.execute(conn_str)
-            check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
-        except:
-            logger.error(combine_dicts({'msg': 'Fatal error',
-                                        'sql': stmt.sql,
-                                        'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'create table failed',
-                                       'elapsed': secs_since(start_time)},
-                                      log_dict))
-            raise
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                stmt.execute(conn_str)
+                check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'create table failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
 
-    # Add drop null statement
-    stmts.clear()
-    drop_stmt = Statement(DROP_NULL_Z_TABLE_SQL.format(schema, z_type))
-    stmts.add(drop_stmt)
+        # Add drop null statement
+        stmts.clear()
+        drop_stmt = Statement(DROP_NULL_Z_TABLE_SQL.format(schema, z_type))
+        stmts.add(drop_stmt)
 
-    # Check for any errors and raise exception if they are found.
-    for stmt in stmts:
-        try:
-            stmt.execute(conn_str)
-            check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
-        except:
-            logger.error(combine_dicts({'msg': 'Fatal error',
-                                        'sql': stmt.sql,
-                                        'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'drop measurement id null failed',
-                                       'elapsed': secs_since(start_time)},
-                                      log_dict))
-            raise
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                stmt.execute(conn_str)
+                check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'drop measurement id null failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
 
-    # Run Z-Score tool
-    derive_z(config_file[:-5], '--verbose=1', _cwd='/app', _fg=True)
+        # Run Z-Score tool
+        derive_z(config_file[:-5], '--verbose=1', _cwd='/app', _fg=True)
 
     # Add indexes to measurement result table (same as measurement)
     if indexes:

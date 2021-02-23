@@ -519,6 +519,8 @@ def split_measurement(pwprompt, searchpath, truncate, view, model_version, dburi
               help='DO NOT add concept names for z scores.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--skip_calc', is_flag=True, default=False,
+              help='Skip actual calculation.')
 @click.option('--no_ids', is_flag=True, default=False,
               help='Do not assign ids for drug/condition eras.')
 @click.option('--no_concept', is_flag=True, default=False,
@@ -530,7 +532,7 @@ def split_measurement(pwprompt, searchpath, truncate, view, model_version, dburi
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, no_ids, no_concept, table, person, model_version, dburi):
+def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, skip_calc, no_ids, no_concept, table, person, model_version, dburi):
     """Run all derivations.
 
     The steps are:
@@ -570,7 +572,7 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
 
     config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
-    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
+    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, password, searchpath,
                            model_version)
 
     if not success:
@@ -578,21 +580,21 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
 
     config_file = site + "_bmiz_temp.conf"
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person, password, searchpath,
+    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, person, password, searchpath,
                          model_version)
 
     if not success:
         sys.exit(1)
 
     config_file = site + "_htz_temp.conf"
-    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person, password, searchpath,
+    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, person, password, searchpath,
                          model_version)
 
     if not success:
         sys.exit(1)
 
     config_file = site + "_wtz_temp.conf"
-    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person, password, searchpath,
+    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, person, password, searchpath,
                          model_version)
 
     if not success:
@@ -632,12 +634,14 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
               help='DO NOT add concept names.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--skip_calc', is_flag=True, default=False,
+              help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, model_version, dburi):
+def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, skip_calc, table, model_version, dburi):
     """Run BMI derivation.
 
     The steps are:
@@ -678,7 +682,7 @@ def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_i
         concept = False
 
     from pedsnetdcc.bmi import run_bmi_calc
-    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
+    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, password, searchpath,
                            model_version)
 
     if not success:
@@ -737,6 +741,8 @@ def copy_bmi(pwprompt, searchpath, site, table, dburi):
               help='DO NOT add concept names.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--skip_calc', is_flag=True, default=False,
+              help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--person', required=False, default='person',
@@ -744,7 +750,7 @@ def copy_bmi(pwprompt, searchpath, site, table, dburi):
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, person, model_version, dburi):
+def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, skip_calc, table, person, model_version, dburi):
     """Run BMI-Z derivation.
 
     The steps are:
@@ -785,7 +791,7 @@ def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_
         concept = False
 
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person, password, searchpath,
+    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, person, password, searchpath,
                          model_version)
 
     if not success:
@@ -844,6 +850,8 @@ def copy_bmiz(pwprompt, searchpath, site, table, dburi):
               help='DO NOT add concept names.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--skip_calc', is_flag=True, default=False,
+              help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--person', required=False, default='person',
@@ -851,7 +859,7 @@ def copy_bmiz(pwprompt, searchpath, site, table, dburi):
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, person, model_version, dburi):
+def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, skip_calc, table, person, model_version, dburi):
     """Run BMI and BMI-Z derivations.
 
     The steps are:
@@ -886,7 +894,7 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 
     config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
-    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, searchpath,
+    success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, password, searchpath,
                            model_version)
 
     if not success:
@@ -894,7 +902,7 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 
     config_file = site + "_bmiz_temp.conf"
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person, password, searchpath,
+    success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, person, password, searchpath,
                          model_version)
 
     if not success:
@@ -919,6 +927,8 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
               help='DO NOT add concept names.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--skip_calc', is_flag=True, default=False,
+              help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--person', required=False, default='person',
@@ -926,7 +936,7 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, person, model_version, dburi):
+def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, skip_calc, table, person, model_version, dburi):
     """Run HEIGHT-Z derivation.
 
     The steps are:
@@ -967,7 +977,7 @@ def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
         concept = False
 
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person, password, searchpath,
+    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, person, password, searchpath,
                          model_version)
 
     if not success:
@@ -1026,6 +1036,8 @@ def copy_height_z(pwprompt, searchpath, site, table, dburi):
               help='DO NOT add concept names.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--skip_calc', is_flag=True, default=False,
+              help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--person', required=False, default='person',
@@ -1033,7 +1045,7 @@ def copy_height_z(pwprompt, searchpath, site, table, dburi):
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, person, model_version, dburi):
+def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, skip_calc, table, person, model_version, dburi):
     """Run Weight-Z derivation.
 
     The steps are:
@@ -1074,7 +1086,7 @@ def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
         concept = False
 
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person, password, searchpath,
+    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, person, password, searchpath,
                          model_version)
 
     if not success:
@@ -1133,6 +1145,8 @@ def copy_weight_z(pwprompt, searchpath, site, table, dburi):
               help='DO NOT add concept names.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--skip_calc', is_flag=True, default=False,
+              help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
 @click.option('--person', required=False, default='person',
@@ -1140,7 +1154,7 @@ def copy_weight_z(pwprompt, searchpath, site, table, dburi):
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, table, person, model_version, dburi):
+def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, skip_calc, table, person, model_version, dburi):
     """Run height-z and weight-z.
 
     The steps are:
@@ -1176,14 +1190,14 @@ def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, n
     from pedsnetdcc.z_score import run_z_calc
 
     config_file = site + "_htz_temp.conf"
-    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person, password, searchpath,
+    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, person, password, searchpath,
                          model_version)
 
     if not success:
         sys.exit(1)
 
     config_file = site + "_wtz_temp.conf"
-    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, person, password, searchpath,
+    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, person, password, searchpath,
                          model_version)
 
     if not success:

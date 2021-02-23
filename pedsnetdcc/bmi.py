@@ -158,7 +158,7 @@ def _copy_to_dcc_table(conn_str, table):
     return True
 
 
-def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, table, password, search_path, model_version):
+def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, password, search_path, model_version):
     """Run the BMI tool.
 
     * Create config file
@@ -178,6 +178,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_i
     :param bool indexes: if True, create indexes on output table
     :param bool concept: if True, add concept names to output table
     :param bool neg_ids: if True, use negative ids
+    :param bool skip_calc: if True, skip the actual calculation
     :param str table:    name of input/copy table (measurement/measurement_anthro)
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
@@ -201,52 +202,53 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_i
         pass_match = re.search(r"password=(\S*)", conn_str)
         password = pass_match.group(1)
 
-    # create the congig file
-    config_path = "/app"
-    _create_config_file(config_path, config_file, schema, table, password, conn_info_dict)
+    if not skip_calc:
+        # create the congig file
+        config_path = "/app"
+        _create_config_file(config_path, config_file, schema, table, password, conn_info_dict)
 
-    # create measurement_bmi table
+        # create measurement_bmi table
 
-    # Add a creation statement.
-    stmts = StatementSet()
-    create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL)
-    stmts.add(create_stmt)
+        # Add a creation statement.
+        stmts = StatementSet()
+        create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL)
+        stmts.add(create_stmt)
 
-    # Check for any errors and raise exception if they are found.
-    for stmt in stmts:
-        try:
-            stmt.execute(conn_str)
-            check_stmt_err(stmt, 'Run BMI calculation')
-        except:
-            logger.error(combine_dicts({'msg': 'Fatal error',
-                                        'sql': stmt.sql,
-                                        'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'create BMI table failed',
-                                       'elapsed': secs_since(start_time)},
-                                      log_dict))
-            raise
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                stmt.execute(conn_str)
+                check_stmt_err(stmt, 'Run BMI calculation')
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'create BMI table failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
 
-    # Add drop null statement.
-    stmts.clear()
-    drop_stmt = Statement(DROP_NULL_BMI_TABLE_SQL)
-    stmts.add(drop_stmt)
+        # Add drop null statement.
+        stmts.clear()
+        drop_stmt = Statement(DROP_NULL_BMI_TABLE_SQL)
+        stmts.add(drop_stmt)
 
-    # Check for any errors and raise exception if they are found.
-    for stmt in stmts:
-        try:
-            stmt.execute(conn_str)
-            check_stmt_err(stmt, 'Run BMI calculation')
-        except:
-            logger.error(combine_dicts({'msg': 'Fatal error',
-                                        'sql': stmt.sql,
-                                        'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'drop null failed',
-                                       'elapsed': secs_since(start_time)},
-                                      log_dict))
-            raise
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                stmt.execute(conn_str)
+                check_stmt_err(stmt, 'Run BMI calculation')
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'drop null failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
 
-    # Run BMI tool
-    derive_bmi(config_file[:-5], '--verbose=1', _cwd='/app', _fg=True)
+        # Run BMI tool
+        derive_bmi(config_file[:-5], '--verbose=1', _cwd='/app', _fg=True)
 
     # Add indexes to measurement_bmi (same as measurement)
     if indexes:
