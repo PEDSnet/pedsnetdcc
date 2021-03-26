@@ -24,7 +24,7 @@ TABLE_EXISTS_MSG = "checking if temp table exists"
 CREATE_TEMP_SQL = """CREATE UNLOGGED TABLE {schema}.{temp_table_name} (site_id bigint PRIMARY KEY, dcc_id integer);"""  # noqa
 CREATE_TEMP_MSG = "create temp table"
 
-INSERT_TEMP_SQL = """INSERT INTO {temp_table_name} (site_id) VALUES({site_id}) ON CONFLICT (site_id) DO NOTHING"""  # noqa
+INSERT_TEMP_SQL = """INSERT INTO {temp_table_name} (site_id) VALUES {site_id} ON CONFLICT (site_id) DO NOTHING"""  # noqa
 INSERT_TEMP_MSG = "inserting site_ids into temp table"
 
 SELECT_MAP_SQL = """SELECT t.site_id, m.dcc_id FROM {schema}.{temp_table_name} t LEFT JOIN {schema}.{map_table_name} m on m.site_id = t.site_id;""" # noqa
