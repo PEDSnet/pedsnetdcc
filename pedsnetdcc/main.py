@@ -1802,7 +1802,7 @@ def map_external_ids(dburi, in_file, search_path, out_file, table_name, pwprompt
                              password=password,
                              search_path=search_path)
 
-    map_external_ids(conn_str, str(in_file), str(out_file), str(table_name))
+    map_external_ids(conn_str, str(in_file), str(out_file), str(table_name), search_path)
 
 
 @pedsnetdcc.command()
