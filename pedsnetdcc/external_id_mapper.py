@@ -4,7 +4,7 @@ import csv
 import random
 from pedsnetdcc.schema import (primary_schema)
 
-from pedsnetdcc.db import Statement, StatementList
+from pedsnetdcc.db import Statement, StatementList, StatementSet
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_data, check_stmt_err, combine_dicts
 
@@ -191,7 +191,13 @@ def fill_temp_table(conn_str, schema, table_name, csv_data):
     create_statement.execute(conn_str)
     check_stmt_err(create_statement, 'create temp table')
 
-    tpl_vars['site_id'] = ', '.join(map(str, csv_data))
+    site_id_list = []
+    for site_id in csv_data:
+        new_site_id = '(' + ''.join(site_id) + ')'
+        site_id_list.append(new_site_id)
+
+    tpl_vars['site_id'] = ', '.join(site_id_list)
+
     insert_statement = Statement(INSERT_TEMP_SQL.format(**tpl_vars))
     insert_statement.execute(conn_str)
     check_stmt_err(insert_statement, 'fill temp table')
