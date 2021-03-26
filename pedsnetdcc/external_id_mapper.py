@@ -4,7 +4,7 @@ import csv
 import random
 from pedsnetdcc.schema import (primary_schema)
 
-from pedsnetdcc.db import Statement, StatementList, StatementSet
+from pedsnetdcc.db import Statement, StatementList
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_data, check_stmt_err, combine_dicts
 
@@ -86,20 +86,7 @@ def map_external_ids(conn_str, in_csv_file, out_csv_file, table_name, search_pat
     })
     drop_temp_table(conn_str, schema, temp_table)
 
-    logger.info({
-        'msg': 'verifying counts',
-        'secs_elapsed': secs_since(starttime)
-    })
-    if len(map_data) != len(csv_data):
-        # if the number of records returned doesn't match the number in the file an error occurred.
-        logger.info({
-            'msg': 'verify failed, process aborted',
-            'secs_elapsed': secs_since(starttime)
-        })
-        return False
-
     unmapped = 0
-
     for map_pair in map_data:
         if map_pair["dcc_id"] is None:
             unmapped += 1
@@ -193,6 +180,7 @@ def get_temp_table_name(conn_str, schema):
     else:
         return ''
 
+
 def fill_temp_table(conn_str, schema, table_name, csv_data):
     tpl_vars = {
         'schema': schema,
@@ -203,15 +191,10 @@ def fill_temp_table(conn_str, schema, table_name, csv_data):
     create_statement.execute(conn_str)
     check_stmt_err(create_statement, 'create temp table')
 
-    insert_stmts = StatementSet()
-    for site_id in csv_data:
-        tpl_vars['site_id'] = "".join(site_id)
-        insert_stmts.add(Statement(INSERT_TEMP_SQL.format(**tpl_vars)))
-
-    insert_stmts.parallel_execute(conn_str)
-    # checking for errors getting stuck will check if numbers match to determine success
-    # for stmt in insert_stmts:
-    #    check_stmt_err(stmt, 'insert into temp table')
+    tpl_vars['site_id'] = ', '.join(map(str, csv_data))
+    insert_statement = Statement(INSERT_TEMP_SQL.format(**tpl_vars))
+    insert_statement.execute(conn_str)
+    check_stmt_err(insert_statement, 'fill temp table')
 
 
 def update_temp_table(conn_str, schema, table_name, map_table_name):
