@@ -4,7 +4,7 @@ import csv
 import random
 from pedsnetdcc.schema import (primary_schema)
 
-from pedsnetdcc.db import Statement, StatementList
+from pedsnetdcc.db import Statement, StatementList, StatementSet
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_data, check_stmt_err, combine_dicts
 
@@ -21,7 +21,7 @@ LOCK_LAST_ID_MSG = "locking {table_name} last ID tracking table for update"
 TABLE_EXISTS_SQL = """SELECT EXISTS ( SELECT FROM pg_tables WHERE schemaname = '{schema}' AND tablename = '{temp_table_name}');"""  # noqa
 TABLE_EXISTS_MSG = "checking if temp table exists"
 
-CREATE_TEMP_SQL = """CREATE TABLE {schema}.{temp_table_name} (site_id bigint PRIMARY KEY, dcc_id integer);"""  # noqa
+CREATE_TEMP_SQL = """CREATE UNLOGGED TABLE {schema}.{temp_table_name} (site_id bigint PRIMARY KEY, dcc_id integer);"""  # noqa
 CREATE_TEMP_MSG = "create temp table"
 
 INSERT_TEMP_SQL = """INSERT INTO {temp_table_name} (site_id) VALUES({site_id}) ON CONFLICT (site_id) DO NOTHING"""  # noqa
@@ -107,7 +107,7 @@ def map_external_ids(conn_str, in_csv_file, out_csv_file, table_name, search_pat
     dcc_id = int(tpl_vars['old_last_id']) + 1
 
     for map_pair in map_data:
-        if map_pair['dcc_id'] == None:
+        if map_pair['dcc_id'] is None:
             map_pair['dcc_id'] = dcc_id
             insert_mapping_row(tpl_vars, map_pair['site_id'], dcc_id, conn_str)
             dcc_id += 1
@@ -165,12 +165,13 @@ def fill_temp_table(conn_str, schema, table_name, csv_data):
     create_statement.execute(conn_str)
     check_stmt_err(create_statement, 'create temp table')
 
-    insert_stmts = StatementList()
+    insert_stmts = StatementSet()
     for site_id in csv_data:
         tpl_vars['site_id'] = "".join(site_id)
-        insert_stmts.append(Statement(INSERT_TEMP_SQL.format(**tpl_vars)))
+        insert_stmts.add(Statement(INSERT_TEMP_SQL.format(**tpl_vars)))
 
-    insert_stmts.serial_execute(conn_str, transaction=False)
+    insert_stmts.parallel_execute(conn_str)
+
     for stmt in insert_stmts:
         check_stmt_err(stmt, 'insert into temp table')
 
