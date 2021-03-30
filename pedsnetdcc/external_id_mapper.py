@@ -196,11 +196,15 @@ def fill_temp_table(conn_str, schema, table_name, csv_data):
         new_site_id = '(' + ''.join(site_id) + ')'
         site_id_list.append(new_site_id)
 
-    tpl_vars['site_id'] = ', '.join(site_id_list)
+    # as list may be very long split into groups of 100k
+    n = 100000
+    split_site_id_list = [site_id_list[i * n:(i + 1) * n] for i in range((len(site_id_list) + n - 1) // n)]
 
-    insert_statement = Statement(INSERT_TEMP_SQL.format(**tpl_vars))
-    insert_statement.execute(conn_str)
-    check_stmt_err(insert_statement, 'fill temp table')
+    for site_id_list in split_site_id_list:
+        tpl_vars['site_id'] = ', '.join(site_id_list)
+        insert_statement = Statement(INSERT_TEMP_SQL.format(**tpl_vars))
+        insert_statement.execute(conn_str)
+        check_stmt_err(insert_statement, 'fill temp table')
 
 
 def update_temp_table(conn_str, schema, table_name, map_table_name):
