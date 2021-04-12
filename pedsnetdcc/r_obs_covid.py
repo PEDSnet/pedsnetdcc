@@ -223,7 +223,7 @@ def _make_index_name(column_name):
     return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
 
 
-def run_r_obs_covid(conn_str, site, password, search_path, model_version, copy):
+def run_r_obs_covid(conn_str, site, password, search_path, model_version, id_name, copy):
     """Run an R script.
 
     * Create argos file
@@ -234,6 +234,7 @@ def run_r_obs_covid(conn_str, site, password, search_path, model_version, copy):
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str id_name: name of the id (ex. dcc or onco)
     :param bool copy: if True, copy results to output directory
     :returns:                 True if the function succeeds
     :rtype:                   bool
@@ -322,7 +323,7 @@ def run_r_obs_covid(conn_str, site, password, search_path, model_version, copy):
         return False
 
     # add observation_ids
-    okay = _add_observation_ids(conn_str, site, search_path, model_version)
+    okay = _add_observation_ids(conn_str, site, search_path, model_version, id_name)
     if not okay:
         return False
 
@@ -473,7 +474,7 @@ def _clear_fake_ids(conn_str, schema):
     return True
 
 
-def _add_observation_ids(conn_str, site, search_path, model_version):
+def _add_observation_ids(conn_str, site, search_path, model_version, id_name):
     """Add observation ids for the derivation table
 
     * Find how many ids needed
@@ -487,6 +488,7 @@ def _add_observation_ids(conn_str, site, search_path, model_version):
     :param str site:    site for derivation
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str id_name: name of the id (ex. dcc or onco)
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -527,7 +529,7 @@ def _add_observation_ids(conn_str, site, search_path, model_version):
     table_name = 'observation'
 
     # Mapping and last ID table naming conventions.
-    last_id_table_name_tmpl = "dcc_{table_name}_id"
+    last_id_table_name_tmpl = id_name + "_{table_name}_id"
     metadata = stock_metadata(model_version)
 
     # Get table object and start to build tpl_vars map, which will be

@@ -231,7 +231,8 @@ def _copy_to_dcc_table(conn_str, schema, table, z_type):
     return True
 
 
-def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, person_table, password, search_path, model_version):
+def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept, neg_ids,
+               skip_calc, table, person_table, password, search_path, model_version, id_name):
     """Run the Z Score tool.
 
     * Create config file
@@ -258,6 +259,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str id_name: name of the id (ex. dcc or onco)
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -371,7 +373,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
 
     # add measurement_ids
     if ids:
-        okay = _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg_ids)
+        okay = _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg_ids, id_name)
         if not okay:
             return False
 
@@ -404,7 +406,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     return True
 
 
-def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg_ids):
+def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg_ids, id_name):
     """Add measurement ids for the bmi table
 
     * Find how many ids needed
@@ -419,6 +421,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg
     :param str site:    site to run z score for
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str id_name: name of the id (ex. dcc or onco)
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -461,7 +464,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg
     table_name = 'measurement'
 
     # Mapping and last ID table naming conventions.
-    last_id_table_name_tmpl = "dcc_{table_name}_id"
+    last_id_table_name_tmpl = id_name + "_{table_name}_id"
     metadata = stock_metadata(model_version)
 
     # Get table object and start to build tpl_vars map, which will be

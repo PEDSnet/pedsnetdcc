@@ -848,6 +848,7 @@ def run_id_transformation(conn_str, model_version, site, search_path, target_tab
     :param str site: site label, e.g. 'stlouis'
     :param str search_path: PostgreSQL schema search path
     :param str target_table: table to transform
+    :param str id_name: name of the id (ex. dcc or onco)
     :param bool force: if True, ignore benign errors
     :return: True if no exception raised
     :rtype: bool

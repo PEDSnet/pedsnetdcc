@@ -158,7 +158,8 @@ def _copy_to_dcc_table(conn_str, table):
     return True
 
 
-def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc, table, password, search_path, model_version):
+def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc,
+                 table, password, search_path, model_version, id_name):
     """Run the BMI tool.
 
     * Create config file
@@ -183,6 +184,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_i
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str id_name: name of the id (ex. dcc or onco)
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -284,7 +286,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_i
 
     # add measurement_ids
     if ids:
-        okay = _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version)
+        okay = _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id_name)
         if not okay:
             return False
 
@@ -317,7 +319,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_i
     return True
 
 
-def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version):
+def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id_name):
     """Add measurement ids for the bmi table
 
     * Find how many ids needed
@@ -332,6 +334,7 @@ def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version):
     :param bool if True use negative ids
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str id_name: name of the id (ex. dcc or onco)
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -374,7 +377,7 @@ def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version):
     table_name = 'measurement'
 
     # Mapping and last ID table naming conventions.
-    last_id_table_name_tmpl = "dcc_{table_name}_id"
+    last_id_table_name_tmpl = id_name + "_{table_name}_id"
     metadata = stock_metadata(model_version)
 
     # Get table object and start to build tpl_vars map, which will be

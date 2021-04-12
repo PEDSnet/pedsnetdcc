@@ -502,7 +502,7 @@ def _renumber_drug_era_table(conn_str, schema):
     return True
 
 
-def run_era(era_type, conn_str, site, copy, neg_ids, no_ids, no_concept, search_path, model_version):
+def run_era(era_type, conn_str, site, copy, neg_ids, no_ids, no_concept, search_path, model_version, id_name):
     """Run the Condition or Drug Era derivation.
 
     * Execute SQL
@@ -520,6 +520,7 @@ def run_era(era_type, conn_str, site, copy, neg_ids, no_ids, no_concept, search_
     :param bool no_concept: if True, don't add concept names
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str id_name: name of the id (ex. dcc or onco)
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -599,7 +600,7 @@ def run_era(era_type, conn_str, site, copy, neg_ids, no_ids, no_concept, search_
 
     # add ids
     if not no_ids:
-        okay = _add_era_ids(era_type, conn_str, site, neg_ids, search_path, model_version)
+        okay = _add_era_ids(era_type, conn_str, site, neg_ids, search_path, model_version, id_name)
         if not okay:
             return False
 
@@ -685,7 +686,7 @@ def _add_primary_key(era_type, conn_str, schema):
     return True
 
 
-def _add_era_ids(era_type, conn_str, site, neg_ids, search_path, model_version):
+def _add_era_ids(era_type, conn_str, site, neg_ids, search_path, model_version, id_name):
     """Add ids for the era table
 
     * Find how many ids needed
@@ -700,6 +701,7 @@ def _add_era_ids(era_type, conn_str, site, neg_ids, search_path, model_version):
     :param str site:    site to run derivation for
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str id_name: name of the id (ex. dcc or onco)
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -745,7 +747,7 @@ def _add_era_ids(era_type, conn_str, site, neg_ids, search_path, model_version):
         temp_table_name = 'drug_era'
 
     # Mapping and last ID table naming conventions.
-    last_id_table_name_tmpl = "dcc_{table_name}_id"
+    last_id_table_name_tmpl = id_name + "_{table_name}_id"
     metadata = stock_metadata(model_version)
 
     # Get table object and start to build tpl_vars map, which will be
