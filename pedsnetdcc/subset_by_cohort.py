@@ -15,7 +15,8 @@ GRANT_TABLE_SQL = 'grant select on table {0}.{1} to {2}'
 
 
 def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, cohort_table,
-                         concept_create=False, drug_dose=False, covid_obs=False, inc_hash=False, force=False):
+                         concept_create=False, drug_dose=False, covid_obs=False, inc_hash=False,
+                         index_create=False, fk_create=False, force=False):
     """Create SQL for `select` statement transformations.
 
     The `search_path` only needs to contain the source schema; the target
@@ -32,6 +33,8 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
     :param bool drug_dose: if True, copy drug dose tables
     :param bool covid_obs: if True, copy covid observation table
     :param bool inc_hash: if True, include hash_token table
+    :param bool index_create: if True, create indexes
+    :param bool fk_create: if True, create fks
     :param bool force: if True, ignore benign errors
     :returns:   True if the function succeeds
     :rtype: bool
@@ -246,14 +249,16 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
     # Add NOT NULL constraints to the subset tables (no force option)
     set_not_nulls(new_conn_str, model_version)
 
-    # Add indexes to the subset tables
-    add_indexes(new_conn_str, model_version, force)
+    if index_create:
+        # Add indexes to the subset tables
+        add_indexes(new_conn_str, model_version, force)
 
-    # Drop unneeded indexes from the transformed tables
-    drop_unneeded_indexes(new_conn_str, model_version, force)
+        # Drop unneeded indexes from the transformed tables
+        drop_unneeded_indexes(new_conn_str, model_version, force)
 
-    # Add constraints to the subset tables
-    add_foreign_keys(new_conn_str, model_version, force)
+    if fk_create:
+        # Add constraints to the subset tables
+        add_foreign_keys(new_conn_str, model_version, force)
 
     # Create concept index replacement tables normally done during merge.
     if concept_create:
@@ -293,6 +298,36 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
 
     # Vacuum analyze tables for piney freshness.
     vacuum(new_conn_str, model_version, analyze=True, tables=grant_vacuum_tables)
+
+    # Log end of function.
+    logger.info(combine_dicts({'msg': 'finished subset by cohort',
+                               'elapsed': secs_since(start_time)}, log_dict))
+
+    # If reached without error, then success!
+    return True
+
+
+def run_index_replace(conn_str, model_version):
+    """Create index replacement tables
+
+    :param model_version:   PEDSnet model version, e.g. 2.3.0
+    :returns:   True if the function succeeds
+    :rtype: bool
+    """
+
+    logger = logging.getLogger(__name__)
+    log_dict = combine_dicts({'model_version': model_version, },
+                             get_conn_info_dict(conn_str))
+    logger.info(combine_dicts({'msg': 'starting subset by cohort'},
+                              log_dict))
+    start_time = time.time()
+
+    metadata = stock_metadata(model_version)
+    stmts = StatementSet()
+
+    # Create concept index replacement tables normally done during merge.
+
+    create_index_replacement_tables(conn_str, model_version)
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished subset by cohort',
