@@ -319,8 +319,8 @@ class IDMappingTransform(Transform):
                                  isouter=True)
 
                 # Add conditions to the case dictionary constructs.
-                case_1[domain_concept_id] = map_table_1.c['dcc_id']
-                case_2[domain_concept_id] = map_table_2.c['dcc_id']
+                case_1[domain_concept_id] = map_table_1.c[id_name + '_id']
+                case_2[domain_concept_id] = map_table_2.c[id_name + '_id']
 
             # Create a new select object, because we need to replace the
             # fact_id columns with the case constructs.
