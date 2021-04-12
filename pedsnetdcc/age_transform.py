@@ -67,7 +67,7 @@ class AgeTransform(Transform):
                column_name in cls.columns_by_table[table_name]
 
     @classmethod
-    def pre_transform(cls, conn_str, metadata):
+    def pre_transform(cls, conn_str, metadata, id_name='dcc'):
         """Define PL/SQL functions needed for the age transform. The metadata
         argument is accepted to conform to the abstract transformation class
         definition but not needed or used for this transformation.
@@ -80,7 +80,7 @@ class AgeTransform(Transform):
         conn.close()
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
         """Add age columns for some time columns.
 
         Not all time columns in the PEDSnet model are transformed. There is

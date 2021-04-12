@@ -12,14 +12,14 @@ from sh import pg_dump, pg_restore
 
 logger = logging.getLogger(__name__)
 
-DCC_IDS_TABLE_SQL = """dcc_ids.dcc_{0}_id"""
+DCC_IDS_TABLE_SQL = """{1}_ids.{1}_{0}_id"""
 
-ID_MAP_TABLE_SQL = """{0}_id_maps.{1}_ids"""
+ID_MAP_TABLE_SQL = """{0}{2}_id_maps.{1}_ids"""
 
-CREATE_ID_MAP_TABLE_SQL = """CREATE TABLE IF NOT EXISTS """ + ID_MAP_TABLE_SQL + """(dcc_id INTEGER NOT NULL, site_id INTEGER NOT NULL)"""
+CREATE_ID_MAP_TABLE_SQL = """CREATE TABLE IF NOT EXISTS {0}.{1}({2}_ids {3} NOT NULL, site_id {3} NOT NULL)"""
 
-CREATE_DCC_ID_TABLE_SQL = """CREATE TABLE IF NOT EXISTS """ + DCC_IDS_TABLE_SQL + """(last_id INTEGER NOT NULL)"""
-INITIALIZE_DCC_ID_TABLE_SQL = """INSERT INTO """ + DCC_IDS_TABLE_SQL + """(last_id) values(1)"""
+CREATE_DCC_ID_TABLE_SQL = """CREATE TABLE IF NOT EXISTS {0}.{1}(last_id {2} NOT NULL)"""
+INITIALIZE_DCC_ID_TABLE_SQL = """INSERT INTO {0}.{1}(last_id) values(1)"""
 
 
 _temp_dump_file_templ = "{0}_dump"
@@ -35,19 +35,24 @@ def _base_dump_args(conn_str, dump_path):
             '-f',
             dump_path)
 
-def _dump_args(site, conn_str, dump_path):
+def _dump_args(site, conn_str, dump_path, id_name):
     dump_args = _base_dump_args(conn_str, dump_path)
 
+    if id_name != 'dcc':
+        id_name = '_' + id_name
+    else:
+        id_name = ''
+
     for table in CONSISTENT_ID_MAP_TABLES:
-        dump_args += ('-t', ID_MAP_TABLE_SQL.format(site, table))
+        dump_args += ('-t', ID_MAP_TABLE_SQL.format(site, table, id_name))
 
     return dump_args + ('-f', dump_path)
 
-def _dcc_dump_args(conn_str, dump_path):
+def _dcc_dump_args(conn_str, dump_path, id_name):
     dump_args = _base_dump_args(conn_str, dump_path)
 
     for table in CONSISTENT_ID_MAP_TABLES:
-        dump_args += ('-t', DCC_IDS_TABLE_SQL.format(table))
+        dump_args += ('-t', DCC_IDS_TABLE_SQL.format(table, id_name))
 
     return dump_args
 
@@ -59,31 +64,32 @@ def _restore_args(conn_str, dump_path):
             '8',
             dump_path)
 
-def _dump_and_restore_dcc_ids(old_conn_str, new_conn_str, starttime):
+
+def _dump_and_restore_dcc_ids(old_conn_str, new_conn_str, starttime, id_name):
     logger.info({
-        'msg': 'dumping dcc_id tables from old database',
+        'msg': 'dumping id tables from old database',
         'elapsed': secs_since(starttime)
     })
 
-    dump_file_path = _temp_dump_file("dcc")
-    pg_dump(_dcc_dump_args(old_conn_str, dump_file_path))
+    dump_file_path = _temp_dump_file(id_name)
+    pg_dump(_dcc_dump_args(old_conn_str, dump_file_path, id_name))
 
     pg_restore(_restore_args(new_conn_str, dump_file_path))
 
     os.remove(dump_file_path)
     logger.info({
-        'msg': 'finished restoring dcc_id tables into new database',
+        'msg': 'finished restoring id tables into new database',
         'elapsed': secs_since(starttime)
     })
 
-def _dump_and_restore_id_maps(site, old_conn_str, new_conn_str, starttime):
+def _dump_and_restore_id_maps(site, old_conn_str, new_conn_str, starttime, id_name):
     logger.info({
         'msg': 'dumping id_map tables from old database for ' + site + ' site.',
         'elapsed': secs_since(starttime)
     })
 
     dump_file_path = _temp_dump_file(site)
-    pg_dump(_dump_args(site, old_conn_str, dump_file_path))
+    pg_dump(_dump_args(site, old_conn_str, dump_file_path, id_name))
 
     logger.info({
         'msg': 'inserting id_map dumps into new database for ' + site + ' site.',
@@ -98,54 +104,76 @@ def _dump_and_restore_id_maps(site, old_conn_str, new_conn_str, starttime):
         'elapsed': secs_since(starttime)
     })
 
-def create_dcc_ids_tables(conn_str):
+
+def create_dcc_ids_tables(conn_str, id_name, id_type):
     """Create tables (one per PEDSnet tables) for holding the last generated id for the dcc
 
-    :param conn_str: connection string for target database
-    :type: str
+    :param str conn_str: connection string for target database
+    :param str id_name: name of the id ex. dcc or onco
+    :param str id_type: type of the id INTEGER or BIGINT
     """
 
-    logger.info({'msg': 'starting dcc_ids table creation'})
+    logger.info({'msg': 'starting ids table creation'})
     starttime = time.time()
+
+    schema = id_name + '_ids'
 
     statements = StatementList()
     for table in ID_MAP_TABLES:
         statements.extend(
-            [Statement(CREATE_DCC_ID_TABLE_SQL.format(table))]
+            [Statement(CREATE_DCC_ID_TABLE_SQL.format(schema, table, id_type))]
         )
 
         if table not in CONSISTENT_ID_MAP_TABLES:
             statements.extend(
-                [Statement(INITIALIZE_DCC_ID_TABLE_SQL.format(table))]
+                [Statement(INITIALIZE_DCC_ID_TABLE_SQL.format(schema, table))]
             )
 
     statements.serial_execute(conn_str)
 
     for statement in statements:
-        check_stmt_err(statement, 'dcc_ids table creation')
+        check_stmt_err(statement, 'type_ids table creation')
 
     logger.info({
-        'msg', 'finished creation of dcc_ids tables',
+        'msg', 'finished creation of type_ids tables',
         'elapsed', secs_since(starttime)
     })
 
 
-
-def create_id_map_tables(conn_str):
+def create_id_map_tables(conn_str, skipsites, addsites, id_name, id_type):
     """Create a table (per site) for holding the id mappings between sites and the dcc
 
-     :param conn_str: connection string for target database
-     :type: str
+     :param str conn_str: connection string for target database
+     :param str skipsites:      sites to skip
+     :param str addsites:   `   sites to add
+     :param str id_name:        name of the id ex. dcc or onco
+     :param id_type:            type of id INTEGER or BIGINT
      """
 
     logger.info({'msg': 'starting id_map table creation'})
     starttime = time.time()
 
+    # Get Sites to skip
+    skip_sites = skipsites.split(",")
+
+    id_sites = list(set(SITES_AND_EXTERNAL) - set(skip_sites))
+
+    # Get Sites to add
+    add_sites = addsites.split(",")
+
+    id_sites = list(set(id_sites) | set(add_sites))
+
+    id_sites = list(filter(None, id_sites))
+
     statements = StatementList()
-    for site in SITES_AND_EXTERNAL:
+    for site in id_sites:
+        schema = site
+        if id_name != 'dcc':
+            schema = schema + '_' + id_name
+        schema = schema + '_id_maps'
         for table in ID_MAP_TABLES:
             statements.extend(
-                [Statement(CREATE_ID_MAP_TABLE_SQL.format(site, table))])
+                [Statement(CREATE_ID_MAP_TABLE_SQL.format(schema, table, id_name, id_type))])
 
     statements.serial_execute(conn_str)
 
@@ -157,21 +185,23 @@ def create_id_map_tables(conn_str):
         'elapsed', secs_since(starttime)
     })
 
-def copy_id_maps(old_conn_str, new_conn_str):
+def copy_id_maps(old_conn_str, new_conn_str, id_name):
     """Using pg_dump, copy id_maps and dcc_ids tables from old database to new database
 
     :param old_conn_str: connection string for old target database
     :type: str
     :param new_conn_str: connection string for new target database
     :type: str
+    :param id_name: name of id set ex: dcc or onco
+    :type: str
     """
 
     logger.info({'msg': 'starting id map copying'})
     starttime = time.time()
 
-    _dump_and_restore_dcc_ids(old_conn_str, new_conn_str, starttime)
+    _dump_and_restore_dcc_ids(old_conn_str, new_conn_str, starttime, id_name)
     for site in SITES_AND_EXTERNAL:
-        _dump_and_restore_id_maps(site, old_conn_str, new_conn_str, starttime)
+        _dump_and_restore_id_maps(site, old_conn_str, new_conn_str, starttime, id_name)
 
     logger.info({
         'msg', 'finished copying of id map table data',

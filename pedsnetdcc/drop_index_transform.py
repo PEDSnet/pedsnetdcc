@@ -45,7 +45,7 @@ class DropIndexTransform(Transform):
         return indexes
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
         """
         No transform for columns needed
         """

@@ -15,7 +15,7 @@ class SiteNameTransform(Transform):
     }
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
         """Add a site name column to the table.
 
         The text value of the column is drawn from the `metadata.info` dict.

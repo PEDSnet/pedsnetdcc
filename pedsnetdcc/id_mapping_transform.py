@@ -23,7 +23,7 @@ SET last_id = new.last_id + '{new_id_count}'::integer
 FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
 update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
 
-insert_new_maps_sql = """INSERT INTO {map_table_name} (site_id, dcc_id)
+insert_new_maps_sql = """INSERT INTO {map_table_name} (site_id, (id_name}_id)
 SELECT {pkey_name}, row_number() over (range unbounded preceding) + '{old_last_id}'::integer
 FROM {table_name} LEFT JOIN {map_table_name} on {pkey_name} = site_id
 WHERE site_id IS NULL"""  # noqa
@@ -32,7 +32,7 @@ insert_new_maps_msg = "inserting new {table_name} ID mappings into map table"
 # Mapping and last ID table naming conventions.
 
 map_table_name_tmpl = "{table_name}_ids"
-last_id_table_name_tmpl = "dcc_{table_name}_id"
+last_id_table_name_tmpl = "{id_name}_{table_name}_id"
 
 CREATE_ID_MAP_INDEX_SQL = """CREATE INDEX IF NOT EXISTS {0}_maps_idx_site ON {0}_ids (site_id)"""
 
@@ -40,9 +40,8 @@ logger = logging.getLogger(__name__)
 
 
 class IDMappingTransform(Transform):
-
     @classmethod
-    def pre_transform(cls, conn_str, metadata):
+    def pre_transform(cls, conn_str, metadata, id_name='dcc'):
         """Generate DCC IDs in the database.
 
         See also Transform.pre_transform.
@@ -68,6 +67,10 @@ class IDMappingTransform(Transform):
             # used throughout for formatting SQL statements.
             table = metadata.tables[table_name]
             tpl_vars = {'table_name': table_name}
+
+            # Set name of the id
+            tpl_vars['id_name'] = id_name
+
 
             # In some versions the death table has a primary key constraint
             # on the person_id column.
@@ -167,7 +170,7 @@ class IDMappingTransform(Transform):
 
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
         """Alter foreign key columns to get mapped DCC IDs.
 
         The primary key and each foreign key which points at a data table
@@ -198,7 +201,7 @@ class IDMappingTransform(Transform):
             if map_table_name not in metadata.tables:
                 map_table = sqlalchemy.Table(
                     map_table_name, metadata,
-                    sqlalchemy.Column('dcc_id', sqlalchemy.Integer),
+                    sqlalchemy.Column(id_name + '_id', sqlalchemy.Integer),
                     sqlalchemy.Column('site_id', sqlalchemy.Integer))
             else:
                 map_table = metadata.tables[map_table_name]
@@ -217,7 +220,7 @@ class IDMappingTransform(Transform):
                     new_select.append_column(c)
 
             # Add the mapping table dcc_id column as the primary key column.
-            new_select.append_column(map_table_alias.c['dcc_id'].label(pkey_name))
+            new_select.append_column(map_table_alias.c[id_name + '_id'].label(pkey_name))
 
             # Add the original site primary key as the site_id column.
             new_select.append_column(table.c[pkey_name].label('site_id'))
@@ -244,7 +247,7 @@ class IDMappingTransform(Transform):
             if map_table_name not in metadata.tables:
                 map_table = sqlalchemy.Table(
                     map_table_name, metadata,
-                    sqlalchemy.Column('dcc_id', sqlalchemy.Integer),
+                    sqlalchemy.Column(id_name + '_id', sqlalchemy.Integer),
                     sqlalchemy.Column('site_id', sqlalchemy.Integer))
             else:
                 map_table = metadata.tables[map_table_name]
@@ -269,7 +272,7 @@ class IDMappingTransform(Transform):
                     new_select.append_column(c)
 
             # Add the mapping table dcc_id column as the foreign key column.
-            new_select.append_column(map_table_alias.c['dcc_id'].label(fkey_name))
+            new_select.append_column(map_table_alias.c[id_name + '_id'].label(fkey_name))
 
             # Put the new select object back in the original var for next use.
             select = new_select
@@ -291,7 +294,7 @@ class IDMappingTransform(Transform):
                 if map_table_name not in metadata.tables:
                     map_table = sqlalchemy.Table(
                         map_table_name, metadata,
-                        sqlalchemy.Column('dcc_id', sqlalchemy.Integer),
+                        sqlalchemy.Column(id_name + '_id', sqlalchemy.Integer),
                         sqlalchemy.Column('site_id', sqlalchemy.Integer))
                 else:
                     map_table = metadata.tables[map_table_name]

@@ -36,7 +36,7 @@ class ConceptNameTransform(Transform):
     }
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
         """Add a _concept_name column for each _concept_id column in a table.
 
         Requirements: `concept` table exists.

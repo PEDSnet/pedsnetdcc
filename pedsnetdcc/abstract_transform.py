@@ -28,7 +28,7 @@ class Transform(object):
     __metaclass__ = ABCMeta
 
     @classmethod
-    def pre_transform(cls, conn_str, metadata):
+    def pre_transform(cls, conn_str, metadata, id_name='dcc'):
         """Execute statements required before a transform.
 
         A Transform can override this method to execute prerequisite
@@ -43,7 +43,7 @@ class Transform(object):
 
     @classmethod
     @abstractmethod
-    def modify_select(cls, metadata, table_name, select, join):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
         """Transform a Select object into a new Select object.
 
         Also transform a corresponding Join object by chaining any

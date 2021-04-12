@@ -46,12 +46,14 @@ def pedsnetdcc(logfmt, loglvl):
 @click.option('--searchpath', '-s', help='Schema search path in database.')
 @click.option('--site', required=True,
               help='PEDSnet site name to add to tables.')
+@click.option('--name', required=False, default='dcc',
+              help='name of the id (ex: onco')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def post_load(searchpath, pwprompt, dburi, site, force, model_version):
+def post_load(searchpath, pwprompt, dburi, site, name, force, model_version):
     """Run all post load operations
 
     Run check_fact_relationship
@@ -84,7 +86,7 @@ def post_load(searchpath, pwprompt, dburi, site, force, model_version):
         sys.exit(1)
 
     from pedsnetdcc.transform_runner import run_transformation
-    success = run_transformation(conn_str, model_version, site, searchpath,
+    success = run_transformation(conn_str, model_version, site, searchpath, name,
                                  force)
 
     if not success:
@@ -169,8 +171,16 @@ def check_fact_relationship(searchpath, pwprompt, output, poolsize, dburi):
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
+@click.option('--skipsites', required=False, default='',
+              help='sites to skip delimited by ,')
+@click.option('--addsites', required=False, default='',
+              help='sites to add delimited by ,')
+@click.option('--name', required=False, default='dcc',
+              help='name of the id (ex: onco')
+@click.option('--type', required=False, default='INTEGER',
+              help='type of the id (ex: BIGINT')
 @click.argument('dburi')
-def create_id_maps(dburi, pwprompt):
+def create_id_maps(dburi, pwprompt, skipsites, addsites, name, type):
     """Create id map tables to map the relationship between site ids and the dcc ids
 
     Mapping between external site ids and dcc ids are neccessary to ensure data stays consistent
@@ -191,17 +201,19 @@ def create_id_maps(dburi, pwprompt):
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, password=password)
-    create_dcc_ids_tables(conn_str)
-    create_id_map_tables(conn_str)
+    create_dcc_ids_tables(conn_str, name, type)
+    create_id_map_tables(conn_str, skipsites, addsites, name, type)
 
 
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
+@click.option('--name', required=False, default='dcc',
+              help='name of the id (ex: onco')
 @click.argument('dburi')
 @click.argument('old_db')
 @click.argument('new_db')
-def copy_id_maps(dburi, old_db, new_db, pwprompt):
+def copy_id_maps(dburi, old_db, new_db, pwprompt, name):
     """Copy id map tables from the last data cycles database into the new data cycles database
     The databases should be specified using DBURIs:
 
@@ -219,7 +231,7 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt):
     old_conn_str = make_conn_str(dburi + old_db, password=password)
     new_conn_str = make_conn_str(dburi + new_db, password=password)
 
-    copy_id_maps(old_conn_str, new_conn_str)
+    copy_id_maps(old_conn_str, new_conn_str, name)
 
 
 @pedsnetdcc.command()
@@ -228,6 +240,8 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt):
 @click.option('--searchpath', '-s', help='Schema search path in database.')
 @click.option('--site', required=True,
               help='PEDSnet site name to add to tables.')
+@click.option('--name', required=False, default='dcc',
+              help='name of the id (ex: onco')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
@@ -235,7 +249,7 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt):
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
-def transform(pwprompt, searchpath, site, force, model_version, undo, dburi):
+def transform(pwprompt, searchpath, site, name, force, model_version, undo, dburi):
     """Transform PEDSnet data into the DCC format.
 
     Using the hard-coded set of transformations in this tool, transform data
@@ -264,7 +278,7 @@ def transform(pwprompt, searchpath, site, force, model_version, undo, dburi):
 
     if not undo:
         from pedsnetdcc.transform_runner import run_transformation
-        success = run_transformation(conn_str, model_version, site, searchpath,
+        success = run_transformation(conn_str, model_version, site, searchpath, name,
                                      force)
     else:
         from pedsnetdcc.transform_runner import undo_transformation
@@ -318,6 +332,204 @@ def age_transform(pwprompt, searchpath, site, force, model_version, table, undo,
     if not undo:
         from pedsnetdcc.transform_runner import run_age_transformation
         success = run_age_transformation(conn_str, model_version, site, searchpath, table, force)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name to add to tables.')
+@click.option('--force', is_flag=True, default=False,
+              help='Ignore any "already exists" errors from the database.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--table', required=True,
+              help='table to transform.')
+@click.option('--undo', is_flag=True, default=False,
+              help='Replace transformed tables with backup tables.')
+@click.argument('dburi')
+def concept_transform(pwprompt, searchpath, site, force, model_version, table, undo, dburi):
+    """Transform PEDSnet data into the DCC format.
+
+    Using the hard-coded set of transformations in this tool, transform data
+    from the given PEDSnet model version format into the DCC format. Existing
+    tables are backed up to a new '<searchpath>_backup' schema.
+
+    The currently defined transformations are:
+
+      - Add '_age_in_months' columns alongside specified time columns.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    if not undo:
+        from pedsnetdcc.transform_runner import run_concept_transformation
+        success = run_concept_transformation(conn_str, model_version, site, searchpath, table, force)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name to add to tables.')
+@click.option('--force', is_flag=True, default=False,
+              help='Ignore any "already exists" errors from the database.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--table', required=True,
+              help='table to transform.')
+@click.option('--undo', is_flag=True, default=False,
+              help='Replace transformed tables with backup tables.')
+@click.argument('dburi')
+def site_transform(pwprompt, searchpath, site, force, model_version, table, undo, dburi):
+    """Transform PEDSnet data into the DCC format.
+
+    Using the hard-coded set of transformations in this tool, transform data
+    from the given PEDSnet model version format into the DCC format. Existing
+    tables are backed up to a new '<searchpath>_backup' schema.
+
+    The currently defined transformations are:
+
+      - Add '_age_in_months' columns alongside specified time columns.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    if not undo:
+        from pedsnetdcc.transform_runner import run_site_transformation
+        success = run_site_transformation(conn_str, model_version, site, searchpath, table, force)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name to add to tables.')
+@click.option('--force', is_flag=True, default=False,
+              help='Ignore any "already exists" errors from the database.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--table', required=True,
+              help='table to transform.')
+@click.option('--undo', is_flag=True, default=False,
+              help='Replace transformed tables with backup tables.')
+@click.argument('dburi')
+def index_transform(pwprompt, searchpath, site, force, model_version, table, undo, dburi):
+    """Transform PEDSnet data into the DCC format.
+
+    Using the hard-coded set of transformations in this tool, transform data
+    from the given PEDSnet model version format into the DCC format. Existing
+    tables are backed up to a new '<searchpath>_backup' schema.
+
+    The currently defined transformations are:
+
+      - Add '_age_in_months' columns alongside specified time columns.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    if not undo:
+        from pedsnetdcc.transform_runner import run_index_transformation
+        success = run_index_transformation(conn_str, model_version, site, searchpath, table, force)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name to add to tables.')
+@click.option('--name', required=False, default='dcc',
+              help='name of the id (ex: onco')
+@click.option('--force', is_flag=True, default=False,
+              help='Ignore any "already exists" errors from the database.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--table', required=True,
+              help='table to transform.')
+@click.option('--undo', is_flag=True, default=False,
+              help='Replace transformed tables with backup tables.')
+@click.argument('dburi')
+def id_transform(pwprompt, searchpath, site, name, force, model_version, table, undo, dburi):
+    """Transform PEDSnet data into the DCC format.
+
+    Using the hard-coded set of transformations in this tool, transform data
+    from the given PEDSnet model version format into the DCC format. Existing
+    tables are backed up to a new '<searchpath>_backup' schema.
+
+    The currently defined transformations are:
+
+      - Add '_age_in_months' columns alongside specified time columns.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    if not undo:
+        from pedsnetdcc.transform_runner import run_id_transformation
+        success = run_id_transformation(conn_str, model_version, site, searchpath, table, name, force)
 
     if not success:
         sys.exit(1)
