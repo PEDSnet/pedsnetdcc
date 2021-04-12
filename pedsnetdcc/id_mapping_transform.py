@@ -23,7 +23,7 @@ SET last_id = new.last_id + '{new_id_count}'::integer
 FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
 update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
 
-insert_new_maps_sql = """INSERT INTO {map_table_name} (site_id, (id_name}_id)
+insert_new_maps_sql = """INSERT INTO {map_table_name} (site_id, {id_name}_id)
 SELECT {pkey_name}, row_number() over (range unbounded preceding) + '{old_last_id}'::integer
 FROM {table_name} LEFT JOIN {map_table_name} on {pkey_name} = site_id
 WHERE site_id IS NULL"""  # noqa
