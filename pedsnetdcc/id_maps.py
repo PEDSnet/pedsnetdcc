@@ -16,7 +16,7 @@ DCC_IDS_TABLE_SQL = """{1}_ids.{1}_{0}_id"""
 
 ID_MAP_TABLE_SQL = """{0}{2}_id_maps.{1}_ids"""
 
-CREATE_ID_MAP_TABLE_SQL = """CREATE TABLE IF NOT EXISTS {0}.{1}({2}_ids {3} NOT NULL, site_id {3} NOT NULL)"""
+CREATE_ID_MAP_TABLE_SQL = """CREATE TABLE IF NOT EXISTS {0}.{1}({2}_id {3} NOT NULL, site_id {3} NOT NULL)"""
 
 CREATE_DCC_ID_TABLE_SQL = """CREATE TABLE IF NOT EXISTS {0}.{1}(last_id {2} NOT NULL)"""
 INITIALIZE_DCC_ID_TABLE_SQL = """INSERT INTO {0}.{1}(last_id) values(1)"""
@@ -120,13 +120,14 @@ def create_dcc_ids_tables(conn_str, id_name, id_type):
 
     statements = StatementList()
     for table in ID_MAP_TABLES:
+        table_name = id_name + '_' + table + 'id'
         statements.extend(
-            [Statement(CREATE_DCC_ID_TABLE_SQL.format(schema, table, id_type))]
+            [Statement(CREATE_DCC_ID_TABLE_SQL.format(schema, table_name, id_type))]
         )
 
         if table not in CONSISTENT_ID_MAP_TABLES:
             statements.extend(
-                [Statement(INITIALIZE_DCC_ID_TABLE_SQL.format(schema, table))]
+                [Statement(INITIALIZE_DCC_ID_TABLE_SQL.format(schema, table_name))]
             )
 
     statements.serial_execute(conn_str)
