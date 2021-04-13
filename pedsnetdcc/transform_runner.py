@@ -109,9 +109,10 @@ def _transform_age_select_sql(model_version, site, target_schema, target_table):
     metadata = stock_metadata(model_version)
     metadata.info['site'] = site
     stmt_pairs = set()
+    target_table = target_table.split(",")
 
     for table_name, table in metadata.tables.items():
-        if table_name == target_table:
+        if table_name in target_table:
 
             select_obj = sqlalchemy.select([table])
             join_obj = table
@@ -161,9 +162,10 @@ def _transform_concept_select_sql(model_version, site, target_schema, target_tab
     metadata = stock_metadata(model_version)
     metadata.info['site'] = site
     stmt_pairs = set()
+    target_table = target_table.split(",")
 
     for table_name, table in metadata.tables.items():
-        if table_name == target_table:
+        if table_name in target_table:
 
             select_obj = sqlalchemy.select([table])
             join_obj = table
@@ -213,9 +215,10 @@ def _transform_site_select_sql(model_version, site, target_schema, target_table)
     metadata = stock_metadata(model_version)
     metadata.info['site'] = site
     stmt_pairs = set()
+    target_table = target_table.split(",")
 
     for table_name, table in metadata.tables.items():
-        if table_name == target_table:
+        if table_name in target_table:
 
             select_obj = sqlalchemy.select([table])
             join_obj = table
@@ -266,9 +269,10 @@ def _transform_id_select_sql(model_version, site, target_schema, target_table, i
     metadata = stock_metadata(model_version)
     metadata.info['site'] = site
     stmt_pairs = set()
+    target_table = target_table.split(",")
 
     for table_name, table in metadata.tables.items():
-        if table_name == target_table:
+        if table_name in target_table:
 
             select_obj = sqlalchemy.select([table])
             join_obj = table
@@ -319,9 +323,10 @@ def _transform_index_select_sql(model_version, site, target_schema, target_table
     metadata = stock_metadata(model_version)
     metadata.info['site'] = site
     stmt_pairs = set()
+    target_table = target_table.split(",")
 
     for table_name, table in metadata.tables.items():
-        if table_name == target_table:
+        if table_name in target_table:
 
             select_obj = sqlalchemy.select([table])
             join_obj = table

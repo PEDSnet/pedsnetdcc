@@ -301,7 +301,7 @@ def transform(pwprompt, searchpath, site, name, force, model_version, undo, dbur
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--table', required=True,
-              help='table to transform.')
+              help='table(s) to transform delimited by ,')
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
@@ -350,7 +350,7 @@ def age_transform(pwprompt, searchpath, site, force, model_version, table, undo,
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--table', required=True,
-              help='table to transform.')
+              help='table(s) to transform delimited by ,')
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
@@ -363,7 +363,7 @@ def concept_transform(pwprompt, searchpath, site, force, model_version, table, u
 
     The currently defined transformations are:
 
-      - Add '_age_in_months' columns alongside specified time columns.
+      - Add '_concept name' columns alongside concept id columns.
 
     The database should be specified using a DBURI:
 
@@ -399,7 +399,7 @@ def concept_transform(pwprompt, searchpath, site, force, model_version, table, u
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--table', required=True,
-              help='table to transform.')
+              help='table(s) to transform delimited by ,')
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
@@ -412,7 +412,7 @@ def site_transform(pwprompt, searchpath, site, force, model_version, table, undo
 
     The currently defined transformations are:
 
-      - Add '_age_in_months' columns alongside specified time columns.
+      - Add 'site' columns column.
 
     The database should be specified using a DBURI:
 
@@ -448,7 +448,7 @@ def site_transform(pwprompt, searchpath, site, force, model_version, table, undo
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--table', required=True,
-              help='table to transform.')
+              help='table(s) to transform delimited by ,')
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
@@ -461,7 +461,7 @@ def index_transform(pwprompt, searchpath, site, force, model_version, table, und
 
     The currently defined transformations are:
 
-      - Add '_age_in_months' columns alongside specified time columns.
+      - Add indexes for primary keys.
 
     The database should be specified using a DBURI:
 
@@ -499,7 +499,7 @@ def index_transform(pwprompt, searchpath, site, force, model_version, table, und
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--table', required=True,
-              help='table to transform.')
+              help='table(s) to transform delimited by ,')
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
@@ -512,7 +512,7 @@ def id_transform(pwprompt, searchpath, site, name, force, model_version, table, 
 
     The currently defined transformations are:
 
-      - Add '_age_in_months' columns alongside specified time columns.
+      - Move site id to site_id column for primary key and assign new id to replace original site submitted id.
 
     The database should be specified using a DBURI:
 
