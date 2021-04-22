@@ -1560,7 +1560,6 @@ def copy_drug_era(pwprompt, searchpath, site, dburi):
     """
 
     password = None
-
     if pwprompt:
         password = click.prompt('Database password', hide_input=True)
 
@@ -1595,12 +1594,12 @@ def copy_drug_era(pwprompt, searchpath, site, dburi):
               help='Skip ids if already exist.')
 @click.option('--nopk', is_flag=True, default=False,
               help='Skip primary keys if already exist.')
-@click.option('--noids', is_flag=True, default=False,
-              help='Skip ids if already exist.')
 @click.option('--novac', is_flag=True, default=False,
               help='Skip vaccuum if already done.')
+@click.option('--size', required=False, default='5000',
+              help='size of the group of persons processed at a time')
 @click.argument('dburi')
-def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids, nopk, novac, dburi):
+def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids, nopk, novac, size, dburi):
     """Run Drug Era derivation.
 
     The steps are:
@@ -1626,7 +1625,7 @@ def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idn
 
     from pedsnetdcc.r_drug_era import run_r_drug_era
     success = run_r_drug_era(conn_str, site, copy, neg_ids, searchpath, password, model_version, idname,
-                             notable, noids, nopk, novac)
+                             notable, noids, nopk, novac, size)
 
     if not success:
         sys.exit(1)
