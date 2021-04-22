@@ -53,8 +53,8 @@ def _fix_size(file_path, size):
     try:
         with open(os.path.join(file_path,'code','driver.R'), 'r') as driver_file:
             file_data = driver_file.read()
-        file_data = file_data.replace('<SIZE>', size)
-        file_data = file_data.replace('<SIZEMINUS1>', size-1)
+        file_data = file_data.replace('<SIZE>', str(size))
+        file_data = file_data.replace('<SIZEMINUS1>', str(size-1))
         with open(os.path.join(file_path,'code','driver.R'), 'w') as driver_file:
             driver_file.write(file_data)
     except:
