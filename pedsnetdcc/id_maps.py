@@ -186,7 +186,7 @@ def create_id_map_tables(conn_str, skipsites, addsites, id_name, id_type):
         'elapsed', secs_since(starttime)
     })
 
-def copy_id_maps(old_conn_str, new_conn_str, id_name):
+def copy_id_maps(old_conn_str, new_conn_str, id_name, skipsites, addsites,):
     """Using pg_dump, copy id_maps and dcc_ids tables from old database to new database
 
     :param old_conn_str: connection string for old target database
@@ -194,14 +194,28 @@ def copy_id_maps(old_conn_str, new_conn_str, id_name):
     :param new_conn_str: connection string for new target database
     :type: str
     :param id_name: name of id set ex: dcc or onco
+    :param str skipsites:      sites to skip
+    :param str addsites:   `   sites to add
     :type: str
     """
 
     logger.info({'msg': 'starting id map copying'})
     starttime = time.time()
 
+    # Get Sites to skip
+    skip_sites = skipsites.split(",")
+
+    id_sites = list(set(SITES_AND_EXTERNAL) - set(skip_sites))
+
+    # Get Sites to add
+    add_sites = addsites.split(",")
+
+    id_sites = list(set(id_sites) | set(add_sites))
+
+    id_sites = list(filter(None, id_sites))
+
     _dump_and_restore_dcc_ids(old_conn_str, new_conn_str, starttime, id_name)
-    for site in SITES_AND_EXTERNAL:
+    for site in id_sites:
         _dump_and_restore_id_maps(site, old_conn_str, new_conn_str, starttime, id_name)
 
     logger.info({

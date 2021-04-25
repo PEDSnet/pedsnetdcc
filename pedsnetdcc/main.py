@@ -210,10 +210,14 @@ def create_id_maps(dburi, pwprompt, skipsites, addsites, name, type):
               help='Prompt for database password.')
 @click.option('--name', required=False, default='dcc',
               help='name of the id (ex: onco')
+@click.option('--skipsites', required=False, default='',
+              help='sites to skip delimited by ,')
+@click.option('--addsites', required=False, default='',
+              help='sites to add delimited by ,')
 @click.argument('dburi')
 @click.argument('old_db')
 @click.argument('new_db')
-def copy_id_maps(dburi, old_db, new_db, pwprompt, name):
+def copy_id_maps(dburi, old_db, new_db, pwprompt, name, skipsites, addsites):
     """Copy id map tables from the last data cycles database into the new data cycles database
     The databases should be specified using DBURIs:
 
@@ -231,7 +235,7 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt, name):
     old_conn_str = make_conn_str(dburi + old_db, password=password)
     new_conn_str = make_conn_str(dburi + new_db, password=password)
 
-    copy_id_maps(old_conn_str, new_conn_str, name)
+    copy_id_maps(old_conn_str, new_conn_str, name, skipsites, addsites)
 
 
 @pedsnetdcc.command()
