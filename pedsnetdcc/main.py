@@ -544,6 +544,57 @@ def id_transform(pwprompt, searchpath, site, name, force, model_version, table, 
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name to add to tables.')
+@click.option('--name', required=False, default='dcc',
+              help='name of the id (ex: onco')
+@click.option('--force', is_flag=True, default=False,
+              help='Ignore any "already exists" errors from the database.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--table', required=True,
+              help='table(s) to transform delimited by ,')
+@click.option('--undo', is_flag=True, default=False,
+              help='Replace transformed tables with backup tables.')
+@click.argument('dburi')
+def all_sub_transforms(pwprompt, searchpath, site, name, force, model_version, table, undo, dburi):
+    """Transform PEDSnet data into the DCC format.
+
+    Using the hard-coded set of transformations in this tool, transform data
+    from the given PEDSnet model version format into the DCC format. Existing
+    tables are backed up to a new '<searchpath>_backup' schema.
+
+    The currently defined transformations are:
+
+      - Move site id to site_id column for primary key and assign new id to replace original site submitted id.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    if not undo:
+        from pedsnetdcc.transform_runner import run_all_sub_transformations
+        success = run_all_sub_transformations(conn_str, model_version, site, searchpath, table, name, force)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
 @click.option('--addsites', required=False, default='',
               help='sites to add delimited by ,')
 @click.option('--force', is_flag=True, default=False,

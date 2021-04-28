@@ -564,6 +564,34 @@ def _move_tables_statements(model_version, from_schema, to_schema):
     return stmts
 
 
+def _move_target_tables_statements(model_version, from_schema, to_schema, target_table):
+    """Return StatementList to move pedsnet tables from one schema to another.
+
+    Vocabulary tables are ignored.
+
+    :param str model_version: pedsnet model version
+    :param str from_schema: source schema
+    :param str to_schema: destination schema
+    :param str target_table: transform table
+    :return: list of statements
+    :rtype: StatementList
+    """
+
+    target_table = target_table.split(",")
+    stmts = StatementList()
+    metadata = stock_metadata(model_version)
+    move_tpl = 'ALTER TABLE {from_sch}.{tbl} SET SCHEMA {to_sch}'
+    msg_tpl = 'moving {tbl} from {from_sch} to {to_sch}'
+
+    for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
+        if table_name in target_table:
+            tpl_vals = {'from_sch': from_schema, 'to_sch': to_schema,
+                        'tbl': table_name}
+            stmts.append(Statement(move_tpl.format(**tpl_vals),
+                               msg_tpl.format(**tpl_vals)))
+    return stmts
+
+
 def _drop_tables_statements(model_version, schema, if_exists=False):
     """Return StatementList to drop pedsnet tables in the specified schema.
 
@@ -592,6 +620,41 @@ def _drop_tables_statements(model_version, schema, if_exists=False):
                     'if_exists': if_exists_clause}
         stmts.append(Statement(move_tpl.format(**tpl_vals),
                                msg_tpl.format(**tpl_vals)))
+    return stmts
+
+
+def _drop_target_tables_statements(model_version, schema, target_table, if_exists=False):
+    """Return StatementList to drop pedsnet tables in the specified schema.
+
+    Vocabulary tables are ignored.  If `if_exists` is true, then the
+    `IF EXISTS` clause will be used to avoid errors if the tables don't
+    exist.
+
+    Foreign keys must have been dropped beforehand; otherwise, errors will
+    occur.
+
+    :param str model_version: pedsnet model version
+    :param str schema: schema name
+    :param str target_table: transform table
+    :param bool if_exists: use IF EXISTS clause
+    :return: list of statements
+    :rtype: StatementList
+    """
+
+    target_table = target_table.split(",")
+    stmts = StatementList()
+    metadata = stock_metadata(model_version)
+    move_tpl = 'DROP TABLE {if_exists} {sch}.{tbl}'
+    msg_tpl = 'dropping {tbl} in {sch}'
+
+    if_exists_clause = 'IF EXISTS' if if_exists else ''
+
+    for table_name in set(metadata.tables.keys()) - set(VOCAB_TABLES):
+        if table_name in target_table:
+            tpl_vals = {'sch': schema, 'tbl': table_name,
+                        'if_exists': if_exists_clause}
+            stmts.append(Statement(move_tpl.format(**tpl_vals),
+                                   msg_tpl.format(**tpl_vals)))
     return stmts
 
 
@@ -705,6 +768,128 @@ def run_transformation(conn_str, model_version, site, search_path, id_name,
     return True
 
 
+def run_all_sub_transformations(conn_str, model_version, site, search_path, target_table, id_name, force=False):
+    """Run age transformation.
+
+    * Create new schema FOO_transformed.
+    * Create transformed tables in FOO_schema.
+
+    :param str conn_str: pq connection string
+    :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str site: site label, e.g. 'stlouis'
+    :param str search_path: PostgreSQL schema search path
+    :param str target_table: table to transform
+    :param str id_name: name of the id (ex. dcc or onco)
+    :param bool force: if True, ignore benign errors
+    :return: True if no exception raised
+    :rtype: bool
+    :raise: various possible exceptions ...
+    """
+    log_dict = combine_dicts({'model_version': model_version,
+                              'search_path': search_path, 'force': force},
+                             get_conn_info_dict(conn_str))
+
+    task = 'running transformation'
+    start_time = time.time()
+    # TODO: define spec for computer readable log messages
+    # E.g. we might want both 'task' and 'msg' keys, maybe 'submsg'
+    logger.info(combine_dicts({'msg': 'started {}'.format(task)}, log_dict))
+
+    # TODO: should we catch all exceptions and perform logger.error?
+    # and a logger.info to record the elapsed time at abort.
+
+    # TODO: do we need to validate the primary schema at all?
+    schema = primary_schema(search_path)
+
+    # Create the schema to hold the transformed tables.
+    tmp_schema = schema + '_' + 'transformed'
+    create_schema(conn_str, tmp_schema, force)
+
+    # Perform the transformation.
+    task = 'running age transformation'
+    _transform_age(conn_str, model_version, site, tmp_schema, target_table, force)
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    # Perform the transformation.
+    task = 'running concept transformation'
+    _transform_concept(conn_str, model_version, site, tmp_schema, target_table, force)
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    # Perform the transformation.
+    task = 'running site transformation'
+    _transform_site(conn_str, model_version, site, tmp_schema, target_table, force)
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    # Perform the transformation.
+    task = 'running id transformation'
+    _transform_id(conn_str, model_version, site, tmp_schema, target_table, id_name, force)
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    # Perform the transformation.
+    task = 'running index transformation'
+    _transform_index(conn_str, model_version, site, tmp_schema, target_table, force)
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    # Set up new connection string for manipulating the target schema
+    new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
+    new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
+
+    # Set tables to logged
+    set_logged(new_conn_str, model_version, False, target_table.split(","))
+
+    # Move the old tables to a backup schema and move the new ones into
+    # the original schema; then drop the temporary schema.
+    backup_schema = schema + '_backup'
+
+    stmts = StatementList()
+    stmts.append(
+        drop_schema_statement(backup_schema, if_exists=True, cascade=True))
+    stmts.append(create_schema_statement(backup_schema))
+    stmts.extend(_move_target_tables_statements(model_version, schema, backup_schema, target_table))
+    stmts.extend(_move_target_tables_statements(model_version, tmp_schema, schema, target_table))
+    stmts.append(
+        drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
+    stmts.serial_execute(conn_str, transaction=True)
+    for stmt in stmts:
+        # Must check through all results to find the first (and last) real
+        # error that caused the transaction to fail.
+        if stmt.err:
+            if pg_error(stmt) == 'IN_FAILED_SQL_TRANSACTION':
+                continue
+            logger.error(combine_dicts({'msg': 'error ' + task,
+                                        'submsg': stmt.msg,
+                                        'err': stmt.err,
+                                        'sql': stmt.sql},
+                                       log_dict))
+            logger.info(combine_dicts({'msg': 'aborted {}'.format(task),
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            tpl = 'moving tables after transformation ({sql}): {err}'
+            raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
+
+    task = 'running transformation'
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    return True
+
+
 def run_age_transformation(conn_str, model_version, site, search_path, target_table, force=False):
     """Run age transformation.
 
@@ -753,7 +938,7 @@ def run_age_transformation(conn_str, model_version, site, search_path, target_ta
     new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
 
     # Set tables to logged
-    set_logged(new_conn_str, model_version)
+    set_logged(new_conn_str, model_version, False, target_table.split(","))
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.
@@ -763,8 +948,8 @@ def run_age_transformation(conn_str, model_version, site, search_path, target_ta
     stmts.append(
         drop_schema_statement(backup_schema, if_exists=True, cascade=True))
     stmts.append(create_schema_statement(backup_schema))
-    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
-    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
+    stmts.extend(_move_target_tables_statements(model_version, schema, backup_schema, target_table))
+    stmts.extend(_move_target_tables_statements(model_version, tmp_schema, schema, target_table))
     stmts.append(
         drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
     stmts.serial_execute(conn_str, transaction=True)
@@ -793,7 +978,7 @@ def run_age_transformation(conn_str, model_version, site, search_path, target_ta
 
 
 def run_concept_transformation(conn_str, model_version, site, search_path, target_table, force=False):
-    """Run age transformation.
+    """Run concept transformation.
 
     * Create new schema FOO_transformed.
     * Create transformed tables in FOO_schema.
@@ -840,7 +1025,7 @@ def run_concept_transformation(conn_str, model_version, site, search_path, targe
     new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
 
     # Set tables to logged
-    set_logged(new_conn_str, model_version)
+    set_logged(new_conn_str, model_version, False, target_table.split(","))
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.
@@ -850,8 +1035,8 @@ def run_concept_transformation(conn_str, model_version, site, search_path, targe
     stmts.append(
         drop_schema_statement(backup_schema, if_exists=True, cascade=True))
     stmts.append(create_schema_statement(backup_schema))
-    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
-    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
+    stmts.extend(_move_target_tables_statements(model_version, schema, backup_schema, target_table))
+    stmts.extend(_move_target_tables_statements(model_version, tmp_schema, schema, target_table))
     stmts.append(
         drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
     stmts.serial_execute(conn_str, transaction=True)
@@ -880,7 +1065,7 @@ def run_concept_transformation(conn_str, model_version, site, search_path, targe
 
 
 def run_site_transformation(conn_str, model_version, site, search_path, target_table, force=False):
-    """Run age transformation.
+    """Run site transformation.
 
     * Create new schema FOO_transformed.
     * Create transformed tables in FOO_schema.
@@ -927,7 +1112,7 @@ def run_site_transformation(conn_str, model_version, site, search_path, target_t
     new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
 
     # Set tables to logged
-    set_logged(new_conn_str, model_version)
+    set_logged(new_conn_str, model_version, False, target_table.split(","))
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.
@@ -937,8 +1122,8 @@ def run_site_transformation(conn_str, model_version, site, search_path, target_t
     stmts.append(
         drop_schema_statement(backup_schema, if_exists=True, cascade=True))
     stmts.append(create_schema_statement(backup_schema))
-    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
-    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
+    stmts.extend(_move_tables_statements(model_version, schema, backup_schema, target_table))
+    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema, target_table))
     stmts.append(
         drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
     stmts.serial_execute(conn_str, transaction=True)
@@ -967,7 +1152,7 @@ def run_site_transformation(conn_str, model_version, site, search_path, target_t
 
 
 def run_id_transformation(conn_str, model_version, site, search_path, target_table, id_name, force=False):
-    """Run age transformation.
+    """Run id transformation.
 
     * Create new schema FOO_transformed.
     * Create transformed tables in FOO_schema.
@@ -1015,7 +1200,7 @@ def run_id_transformation(conn_str, model_version, site, search_path, target_tab
     new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
 
     # Set tables to logged
-    set_logged(new_conn_str, model_version)
+    set_logged(new_conn_str, model_version, False, target_table.split(","))
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.
@@ -1025,8 +1210,8 @@ def run_id_transformation(conn_str, model_version, site, search_path, target_tab
     stmts.append(
         drop_schema_statement(backup_schema, if_exists=True, cascade=True))
     stmts.append(create_schema_statement(backup_schema))
-    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
-    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
+    stmts.extend(_move_target_tables_statements(model_version, schema, backup_schema, target_table))
+    stmts.extend(_move_target_tables_statements(model_version, tmp_schema, schema, target_table))
     stmts.append(
         drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
     stmts.serial_execute(conn_str, transaction=True)
@@ -1055,7 +1240,7 @@ def run_id_transformation(conn_str, model_version, site, search_path, target_tab
 
 
 def run_index_transformation(conn_str, model_version, site, search_path, target_table, force=False):
-    """Run age transformation.
+    """Run index transformation.
 
     * Create new schema FOO_transformed.
     * Create transformed tables in FOO_schema.
@@ -1102,7 +1287,7 @@ def run_index_transformation(conn_str, model_version, site, search_path, target_
     new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
 
     # Set tables to logged
-    set_logged(new_conn_str, model_version)
+    set_logged(new_conn_str, model_version, False, target_table.split(","))
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.
@@ -1112,8 +1297,8 @@ def run_index_transformation(conn_str, model_version, site, search_path, target_
     stmts.append(
         drop_schema_statement(backup_schema, if_exists=True, cascade=True))
     stmts.append(create_schema_statement(backup_schema))
-    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
-    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
+    stmts.extend(_move_target_tables_statements(model_version, schema, backup_schema, target_table))
+    stmts.extend(_move_target_tables_statements(model_version, tmp_schema, schema, target_table))
     stmts.append(
         drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
     stmts.serial_execute(conn_str, transaction=True)
