@@ -863,7 +863,7 @@ def run_transformation(conn_str, model_version, site, search_path, id_name,
 
 
 def run_target_transformation(conn_str, model_version, site, search_path, target_table, id_name, force=False):
-    """Run age transformation.
+    """Run transformation on target tables.
 
     * Create new schema FOO_transformed.
     * Create transformed tables in FOO_schema.
@@ -1184,8 +1184,8 @@ def run_site_transformation(conn_str, model_version, site, search_path, target_t
     stmts.append(
         drop_schema_statement(backup_schema, if_exists=True, cascade=True))
     stmts.append(create_schema_statement(backup_schema))
-    stmts.extend(_move_tables_statements(model_version, schema, backup_schema, target_table))
-    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema, target_table))
+    stmts.extend(_move_target_tables_statements(model_version, schema, backup_schema, target_table))
+    stmts.extend(_move_target_tables_statements(model_version, tmp_schema, schema, target_table))
     stmts.append(
         drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
     stmts.serial_execute(conn_str, transaction=True)
