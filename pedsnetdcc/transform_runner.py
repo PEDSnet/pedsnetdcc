@@ -805,6 +805,10 @@ def run_all_sub_transformations(conn_str, model_version, site, search_path, targ
     tmp_schema = schema + '_' + 'transformed'
     create_schema(conn_str, tmp_schema, force)
 
+    # Because the same tables are used each time for different transfroms force needs to be true
+
+    force = True
+
     # Perform the transformation.
     task = 'running age transformation'
     _transform_age(conn_str, model_version, site, tmp_schema, target_table, force)
