@@ -48,6 +48,7 @@ def _transform_select_sql(model_version, site, target_schema, id_name):
     :param model_version: PEDSnet model version, e.g. 2.3.0
     :param site: site name, e.g. 'stlouis'
     :param target_schema: schema in which to create the transformed tables
+    :param id_name: name of the id set
     :return: set of tuples of SQL statement strings and messages
     :rtype: set
     :raise: psycopg2.ProgrammingError (from the modify_select)
@@ -69,6 +70,60 @@ def _transform_select_sql(model_version, site, target_schema, id_name):
                     select_obj,
                     join_obj,
                     id_name)
+
+        final_select_obj = select_obj.select_from(join_obj)
+
+        table_sql_obj = final_select_obj.compile(
+            dialect=sqlalchemy.dialects.postgresql.dialect())
+
+        table_sql = str(table_sql_obj) % table_sql_obj.params
+
+        final_sql = 'CREATE UNLOGGED TABLE {0}.{1} AS {2}'.format(
+            target_schema, table_name, table_sql)
+        msg = 'creating transformed copy of table {}'.format(table_name)
+
+        stmt_pairs.add((final_sql, msg))
+
+    return stmt_pairs
+
+
+def _transform_target_select_sql(model_version, site, target_schema, id_name, target_table):
+    """Create SQL for `select` statement transformations.
+
+    The `search_path` only needs to contain the source schema; the target
+    schema is embedded in the SQL statements.
+
+    The returned statements are not sufficient for the transformation;
+    the `pre_transform` needs to be run beforehand.
+
+    Returns a set of tuples of (sql_string, msg), where msg is a description
+    for the operation to be carried out by the sql_string.
+
+    :param model_version: PEDSnet model version, e.g. 2.3.0
+    :param site: site name, e.g. 'stlouis'
+    :param target_schema: schema in which to create the transformed tables
+    :param id_name: name of the id set
+    :param target_table: table to use
+    :return: set of tuples of SQL statement strings and messages
+    :rtype: set
+    :raise: psycopg2.ProgrammingError (from the modify_select)
+    """
+    target_table = target_table.split(",")
+    metadata = stock_metadata(model_version)
+    metadata.info['site'] = site
+    stmt_pairs = set()
+    for table_name, table in metadata.tables.items():
+        if table_name in target_table:
+            select_obj = sqlalchemy.select([table])
+            join_obj = table
+
+            for transform in TRANSFORMS:
+                    select_obj, join_obj = transform.modify_select(
+                        metadata,
+                        table_name,
+                        select_obj,
+                        join_obj,
+                        id_name)
 
         final_select_obj = select_obj.select_from(join_obj)
 
@@ -361,6 +416,7 @@ def _transform(conn_str, model_version, site, target_schema, id_name, force=Fals
     :param str conn_str: pq connection string
     :param str model_version: pedsnet model version
     :param str target_schema: temporary schema to hold transformed tables
+    :param str id_name: name of the id set
     :return: list of SQL statement strings
     :raise: psycopg2.ProgrammingError (from pre_transform)
     """
@@ -382,6 +438,40 @@ def _transform(conn_str, model_version, site, target_schema, id_name, force=Fals
                 return
             raise DatabaseError('{msg}: {err}'.format(msg=stmt.msg,
                                                       err=stmt.err))
+
+
+def _transform_target(conn_str, model_version, site, target_schema, id_name, target_table, force=False):
+    """Run transformations.
+
+    TODO: Check whether exception handling is consistent e.g. DatabaseError.
+
+    :param str conn_str: pq connection string
+    :param str model_version: pedsnet model version
+    :param str target_schema: temporary schema to hold transformed tables
+    :param str id_name: name of the id set
+    :param target_table: table to use
+    :return: list of SQL statement strings
+    :raise: psycopg2.ProgrammingError (from pre_transform)
+    """
+
+    for transform in TRANSFORMS:
+            transform.pre_transform(conn_str, stock_metadata(model_version), id_name)
+
+    stmts = StatementSet()
+    for sql, msg in _transform_select_sql(model_version, site, target_schema, id_name, target_table):
+        stmts.add(Statement(sql, msg))
+
+    # Execute creation of transformed tables in parallel.
+    # Note that the target schema is embedded in the SQL statements.
+    stmts.parallel_execute(conn_str)
+    for stmt in stmts:
+        # TODO: should we log all the individual errors at ERROR level?
+        if stmt.err:
+            if force and pg_error(stmt) == 'DUPLICATE_TABLE':
+                return
+            raise DatabaseError('{msg}: {err}'.format(msg=stmt.msg,
+                                                      err=stmt.err))
+
 
 
 def _transform_age(conn_str, model_version, site, target_schema, target_table, force=False):
@@ -768,7 +858,7 @@ def run_transformation(conn_str, model_version, site, search_path, id_name,
     return True
 
 
-def run_all_sub_transformations(conn_str, model_version, site, search_path, target_table, id_name, force=False):
+def run_target_transformation(conn_str, model_version, site, search_path, target_table, id_name, force=False):
     """Run age transformation.
 
     * Create new schema FOO_transformed.
@@ -805,45 +895,9 @@ def run_all_sub_transformations(conn_str, model_version, site, search_path, targ
     tmp_schema = schema + '_' + 'transformed'
     create_schema(conn_str, tmp_schema, force)
 
-    # Because the same tables are used each time for different transfroms force needs to be true
-
-    force = True
-
     # Perform the transformation.
     task = 'running age transformation'
-    _transform_age(conn_str, model_version, site, tmp_schema, target_table, force)
-
-    logger.info(combine_dicts(
-        {'msg': 'finished {}'.format(task),
-         'elapsed': secs_since(start_time)}, log_dict))
-
-    # Perform the transformation.
-    task = 'running concept transformation'
-    _transform_concept(conn_str, model_version, site, tmp_schema, target_table, force)
-
-    logger.info(combine_dicts(
-        {'msg': 'finished {}'.format(task),
-         'elapsed': secs_since(start_time)}, log_dict))
-
-    # Perform the transformation.
-    task = 'running site transformation'
-    _transform_site(conn_str, model_version, site, tmp_schema, target_table, force)
-
-    logger.info(combine_dicts(
-        {'msg': 'finished {}'.format(task),
-         'elapsed': secs_since(start_time)}, log_dict))
-
-    # Perform the transformation.
-    task = 'running id transformation'
-    _transform_id(conn_str, model_version, site, tmp_schema, target_table, id_name, force)
-
-    logger.info(combine_dicts(
-        {'msg': 'finished {}'.format(task),
-         'elapsed': secs_since(start_time)}, log_dict))
-
-    # Perform the transformation.
-    task = 'running index transformation'
-    _transform_index(conn_str, model_version, site, tmp_schema, target_table, force)
+    _transform_target(conn_str, model_version, site, tmp_schema, id_name, target_table, force)
 
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),

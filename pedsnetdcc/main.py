@@ -558,7 +558,7 @@ def id_transform(pwprompt, searchpath, site, name, force, model_version, table, 
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
-def all_sub_transforms(pwprompt, searchpath, site, name, force, model_version, table, undo, dburi):
+def run_target_transform(pwprompt, searchpath, site, name, force, model_version, table, undo, dburi):
     """Transform PEDSnet data into the DCC format.
 
     Using the hard-coded set of transformations in this tool, transform data
@@ -583,8 +583,8 @@ def all_sub_transforms(pwprompt, searchpath, site, name, force, model_version, t
     conn_str = make_conn_str(dburi, searchpath, password)
 
     if not undo:
-        from pedsnetdcc.transform_runner import run_all_sub_transformations
-        success = run_all_sub_transformations(conn_str, model_version, site, searchpath, table, name, force)
+        from pedsnetdcc.transform_runner import run_target_transformation
+        success = run_target_transformation(conn_str, model_version, site, searchpath, table, name, force)
 
     if not success:
         sys.exit(1)
