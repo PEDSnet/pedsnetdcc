@@ -458,7 +458,7 @@ def _transform_target(conn_str, model_version, site, target_schema, id_name, tar
             transform.pre_transform(conn_str, stock_metadata(model_version), id_name)
 
     stmts = StatementSet()
-    for sql, msg in _transform_select_sql(model_version, site, target_schema, id_name, target_table):
+    for sql, msg in _transform_target_select_sql(model_version, site, target_schema, id_name, target_table):
         stmts.add(Statement(sql, msg))
 
     # Execute creation of transformed tables in parallel.
