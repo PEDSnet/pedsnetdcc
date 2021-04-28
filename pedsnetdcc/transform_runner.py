@@ -113,17 +113,21 @@ def _transform_target_select_sql(model_version, site, target_schema, id_name, ta
     metadata.info['site'] = site
     stmt_pairs = set()
     for table_name, table in metadata.tables.items():
-        if table_name in target_table:
-            select_obj = sqlalchemy.select([table])
-            join_obj = table
+        if table_name in VOCAB_TABLES:
+            continue
+        if table_name not in target_table:
+            continue
 
-            for transform in TRANSFORMS:
-                    select_obj, join_obj = transform.modify_select(
-                        metadata,
-                        table_name,
-                        select_obj,
-                        join_obj,
-                        id_name)
+        select_obj = sqlalchemy.select([table])
+        join_obj = table
+
+        for transform in TRANSFORMS:
+            select_obj, join_obj = transform.modify_select(
+                metadata,
+                table_name,
+                select_obj,
+                join_obj,
+                id_name)
 
         final_select_obj = select_obj.select_from(join_obj)
 
