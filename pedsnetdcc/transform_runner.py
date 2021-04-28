@@ -748,7 +748,49 @@ def run_age_transformation(conn_str, model_version, site, search_path, target_ta
         {'msg': 'finished {}'.format(task),
          'elapsed': secs_since(start_time)}, log_dict))
 
+    # Set up new connection string for manipulating the target schema
+    new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
+    new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
+
+    # Set tables to logged
+    set_logged(new_conn_str, model_version)
+
+    # Move the old tables to a backup schema and move the new ones into
+    # the original schema; then drop the temporary schema.
+    backup_schema = schema + '_backup'
+
+    stmts = StatementList()
+    stmts.append(
+        drop_schema_statement(backup_schema, if_exists=True, cascade=True))
+    stmts.append(create_schema_statement(backup_schema))
+    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
+    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
+    stmts.append(
+        drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
+    stmts.serial_execute(conn_str, transaction=True)
+    for stmt in stmts:
+        # Must check through all results to find the first (and last) real
+        # error that caused the transaction to fail.
+        if stmt.err:
+            if pg_error(stmt) == 'IN_FAILED_SQL_TRANSACTION':
+                continue
+            logger.error(combine_dicts({'msg': 'error ' + task,
+                                        'submsg': stmt.msg,
+                                        'err': stmt.err,
+                                        'sql': stmt.sql},
+                                       log_dict))
+            logger.info(combine_dicts({'msg': 'aborted {}'.format(task),
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            tpl = 'moving tables after transformation ({sql}): {err}'
+            raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
     return True
+
 
 def run_concept_transformation(conn_str, model_version, site, search_path, target_table, force=False):
     """Run age transformation.
@@ -788,6 +830,47 @@ def run_concept_transformation(conn_str, model_version, site, search_path, targe
 
     # Perform the transformation.
     _transform_concept(conn_str, model_version, site, tmp_schema, target_table, force)
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    # Set up new connection string for manipulating the target schema
+    new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
+    new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
+
+    # Set tables to logged
+    set_logged(new_conn_str, model_version)
+
+    # Move the old tables to a backup schema and move the new ones into
+    # the original schema; then drop the temporary schema.
+    backup_schema = schema + '_backup'
+
+    stmts = StatementList()
+    stmts.append(
+        drop_schema_statement(backup_schema, if_exists=True, cascade=True))
+    stmts.append(create_schema_statement(backup_schema))
+    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
+    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
+    stmts.append(
+        drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
+    stmts.serial_execute(conn_str, transaction=True)
+    for stmt in stmts:
+        # Must check through all results to find the first (and last) real
+        # error that caused the transaction to fail.
+        if stmt.err:
+            if pg_error(stmt) == 'IN_FAILED_SQL_TRANSACTION':
+                continue
+            logger.error(combine_dicts({'msg': 'error ' + task,
+                                        'submsg': stmt.msg,
+                                        'err': stmt.err,
+                                        'sql': stmt.sql},
+                                       log_dict))
+            logger.info(combine_dicts({'msg': 'aborted {}'.format(task),
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            tpl = 'moving tables after transformation ({sql}): {err}'
+            raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
 
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),
@@ -834,6 +917,47 @@ def run_site_transformation(conn_str, model_version, site, search_path, target_t
 
     # Perform the transformation.
     _transform_site(conn_str, model_version, site, tmp_schema, target_table, force)
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    # Set up new connection string for manipulating the target schema
+    new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
+    new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
+
+    # Set tables to logged
+    set_logged(new_conn_str, model_version)
+
+    # Move the old tables to a backup schema and move the new ones into
+    # the original schema; then drop the temporary schema.
+    backup_schema = schema + '_backup'
+
+    stmts = StatementList()
+    stmts.append(
+        drop_schema_statement(backup_schema, if_exists=True, cascade=True))
+    stmts.append(create_schema_statement(backup_schema))
+    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
+    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
+    stmts.append(
+        drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
+    stmts.serial_execute(conn_str, transaction=True)
+    for stmt in stmts:
+        # Must check through all results to find the first (and last) real
+        # error that caused the transaction to fail.
+        if stmt.err:
+            if pg_error(stmt) == 'IN_FAILED_SQL_TRANSACTION':
+                continue
+            logger.error(combine_dicts({'msg': 'error ' + task,
+                                        'submsg': stmt.msg,
+                                        'err': stmt.err,
+                                        'sql': stmt.sql},
+                                       log_dict))
+            logger.info(combine_dicts({'msg': 'aborted {}'.format(task),
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            tpl = 'moving tables after transformation ({sql}): {err}'
+            raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
 
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),
@@ -886,6 +1010,47 @@ def run_id_transformation(conn_str, model_version, site, search_path, target_tab
         {'msg': 'finished {}'.format(task),
          'elapsed': secs_since(start_time)}, log_dict))
 
+    # Set up new connection string for manipulating the target schema
+    new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
+    new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
+
+    # Set tables to logged
+    set_logged(new_conn_str, model_version)
+
+    # Move the old tables to a backup schema and move the new ones into
+    # the original schema; then drop the temporary schema.
+    backup_schema = schema + '_backup'
+
+    stmts = StatementList()
+    stmts.append(
+        drop_schema_statement(backup_schema, if_exists=True, cascade=True))
+    stmts.append(create_schema_statement(backup_schema))
+    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
+    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
+    stmts.append(
+        drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
+    stmts.serial_execute(conn_str, transaction=True)
+    for stmt in stmts:
+        # Must check through all results to find the first (and last) real
+        # error that caused the transaction to fail.
+        if stmt.err:
+            if pg_error(stmt) == 'IN_FAILED_SQL_TRANSACTION':
+                continue
+            logger.error(combine_dicts({'msg': 'error ' + task,
+                                        'submsg': stmt.msg,
+                                        'err': stmt.err,
+                                        'sql': stmt.sql},
+                                       log_dict))
+            logger.info(combine_dicts({'msg': 'aborted {}'.format(task),
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            tpl = 'moving tables after transformation ({sql}): {err}'
+            raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
     return True
 
 
@@ -927,6 +1092,47 @@ def run_index_transformation(conn_str, model_version, site, search_path, target_
 
     # Perform the transformation.
     _transform_index(conn_str, model_version, site, tmp_schema, target_table, force)
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    # Set up new connection string for manipulating the target schema
+    new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
+    new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
+
+    # Set tables to logged
+    set_logged(new_conn_str, model_version)
+
+    # Move the old tables to a backup schema and move the new ones into
+    # the original schema; then drop the temporary schema.
+    backup_schema = schema + '_backup'
+
+    stmts = StatementList()
+    stmts.append(
+        drop_schema_statement(backup_schema, if_exists=True, cascade=True))
+    stmts.append(create_schema_statement(backup_schema))
+    stmts.extend(_move_tables_statements(model_version, schema, backup_schema))
+    stmts.extend(_move_tables_statements(model_version, tmp_schema, schema))
+    stmts.append(
+        drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
+    stmts.serial_execute(conn_str, transaction=True)
+    for stmt in stmts:
+        # Must check through all results to find the first (and last) real
+        # error that caused the transaction to fail.
+        if stmt.err:
+            if pg_error(stmt) == 'IN_FAILED_SQL_TRANSACTION':
+                continue
+            logger.error(combine_dicts({'msg': 'error ' + task,
+                                        'submsg': stmt.msg,
+                                        'err': stmt.err,
+                                        'sql': stmt.sql},
+                                       log_dict))
+            logger.info(combine_dicts({'msg': 'aborted {}'.format(task),
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            tpl = 'moving tables after transformation ({sql}): {err}'
+            raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
 
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),
@@ -1003,6 +1209,7 @@ def undo_transformation(conn_str, model_version, search_path):
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),
          'elapsed': secs_since(start_time)}, log_dict))
+
 
 def run_vocab_indexes(conn_str, model_version, search_path,
                        force=False):
