@@ -2370,13 +2370,20 @@ def run_r_dose(pwprompt, searchpath, site, model_version, copy, dburi):
               help='Create indexes on tables.')
 @click.option('--fk_create', is_flag=True, default=False,
               help='Create FKs on tables.')
+@click.option('--notable', is_flag=True, default=False,
+              help='Skip fill table when exists.')
+@click.option('--nopk', is_flag=True, default=False,
+              help='Skip primary keys.')
+@click.option('--nonull', is_flag=True, default=False,
+              help='Skip set columns not null.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--cohort_table', required=True,
               help='Name of the cohort table where the person_ids are located')
 @click.argument('dburi')
-def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_schema, target_schema,
-                     cohort_table, concept_create, drug_dose, covid_obs, inc_hash, split_measure, index_create, fk_create):
+def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_schema, target_schema, cohort_table,
+                     concept_create, drug_dose, covid_obs, inc_hash, split_measure, index_create,
+                     fk_create, notable, nopk, nonull):
     """Create tables for subset based on a cohort/person_id table
 
     The database should be specified using a DBURI:
@@ -2394,7 +2401,8 @@ def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_s
 
     from pedsnetdcc.subset_by_cohort import run_subset_by_cohort
     success = run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, cohort_table,
-                         concept_create, drug_dose, covid_obs, inc_hash, index_create, fk_create, force)
+                         concept_create, drug_dose, covid_obs, inc_hash, index_create, fk_create, notable,
+                         nopk, nonull, force)
 
     if not success:
         sys.exit(1)
