@@ -11,7 +11,7 @@ from pedsnetdcc.utils import check_stmt_data, check_stmt_err, combine_dicts
 logger = logging.getLogger(__name__)
 
 UPDATE_LAST_ID_SQL = """UPDATE {last_id_table_name} AS new
-SET last_id = new.last_id + '{new_id_count}'::integer
+SET last_id = new.last_id + '{new_id_count}'::bigint
 FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
 UPDATE_LAST_ID_MSG = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
 

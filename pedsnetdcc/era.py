@@ -714,7 +714,7 @@ def _add_era_ids(era_type, conn_str, site, neg_ids, search_path, model_version, 
     lock_last_id_msg = "locking {table_name} last ID tracking table for update"
 
     update_last_id_sql = """UPDATE {last_id_table_name} AS new
-        SET last_id = new.last_id + '{new_id_count}'::integer
+        SET last_id = new.last_id + '{new_id_count}'::bigint
         FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
     update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
     create_seq_sql = "create sequence if not exists {0}.{1}_{2}_era_id_seq"

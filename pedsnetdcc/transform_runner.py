@@ -900,7 +900,7 @@ def run_target_transformation(conn_str, model_version, site, search_path, target
     create_schema(conn_str, tmp_schema, force)
 
     # Perform the transformation.
-    task = 'running age transformation'
+    task = 'running transformations'
     _transform_target(conn_str, model_version, site, tmp_schema, id_name, target_table, force)
 
     logger.info(combine_dicts(

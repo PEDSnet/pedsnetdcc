@@ -164,7 +164,7 @@ def _create_argos_file(config_path, config_file, schema, password, conn_info_dic
         out_config.write('"dbname": "' + conn_info_dict.get('dbname') + '",' + os.linesep)
         out_config.write('"user": "' + conn_info_dict.get('user') + '",' + os.linesep)
         out_config.write('"password": "' + password + '",' + os.linesep)
-        out_config.write('"bigint": "numeric",' + os.linesep)
+        out_config.write('"bigint": "integer64",' + os.linesep)
         out_config.write('"options": "-c search_path=' + schema + ',vocabulary"' + os.linesep)
         out_config.write('}' + os.linesep)
         out_config.write('}' + os.linesep)
@@ -501,7 +501,7 @@ def _add_observation_ids(conn_str, site, search_path, model_version, id_name):
     lock_last_id_msg = "locking {table_name} last ID tracking table for update"
 
     update_last_id_sql = """UPDATE {last_id_table_name} AS new
-        SET last_id = new.last_id + '{new_id_count}'::integer
+        SET last_id = new.last_id + '{new_id_count}'::bigint
         FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
     update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
     create_seq_observation_sql = "create sequence if not exists {0}.{1}_observation_derivation_covid_seq"

@@ -19,12 +19,12 @@ lock_last_id_sql = """LOCK {last_id_table_name}"""
 lock_last_id_msg = "locking {table_name} last ID tracking table for update"
 
 update_last_id_sql = """UPDATE {last_id_table_name} AS new
-SET last_id = new.last_id + '{new_id_count}'::integer
+SET last_id = new.last_id + '{new_id_count}'::bigint
 FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
 update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
 
 insert_new_maps_sql = """INSERT INTO {map_table_name} (site_id, {id_name}_id)
-SELECT {pkey_name}, row_number() over (range unbounded preceding) + '{old_last_id}'::integer
+SELECT {pkey_name}, row_number() over (range unbounded preceding) + '{old_last_id}'::bigint
 FROM {table_name} LEFT JOIN {map_table_name} on {pkey_name} = site_id
 WHERE site_id IS NULL"""  # noqa
 insert_new_maps_msg = "inserting new {table_name} ID mappings into map table"
