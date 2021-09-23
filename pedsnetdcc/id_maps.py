@@ -59,7 +59,7 @@ def _populate_last_id(conn_str, schema, id_name):
         end;
     $$ LANGUAGE plpgsql;
     
-    select count(*) from populate_last_id({0}, {1})
+    select count(*) from populate_last_id('{0}', '{1}')
     """
 
     populate_last_id_msg = "populating last_ids"
