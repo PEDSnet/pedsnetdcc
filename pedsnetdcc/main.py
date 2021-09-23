@@ -208,6 +208,37 @@ def create_id_maps(dburi, pwprompt, skipsites, addsites, name, type):
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--name', required=True,
+              help='name of the id (ex: onco')
+@click.argument('dburi')
+def populate_last_id(dburi, pwprompt, searchpath, name):
+    """Populates the last_id of of the study id map id tables created with create_id_maps
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    from pedsnetdcc.id_maps import populate_last_id
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, password=password)
+    success = populate_last_id(conn_str, searchpath, name)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
 @click.option('--name', required=False, default='dcc',
               help='name of the id (ex: onco')
 @click.option('--skipsites', required=False, default='',

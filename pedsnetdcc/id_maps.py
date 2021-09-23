@@ -7,6 +7,7 @@ from pedsnetdcc import SITES_AND_EXTERNAL, ID_MAP_TABLES, CONSISTENT_ID_MAP_TABL
 from pedsnetdcc.db import (Statement, StatementList)
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.utils import check_stmt_err
+from pedsnetdcc.schema import (primary_schema)
 
 from sh import pg_dump, pg_restore
 
@@ -20,6 +21,58 @@ CREATE_ID_MAP_TABLE_SQL = """CREATE TABLE IF NOT EXISTS {0}.{1}_ids({2}_id {3} N
 
 CREATE_DCC_ID_TABLE_SQL = """CREATE TABLE IF NOT EXISTS {0}.{1}(last_id {2} NOT NULL)"""
 INITIALIZE_DCC_ID_TABLE_SQL = """INSERT INTO {0}.{1}(last_id) values(1)"""
+
+
+def _populate_last_id(conn_str, schema, id_name):
+    populate_last_id_sql = """
+        create or replace function populate_last_id(schemanm text, mapmn text) returns void as $$
+        declare
+            tbl_array text[];
+            count_tbl integer;
+            sqlstr text;
+            sel_stat text;
+        begin
+            select array(
+                            SELECT tablename as table
+                            FROM pg_tables pgt1
+                            WHERE schemaname = 'dcc_pedsnet' AND
+                            pgt1.tablename NOT IN ('dose_era', 'hash_token') AND
+                            (SELECT EXISTS (
+                                SELECT FROM pg_tables pgt2
+                                WHERE schemaname = schemanm
+                                AND tablename  = mapmn||'_'||pgt1.tablename||'_id')
+                            )
+                         ) into tbl_array;
+            count_tbl = array_length(tbl_array, 1);
+            <<table_loop>>
+            for i in 1.. count_tbl  loop
+                if tbl_array[i] = 'death' then
+                    sqlstr = 'UPDATE '||schemanm||'.'||mapmn||'_'||tbl_array[i]||'_id SET last_id=(SELECT (MAX(death_cause_id)+1) FROM dcc_pedsnet.'||tbl_array[i]||')';
+                elsif tbl_array[i] = 'measurement_organism' then
+                    sqlstr = 'UPDATE '||schemanm||'.'||mapmn||'_'||tbl_array[i]||'_id SET last_id=(SELECT (MAX(meas_organism_id)+1) FROM dcc_pedsnet.'||tbl_array[i]||')';
+                else
+                    sqlstr = 'UPDATE '||schemanm||'.'||mapmn||'_'||tbl_array[i]||'_id SET last_id=(SELECT (MAX('||tbl_array[i]||'_id)+1) FROM dcc_pedsnet.'||tbl_array[i]||')';
+                end if;
+                execute sqlstr;
+                sel_stat := null;
+            end loop table_loop;
+        end;
+    $$ LANGUAGE plpgsql;
+    
+    select count(*) from populate_last_id({0}, {1})
+    """
+
+    populate_last_id_msg = "populating last_ids"
+
+    # Populate last_id
+    populate_last_id_stmt = Statement(populate_last_id_sql.format(schema, id_name), populate_last_id_msg)
+
+    # Execute the add concept names statement and ensure it didn't error
+    populate_last_id_stmt.execute(conn_str)
+    check_stmt_err(populate_last_id_stmt, 'populate last_ids')
+
+    # If reached without error, then success!
+    return True
 
 
 _temp_dump_file_templ = "{0}_dump"
@@ -222,3 +275,27 @@ def copy_id_maps(old_conn_str, new_conn_str, id_name, skipsites, addsites,):
         'msg', 'finished copying of id map table data',
         'elapsed', secs_since(starttime)
     })
+
+
+def populate_last_id(conn_str, search_path, id_name):
+    """Populate study id maps from dcc_pedsnet.
+
+        :param str conn_str:      database connection string
+        :param str search_path: PostgreSQL schema search path
+        :param str id_name: name of the id
+        :returns:                 True if the function succeeds
+        :rtype:                   bool
+        """
+
+    logger.info({'msg': 'starting populating last_id'})
+    starttime = time.time()
+
+    schema = primary_schema(search_path)
+    _populate_last_id(conn_str, schema, id_name)
+
+    logger.info({
+        'msg', 'finished populating last_id',
+        'elapsed', secs_since(starttime)
+    })
+
+    return True
