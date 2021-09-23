@@ -15,7 +15,7 @@ PK_MEASURE_LIKE_TABLE_SQL = 'alter table {0}.measurement_{1} add primary key(mea
 IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on {1}.measurement_{2} ({3})'
 FK_MEASURE_LIKE_TABLE_SQL = 'alter table {0}.measurement_{1} add constraint {2} foreign key ({3}) references {4}({5})'
 GRANT_MEASURE_LIKE_TABLE_SQL = 'grant select on table {0}.measurement_{1} to {2}'
-DROP_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE = 'alter table {0}.measurement_organism drop constraint fpk_meas_org_meas'
+DROP_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE = 'alter table {0}.measurement_organism drop constraint IF EXISTS fpk_meas_org_meas'
 ADD_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE_LABS = """alter table {0}.measurement_organism 
     add constraint fpk_meas_org_meas_lab
     foreign key (measurement_id) 
@@ -32,7 +32,7 @@ def _make_index_name(table_name, column_name):
     `pro_gscn_ae1fd5b22b92397ca9_ix`.  We opt for a not particularly
     human-readable name in order to avoid collisions, which are all too
     possible with columns like provider.gender_source_concept_name and
-    person.gender_source_concept_name.
+    person.gender_source_concept_name
     :param str table_name:
     :param str column_name:
     :rtype: str
@@ -268,7 +268,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
     # Set permissions
     stmts.clear()
     logger.info({'msg': 'setting permissions'})
-    users = ('achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff', 'dcc_analytics')
+    users = ('peds_staff', 'dcc_analytics')
     for measure_like_table in measure_like_tables:
         for usr in users:
             grant_stmt = Statement(GRANT_MEASURE_LIKE_TABLE_SQL.format(schema, measure_like_table, usr))

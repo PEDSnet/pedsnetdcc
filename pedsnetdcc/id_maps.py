@@ -50,6 +50,8 @@ def _populate_last_id(conn_str, schema, id_name):
                     sqlstr = 'UPDATE '||schemanm||'.'||mapmn||'_'||tbl_array[i]||'_id SET last_id=(SELECT (MAX(death_cause_id)+1) FROM dcc_pedsnet.'||tbl_array[i]||')';
                 elsif tbl_array[i] = 'measurement_organism' then
                     sqlstr = 'UPDATE '||schemanm||'.'||mapmn||'_'||tbl_array[i]||'_id SET last_id=(SELECT (MAX(meas_organism_id)+1) FROM dcc_pedsnet.'||tbl_array[i]||')';
+                elsif tbl_array[i] IN ('care_site','person','provider','visit_occurrence') then
+                    sqlstr = 'INSERT INTO '||schemanm||'.'||mapmn||'_'||tbl_array[i]||'_id(last_id) VALUES (0)';
                 else
                     sqlstr = 'UPDATE '||schemanm||'.'||mapmn||'_'||tbl_array[i]||'_id SET last_id=(SELECT (MAX('||tbl_array[i]||'_id)+1) FROM dcc_pedsnet.'||tbl_array[i]||')';
                 end if;
@@ -59,7 +61,8 @@ def _populate_last_id(conn_str, schema, id_name):
         end;
     $$ LANGUAGE plpgsql;
     
-    select count(*) from populate_last_id('{0}', '{1}')
+    select count(*) from populate_last_id('{0}', '{1}');
+    
     """
 
     populate_last_id_msg = "populating last_ids"
@@ -76,17 +79,21 @@ def _populate_last_id(conn_str, schema, id_name):
 
 
 _temp_dump_file_templ = "{0}_dump"
+
+
 def _temp_dump_file(site):
     return _temp_dump_file_templ.format(site)
 
+
 def _base_dump_args(conn_str, dump_path):
-    return ('--dbname='+conn_str,
+    return ('--dbname=' + conn_str,
             '-Fc',
             '-Z',
             '9',
             '--data-only',
             '-f',
             dump_path)
+
 
 def _dump_args(site, conn_str, dump_path, id_name):
     dump_args = _base_dump_args(conn_str, dump_path)
@@ -100,6 +107,7 @@ def _dump_args(site, conn_str, dump_path, id_name):
         dump_args += ('-t', ID_MAP_TABLE_SQL.format(site, table, id_name))
 
     return dump_args + ('-f', dump_path)
+
 
 def _dcc_dump_args(conn_str, dump_path, id_name):
     dump_args = _base_dump_args(conn_str, dump_path)
@@ -134,6 +142,7 @@ def _dump_and_restore_dcc_ids(old_conn_str, new_conn_str, starttime, id_name):
         'msg': 'finished restoring id tables into new database',
         'elapsed': secs_since(starttime)
     })
+
 
 def _dump_and_restore_id_maps(site, old_conn_str, new_conn_str, starttime, id_name):
     logger.info({
@@ -239,7 +248,8 @@ def create_id_map_tables(conn_str, skipsites, addsites, id_name, id_type):
         'elapsed', secs_since(starttime)
     })
 
-def copy_id_maps(old_conn_str, new_conn_str, id_name, skipsites, addsites,):
+
+def copy_id_maps(old_conn_str, new_conn_str, id_name, skipsites, addsites, ):
     """Using pg_dump, copy id_maps and dcc_ids tables from old database to new database
 
     :param old_conn_str: connection string for old target database

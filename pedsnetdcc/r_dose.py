@@ -150,7 +150,7 @@ def run_r_dose(conn_str, site, password, search_path, model_version, copy):
     # Set permissions
     stmts = StatementSet()
     logger.info({'msg': 'setting permissions'})
-    users = ('achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff', 'dcc_analytics')
+    users = ('peds_staff', 'dcc_analytics')
 
     for usr in users:
         grant_stmt = Statement(GRANT_OBS_MGKG_DERIVATION_SQL.format(schema, usr))
