@@ -915,7 +915,7 @@ def run_target_transformation(conn_str, model_version, site, search_path, target
     set_logged(new_conn_str, model_version, False, target_table.split(","))
 
     # Add primary keys to the transformed tables
-    add_primary_keys(new_conn_str, model_version, False)
+    add_primary_keys(new_conn_str, model_version, True)
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.
