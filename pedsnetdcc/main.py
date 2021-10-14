@@ -1965,6 +1965,48 @@ def partition_measurement(pwprompt, searchpath, dcc, site3, model_version, dburi
 
 
 @pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--dcc', is_flag=True, default=False,
+              help='unpartition dcc vs site measurement table')
+@click.option('--site3', is_flag=True, default=False,
+              help='unpartition site measurement table in 3')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def unpartition_measurement(pwprompt, searchpath, dcc, site3, model_version, dburi):
+    """Undo Partition measurement using measurement_anthro, measurement_labs, and measurement_vitals split tables
+
+    The steps are:
+
+    - Drop before insert trigger measurement_insert to measurement table
+    - Drop check constraints by measurement concept id
+    - Drop inherit from the measurement table
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.partition_measurement import unpartition_measurement_table
+    success = unpartition_measurement_table(conn_str, model_version, searchpath, dcc, site3)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--source_schema', required=True,

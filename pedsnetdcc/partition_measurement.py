@@ -157,14 +157,18 @@ FUNCTION_INSERT_SITE_MEASUREMENT_SQL = """CREATE OR REPLACE FUNCTION trg_insert_
 TRIGGER_DCC_MEASUREMENT_INSERT_SQL = """CREATE TRIGGER measurement_dcc_insert BEFORE INSERT
     ON {0}.measurement FOR EACH ROW
     EXECUTE PROCEDURE trg_insert_dcc_measurement();"""
+DELETE_TRIGGER_DCC_MEASUREMENT_SQL="""DROP TRIGGER IF EXISTS measurement_dcc_insert ON {0}.measurement"""
 TRIGGER_SITE_MEASUREMENT_INSERT_SQL = """CREATE TRIGGER measurement_site_insert BEFORE INSERT
     ON {0}.measurement FOR EACH ROW
     EXECUTE PROCEDURE trg_insert_site_measurement();"""
+DELETE_TRIGGER_SITE_MEASUREMENT_SQL="""DROP TRIGGER IF EXISTS measurement_site_insert ON {0}.measurement"""
 TRUNCATE_MEASUREMENT_SQL = 'TRUNCATE {0}.measurement'
 ADD_CHECK_CONSTRAINT_SQL = """ALTER TABLE {0}.measurement_{1} 
     ADD CONSTRAINT concept_in_{1} CHECK (measurement_concept_id {2} ({3}));"""
+DROP_CHECK_CONSTRAINT_SQL = """ALTER TABLE {0}.measurement_{1} 
+    DROP CONSTRAINT concept_in_{1};"""
 ADD_INHERIT_SQL = 'ALTER TABLE {0}.measurement_{1} INHERIT {0}.measurement;'
-
+DROP_INHERIT_SQL = 'ALTER TABLE {0}.measurement_{1} NO INHERIT {0}.measurement;'
 
 def _copy_to_measure_table(conn_str, table, concepts):
     copy_to_sql = """INSERT INTO measurement_{0}(
@@ -404,6 +408,110 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc, site3
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished partitioning the measurement table',
+                               'elapsed': secs_since(start_time)}, log_dict))
+
+    # If reached without error, then success!
+    return True
+
+def unpartition_measurement_table(conn_str, model_version, search_path, dcc, site3):
+    """Partition measurement using tables based on site (dcc or one of the 6 sites):
+    dcc: measurement_anthro, measurement_labs, and measurement_vitals
+    site: measurement_anthro, measurement_labs, and measurement_vitals,
+    measurement_bmi, measurement_bmiz, measurement_ht_z, and measurement_wt_z
+
+    * Truncate Measurement Table
+    * Alter split tables to add check constraints by measurement concept id
+    * Alter split tables to inherit from the measurement table
+    * Create trg_insert_measurement function to route measurements to correct split table
+    * Add before insert trigger measurement_insert to measurement table
+
+    :param str conn_str:      database connection string
+    :param model_version: PEDSnet model version, e.g. 2.3.0
+    :param str search_path: PostgreSQL schema search path
+    :param bool dcc:      is dcc versus site table
+    :param bool site3:      is site but partition as dcc
+    :returns:                 True if the function succeeds
+    :rtype:                   bool
+    :raises DatabaseError:    if any of the statement executions cause errors
+    """
+    # Log start of the function and set the starting time.
+    log_dict = combine_dicts({'model_version': model_version, },
+                             get_conn_info_dict(conn_str))
+    logger.info(combine_dicts({'msg': 'starting partitioning the measurement table'},
+                              log_dict))
+    start_time = time.time()
+    schema = primary_schema(search_path)
+
+    measure_like_tables = {
+        'anthro': 'in',
+        'labs': 'not in',
+        'vitals': 'in'
+    }
+
+    # Drop trg_insert_measurement
+    logger.info({'msg': 'dropping measurement before insert trigger'})
+    with psycopg2.connect(conn_str) as conn:
+        with conn.cursor() as cursor:
+            if dcc:
+                cursor.execute(DELETE_TRIGGER_DCC_MEASUREMENT_SQL.format(schema))
+            elif site3:
+                cursor.execute(DELETE_TRIGGER_SITE_MEASUREMENT_SQL.format(schema))
+            else:
+                cursor.execute(DELETE_TRIGGER_SITE_MEASUREMENT_SQL.format(schema))
+    conn.close()
+    logger.info({'msg': 'measurement before insert trigger dropped'})
+
+    # Drop check constraint for measurement concept ids in each table.
+    stmts = StatementSet()
+    logger.info({'msg': 'dropping check constraints'})
+    for measure_like_table in measure_like_tables:
+        drop_constraint_stmt = Statement(DROP_CHECK_CONSTRAINT_SQL.format(schema,
+                                                                           measure_like_table))
+        stmts.add(drop_constraint_stmt)
+
+    # Execute the statements in parallel.
+    stmts.parallel_execute(conn_str)
+
+    # Check for any errors and raise exception if they are found.
+    for stmt in stmts:
+        try:
+            check_stmt_err(stmt, 'unpartition measurement table')
+        except:
+            logger.error(combine_dicts({'msg': 'Fatal error',
+                                        'sql': stmt.sql,
+                                        'err': str(stmt.err)}, log_dict))
+            logger.info(combine_dicts({'msg': 'adding check constraints',
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            raise
+    logger.info({'msg': 'drop constraints complete'})
+
+    # Add inherit from measurement for each table.
+    stmts = StatementSet()
+    logger.info({'msg': 'dropping inherit from measurement'})
+    for measure_like_table in measure_like_tables:
+        inherit_stmt = Statement(DROP_INHERIT_SQL.format(schema, measure_like_table))
+        stmts.add(inherit_stmt)
+
+    # Execute the statements in parallel.
+    stmts.parallel_execute(conn_str)
+
+    # Check for any errors and raise exception if they are found.
+    for stmt in stmts:
+        try:
+            check_stmt_err(stmt, 'unpartition measurement table')
+        except:
+            logger.error(combine_dicts({'msg': 'Fatal error',
+                                        'sql': stmt.sql,
+                                        'err': str(stmt.err)}, log_dict))
+            logger.info(combine_dicts({'msg': 'dropping inherit from measurement',
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            raise
+    logger.info({'msg': 'inherit from measurement dropped'})
+
+    # Log end of function.
+    logger.info(combine_dicts({'msg': 'finished unpartitioning the measurement table',
                                'elapsed': secs_since(start_time)}, log_dict))
 
     # If reached without error, then success!
