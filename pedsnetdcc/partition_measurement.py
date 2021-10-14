@@ -442,11 +442,22 @@ def unpartition_measurement_table(conn_str, model_version, search_path, dcc, sit
     start_time = time.time()
     schema = primary_schema(search_path)
 
-    measure_like_tables = {
-        'anthro': 'in',
-        'labs': 'not in',
-        'vitals': 'in'
-    }
+    if dcc or site3:
+        measure_like_tables = {
+            'anthro': 'in',
+            'labs': 'not in',
+            'vitals': 'in'
+        }
+    else:
+        measure_like_tables = {
+            'anthro': 'in',
+            'labs': 'not in',
+            'vitals': 'in',
+            'bmi': 'in',
+            'bmiz': 'in',
+            'ht_z': 'in',
+            'wt_z': 'in'
+        }
 
     # Drop trg_insert_measurement
     logger.info({'msg': 'dropping measurement before insert trigger'})
