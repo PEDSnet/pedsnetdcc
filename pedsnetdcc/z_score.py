@@ -13,7 +13,7 @@ from sh import derive_z
 
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
-CREATE_MEASURE_LIKE_TABLE_SQL = 'create table {0}.measurement_{1} (like {0}.measurement)'
+CREATE_MEASURE_LIKE_TABLE_SQL = 'create table IF NOT EXISTS {0}.measurement_{1} (like {0}.measurement)'
 DROP_NULL_Z_TABLE_SQL = 'alter table {0}.measurement_{1} alter column measurement_id drop not null;'
 IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on {1}.measurement_{2} ({3})'
 
