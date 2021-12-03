@@ -98,7 +98,7 @@ def _copy_to_dcc_table(conn_str, era_type, schema):
 
 
 def run_r_drug_era(conn_str, site, copy, neg_ids, search_path, password, model_version, id_name, notable=False,
-                   noids=False, nopk=False, novac=False, size='5000'):
+                   noids=False, nopk=False, novac=False, size='5000', test=False):
 
     """Run the Condition or Drug Era derivation.
 
@@ -123,13 +123,17 @@ def run_r_drug_era(conn_str, site, copy, neg_ids, search_path, password, model_v
     :param bool noidx:        skip ndexes if already exist
     :param bool novac:        skip vaccuum if already done
     :param str size:          size for # of persons in each group
+    :param bool test:         use test project
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
 
     """
     era_type = 'drug'
-    package = 'drug_era'
+    if test:
+        package = 'drug_era_test'
+    else:
+        package = 'drug_era'
     config_file = site + "_" + package + "_argos_temp.json";
 
     if password == None:

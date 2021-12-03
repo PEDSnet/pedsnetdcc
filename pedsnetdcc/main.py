@@ -1729,6 +1729,65 @@ def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idn
               help='Copy results to dcc_pedsnet')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--idname', required=False, default='dcc',
+              help='name of the id (ex: onco')
+@click.option('--notable', is_flag=True, default=False,
+              help='Skip fill table when exists.')
+@click.option('--noids', is_flag=True, default=False,
+              help='Skip ids if already exist.')
+@click.option('--nopk', is_flag=True, default=False,
+              help='Skip primary keys if already exist.')
+@click.option('--novac', is_flag=True, default=False,
+              help='Skip vaccuum if already done.')
+@click.option('--size', required=False, default='5000',
+              help='size of the group of persons processed at a time')
+@click.argument('dburi')
+def run_r_drug_era_test(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids, nopk, novac, size, dburi):
+    """Run Drug Era derivation.
+
+    The steps are:
+
+      - Run the derivation.
+      - Add ids
+      - Add concept names
+      - Copy to dcc_pedsnet
+      - Vacuum the output table
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.r_drug_era import run_r_drug_era
+    success = run_r_drug_era(conn_str, site, copy, neg_ids, searchpath, password, model_version, idname,
+                             notable, noids, nopk, novac, size, True)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for derivation.')
+@click.option('--copy', is_flag=True, default=False,
+              help='Copy results to dcc_pedsnet')
+@click.option('--neg_ids', is_flag=True, default=False,
+              help='Use negative ids.')
 @click.option('--no_ids', is_flag=True, default=False,
               help='Do not assign ids.')
 @click.option('--no_concept', is_flag=True, default=False,
