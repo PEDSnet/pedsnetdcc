@@ -502,7 +502,8 @@ def _renumber_drug_era_table(conn_str, schema):
     return True
 
 
-def run_era(era_type, conn_str, site, copy, neg_ids, no_ids, no_concept, search_path, model_version, id_name):
+def run_era(era_type, conn_str, site, copy, neg_ids, no_ids, no_concept, search_path, model_version, id_name,
+            notable=False, nopk=False, novac=False):
     """Run the Condition or Drug Era derivation.
 
     * Execute SQL
@@ -521,6 +522,9 @@ def run_era(era_type, conn_str, site, copy, neg_ids, no_ids, no_concept, search_
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
     :param str id_name: name of the id (ex. dcc or onco)
+    :param bool notable: if True, don't run derivation
+    :param bool nopk: if True, don't add primary key
+    :param bool novac: if True, don't vacuum
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -578,24 +582,24 @@ def run_era(era_type, conn_str, site, copy, neg_ids, no_ids, no_concept, search_
                 raise
 
    # Run the derivation query
-    logger.info({'msg': 'run {0} era derivation query'.format(era_type)})
-    run_query_msg = "running {0} era derivation query"
+    if not notable:
+        logger.info({'msg': 'run {0} era derivation query'.format(era_type)})
+        run_query_msg = "running {0} era derivation query"
 
-    # run query
-    stmts.clear()
-    if era_type == "condition":
-        era_query_stmt = Statement(CONDITION_ERA_SQL.format(schema, site), run_query_msg.format(era_type))
-    elif era_type == "drug_scdf":
-        era_query_stmt = Statement(DRUG_ERA_SCDF_SQL.format(schema, "vocabulary", site),
-                                   run_query_msg.format(era_type))
-    else:
-        era_query_stmt = Statement(DRUG_ERA_SQL.format(schema, "vocabulary", site),
+        # run query
+        stmts.clear()
+        if era_type == "condition":
+            era_query_stmt = Statement(CONDITION_ERA_SQL.format(schema, site), run_query_msg.format(era_type))
+        elif era_type == "drug_scdf":
+            era_query_stmt = Statement(DRUG_ERA_SCDF_SQL.format(schema, "vocabulary", site),
                                        run_query_msg.format(era_type))
+        else:
+            era_query_stmt = Statement(DRUG_ERA_SQL.format(schema, "vocabulary", site), run_query_msg.format(era_type))
 
-    # Execute the query and ensure it didn't error
-    era_query_stmt.execute(conn_str)
-    check_stmt_err(era_query_stmt, 'run {0} era derivation query'.format(era_type))
-    logger.info({'msg': '{0} era derivation query complete'.format(era_type)})
+        # Execute the query and ensure it didn't error
+        era_query_stmt.execute(conn_str)
+        check_stmt_err(era_query_stmt, 'run {0} era derivation query'.format(era_type))
+        logger.info({'msg': '{0} era derivation query complete'.format(era_type)})
 
 
     # add ids
@@ -644,17 +648,19 @@ def run_era(era_type, conn_str, site, copy, neg_ids, no_ids, no_concept, search_
 
 
     # Add primary keys
-    if era_type != "drug_scdf" and not no_ids:
-        _add_primary_key(era_type, conn_str, schema)
+    if not nopk:
+        if era_type != "drug_scdf":
+            _add_primary_key(era_type, conn_str, schema)
 
     era_table = era_type + "_era"
     if era_type == "drug_scdf":
         era_table = "drug_era"
 
     # Vacuum analyze tables for piney freshness.
-    logger.info({'msg': 'begin vacuum'})
-    vacuum(conn_str, model_version, analyze=True, tables=[era_table])
-    logger.info({'msg': 'vacuum finished'})
+    if not novac:
+        logger.info({'msg': 'begin vacuum'})
+        vacuum(conn_str, model_version, analyze=True, tables=[era_table])
+        logger.info({'msg': 'vacuum finished'})
 
     # Log end of function.
     logger.info(combine_dicts({'msg': logger_msg.format("finished",era_type),

@@ -1744,7 +1744,8 @@ def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idn
 @click.option('--size', required=False, default='5000',
               help='size of the group of persons processed at a time')
 @click.argument('dburi')
-def run_r_drug_era_test(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids, nopk, novac, size, dburi):
+def run_r_drug_era_test(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids, nopk, novac,
+                        size, dburi):
     """Run Drug Era derivation.
 
     The steps are:
@@ -1796,8 +1797,15 @@ def run_r_drug_era_test(pwprompt, searchpath, site, copy, neg_ids, model_version
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--idname', required=False, default='dcc',
               help='name of the id (ex: onco')
+@click.option('--notable', is_flag=True, default=False,
+              help='Skip fill table when exists.')
+@click.option('--nopk', is_flag=True, default=False,
+              help='Skip primary keys if already exist.')
+@click.option('--novac', is_flag=True, default=False,
+              help='Skip vaccuum if already done.')
 @click.argument('dburi')
-def run_condition_era(pwprompt, searchpath, site, copy, neg_ids, no_ids, no_concept, model_version, idname, dburi):
+def run_condition_era(pwprompt, searchpath, site, copy, neg_ids, no_ids, no_concept, model_version, idname,
+                      notable, nopk, novac, dburi):
     """Run Condition Era derivation.
 
     The steps are:
@@ -1822,7 +1830,8 @@ def run_condition_era(pwprompt, searchpath, site, copy, neg_ids, no_ids, no_conc
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.era import run_era
-    success = run_era("condition", conn_str, site, copy, neg_ids, no_ids, no_concept, searchpath, model_version, idname)
+    success = run_era("condition", conn_str, site, copy, neg_ids, no_ids, no_concept, searchpath, model_version,
+                      idname, notable, nopk, novac)
 
     if not success:
         sys.exit(1)
