@@ -46,7 +46,8 @@ FACT_RELATIONSHIP_DOMAINS = {
     'measurement': 21,
     'visit_occurrence': 8,
     'drug_exposure': 13,
-    'device_exposure': 17
+    'device_exposure': 17,
+    'condition_occurrence': 19,
 
 }
 
