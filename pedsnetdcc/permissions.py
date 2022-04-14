@@ -142,7 +142,7 @@ def _permissions_sql_limited(site, owner='loading_user', id_name='dcc'):
 
     :param site: site name, e.g. 'dcc' or 'stlouis'
     :type: str
-    :param site: owner to grant access to
+    :param owner: owner to grant access to
     :type: str
     :param id_name: name of ids in use
     :type: str
@@ -153,12 +153,12 @@ def _permissions_sql_limited(site, owner='loading_user', id_name='dcc'):
     if id_name == 'dcc':
         tmpl = PERMISSIONS_SQL_TEMPLATE_LIMITED
         sql = tmpl.replace('{{.Site}}', site)
-        sql = sql('{{.Owner}}', owner)
+        sql = sql.replace('{{.Owner}}', owner)
     else:
         tmpl = ID_MAPS_SQL_TEMPLATE_ID_NAME_LIMITED
         sql = tmpl.replace('{{.Site}}', site)
-        sql = sql('{{.Owner}}', owner)
-        sql = sql('{{.IdName}}', id_name)
+        sql = sql.replace('{{.Owner}}', owner)
+        sql = sql.replace('{{.IdName}}', id_name)
 
     statements = [_despace(x) for x in sql.split("\n") if x]
 
