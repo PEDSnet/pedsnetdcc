@@ -165,10 +165,19 @@ def _site_sql(site, owner='dcc_owner', id_name='dcc', pedsnet_only=False):
 
     sql = tmpl.replace('{{.Site}}', site)
     sql = sql.replace('{{.Owner}}', owner)
+
     if id_name != 'dcc':
         sql = sql.replace('{{.IdName}}', id_name)
 
     statements = [_despace(x) for x in sql.split("\n") if x]
+    if site == 'dcc' and id_name != 'dcc':
+        if pedsnet_only:
+            tmpl = SQL_SITE_PEDSNET_TEMPLATE
+        else:
+            tmpl = SQL_SITE_TEMPLATE
+        sql = tmpl.replace('{{.Site}}', id_name)
+        sql = sql.replace('{{.Owner}}', owner)
+        statements.append(_despace(sql))
 
     if site != id_name:
         if id_name == 'dcc':
