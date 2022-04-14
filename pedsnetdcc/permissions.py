@@ -162,6 +162,8 @@ def _permissions_sql_limited(site, owner='loading_user', id_name='dcc'):
 
     if id_name == 'dcc' or site != id_name:
         statements = [_despace(x) for x in sql.split("\n") if x]
+    else:
+        statements = []
 
     if site != 'dcc' and site != id_name:
         if id_name == 'dcc':
