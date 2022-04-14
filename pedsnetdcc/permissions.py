@@ -222,6 +222,7 @@ def grant_loading_user_permissions(conn_str, inc_external = False):
     else:
         site_list = SITES_AND_DCC
 
+
     for site in site_list:
         stmnts.extend(
             [Statement(x) for x in _loading_user_privileges_sql(site)]
