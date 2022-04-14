@@ -170,6 +170,7 @@ def _site_sql(site, owner='dcc_owner', id_name='dcc', pedsnet_only=False):
         sql = sql.replace('{{.IdName}}', id_name)
 
     statements = [_despace(x) for x in sql.split("\n") if x]
+
     if site == 'dcc' and id_name != 'dcc':
         if pedsnet_only:
             tmpl = SQL_SITE_PEDSNET_TEMPLATE
@@ -377,9 +378,9 @@ def prepare_database_altname(model_version, conn_str, name, addsites, skipsites,
 
     if id_name == 'dcc' or not alt_id_only:
         if dcc_only:
-            primary_sites = (id_name,)
+            primary_sites = ('dcc',)
         else:
-            primary_sites = (id_name,) + base_sites
+            primary_sites = ('dcc',) + base_sites
     else:
         primary_sites = ()
 
