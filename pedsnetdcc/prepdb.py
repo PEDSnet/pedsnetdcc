@@ -443,7 +443,7 @@ def prepare_database_altname(model_version, conn_str, name, addsites, skipsites,
             if not alt_id_only:
                 grant_ids_permissions_limited(new_conn_str, owner, 'dcc')
     else:
-        grant_schema_permissions(new_conn_str, True)
+        grant_schema_permissions(new_conn_str, False)
         grant_vocabulary_permissions(new_conn_str)
 
     for stmt in stmts:
