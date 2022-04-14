@@ -2144,17 +2144,30 @@ def prepdb(model_version, dcc_only, pwprompt, dburi):
 @click.option('--name', required=True,
               help='Alternate name for database name')
 @click.option('--addsites', required=False, default='',
-              help='sites to add delimited by ,')
+              help='sites to add if using idname other then dcc delimited by ,')
+@click.option('--skipsites', required=False, default='',
+              help='sites to skip if using idname other then dcc delimited by ,')
+@click.option('--idname', required=False, default='dcc',
+              help='name of the id ex:onco')
+@click.option('--alt_id_only', type=bool, is_flag=True, default=False,
+              help='only create schemas for idname not dcc/pedsnet')
+@click.option('--owner', required=False, default='loading_user',
+              help='the role that should own the database/schema if not loading_user')
+@click.option('--pedsnet_only', type=bool, is_flag=True, default=False,
+              help='only create pedsnet schemas not pcornet when idname is dcc')
+@click.option('--inc_ext', type=bool, is_flag=True, default=False,
+              help='include external sites when creating schemas')
 @click.option('--new', type=bool, is_flag=True, default=False,
               help='for db version > 10')
 @click.option('--limit', type=bool, is_flag=True, default=False,
-              help='limit access to super users')
+              help='limit access to loading_user or owner')
 @click.option('--dcc-only', type=bool, is_flag=True, default=False,
-              help='Only create schemas for the dcc.')
+              help='Only create the schema dcc.')
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
 @click.argument('dburi')
-def prepdb_altname(model_version, name, addsites, new, limit, dcc_only, pwprompt, dburi):
+def prepdb_altname(model_version, name, addsites, skipsites, idname, alt_id_only, owner,
+                   pedsnet_only, inc_ext, new, limit, dcc_only, pwprompt, dburi):
     """Create a database and schemas.
 
     The database should be specified using a model version and a DBURI:
@@ -2181,8 +2194,8 @@ def prepdb_altname(model_version, name, addsites, new, limit, dcc_only, pwprompt
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, password=password)
-    success = prepare_database_altname(model_version, conn_str, name, addsites, new, limit, update=False,
-                                       dcc_only=dcc_only)
+    success = prepare_database_altname(model_version, conn_str, name, addsites, skipsites, idname, alt_id_only,
+                                       owner, pedsnet_only, inc_ext, new, limit, update=False, dcc_only=dcc_only)
 
     if not success:
         sys.exit(1)
@@ -2586,6 +2599,44 @@ def create_index_replace(searchpath, pwprompt, dburi, model_version):
 
     from pedsnetdcc.subset_by_cohort import run_index_replace
     success = run_index_replace(conn_str, model_version)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
+
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PEDSnet site name for derivation.')
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.argument('dburi')
+def run_recover_cohort(pwprompt, searchpath, site, model_version, dburi):
+    """Run RECOVER Cohort derivation.
+
+    The steps are:
+
+      - Run the derivation.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.recover_cohort import run_recover_cohort
+    success = run_recover_cohort(conn_str, site, searchpath, model_version)
 
     if not success:
         sys.exit(1)

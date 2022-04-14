@@ -10,7 +10,8 @@ from pedsnetdcc.utils import check_stmt_err
 from pedsnetdcc.permissions import (grant_database_permissions, grant_database_permissions_limited,
                                     grant_schema_permissions, grant_schema_permissions_limited,
                                     grant_vocabulary_permissions, grant_vocabulary_permissions_limited,
-                                    grant_loading_user_permissions)
+                                    grant_loading_user_permissions, grant_vocabulary_only_permissions_limited,
+                                    grant_ids_permissions_limited)
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ def _sites_and_dcc(dcc_only=False, inc_external=False):
     """Return a tuple containing "dcc" and the site names, or just "dcc".
     :param dcc_only: return a tuple containing just 'dcc'
     :type: bool
+    :parm
     :rtype: tuple
     """
     if dcc_only:
@@ -92,72 +94,137 @@ def _make_database_name_alt(model_version, name):
     return name
 
 
-def _create_database_sql(database_name):
+def _create_database_sql(database_name, owner):
     """Return a tuple of statements to create the database with the given name.
     :param database_name: Database name
     :type: str
+    :param owner: Database owner default = 'dcc_owner'
+    :type: str
     :rtype: tuple
     """
-    tmpl = "create database {} with owner = dcc_owner template = template0 " \
+    tmpl = "create database {0} with owner = {1} template = template0 " \
            "encoding = 'UTF8' lc_collate = 'C' lc_ctype = 'C'"
-    return tmpl.format(database_name),
+    return tmpl.format(database_name, owner),
 
 
-def _create_database_sql_new(database_name):
+def _create_database_sql_new(database_name, owner='dcc_owner'):
     """Return a tuple of statements to create the database with the given name.
     :param database_name: Database name
     :type: str
+    :param owner: Database owner default = 'dcc_owner'
+    :type: str
     :rtype: tuple
     """
-    tmpl = "create database {} with owner = dcc_owner template = template0 " \
+    tmpl = "create database {0} with owner = {1} template = template0 " \
            "encoding = 'UTF8' lc_collate = 'en_US.UTF-8' lc_ctype = 'en_US.UTF-8'"
-    return tmpl.format(database_name),
+    return tmpl.format(database_name, owner),
 
 
 # SQL template for creating site schemas in an internal database instance.
 SQL_SITE_TEMPLATE = """
-create schema if not exists {{.Site}}_pedsnet  authorization dcc_owner;
-create schema if not exists {{.Site}}_pcornet  authorization dcc_owner;
+create schema if not exists {{.Site}}_pedsnet  authorization {{.Owner}};
+create schema if not exists {{.Site}}_pcornet  authorization {{.Owner}};
 """
 
-SQL_ID_MAPS_TEMPLATE = """create schema if not exists {{.Site}}_id_maps authorization dcc_owner;"""
+SQL_SITE_PEDSNET_TEMPLATE = """
+create schema if not exists {{.Site}}_pedsnet  authorization {{.Owner}};
+"""
+
+SQL_SITE_ID_NAME_TEMPLATE = """
+create schema if not exists {{.Site}}_{{.IdName}}  authorization {{.Owner}};
+"""
+
+SQL_ID_MAPS_TEMPLATE = """create schema if not exists {{.Site}}_id_maps authorization {{.Owner}};"""
+
+SQL_ID_MAPS_ID_NAME_TEMPLATE = """create schema if not exists {{.Site}}_{{.IdName}}_id_maps authorization {{.Owner}};"""
 
 
-def _site_sql(site):
+def _site_sql(site, owner='dcc_owner', id_name='dcc', pedsnet_only=False):
     """Return a list of statements to create the schemas for a given site.
 
     :param site: site name, e.g. 'dcc' or 'stlouis'
     :type: str
+    :param owner: owner of schema, default = 'dcc_owner'
+    :type: str
+    :param id_name: name of ids used, default = dcc'
+    :type: str
+    :param pedsnet_only: should only PEDSnet schemas be created
+    :type: bool
     :return: SQL statements
     :rtype: list(str)
     :raises: ValueError
     """
-    tmpl = SQL_SITE_TEMPLATE
+
+    if id_name == 'dcc':
+        if pedsnet_only:
+            tmpl = SQL_SITE_PEDSNET_TEMPLATE
+        else:
+            tmpl = SQL_SITE_TEMPLATE
+    else:
+        tmpl = SQL_SITE_ID_NAME_TEMPLATE
+
     sql = tmpl.replace('{{.Site}}', site)
+    sql = sql.replace('{{.Owner}}', owner)
+    if id_name != 'dcc':
+        sql = sql.replace('{{.IdName}}', id_name)
 
     statements = [_despace(x) for x in sql.split("\n") if x]
 
-    if site != 'dcc':
-        id_maps_tmpl = SQL_ID_MAPS_TEMPLATE
+    if site != id_name:
+        if id_name == 'dcc':
+            id_maps_tmpl = SQL_ID_MAPS_TEMPLATE
+        else:
+            id_maps_tmpl = SQL_ID_MAPS_ID_NAME_TEMPLATE
+
         id_maps_sql = id_maps_tmpl.replace('{{.Site}}', site)
+        id_maps_sql = id_maps_sql.replace('{{.Owner}}', owner)
+
+        if id_name != 'dcc':
+            id_maps_sql = id_maps_sql.replace('{{.IdName}}', id_name)
+
         statements.append(_despace(id_maps_sql))
 
     return statements
 
 
 SQL_OTHER = """
-create schema if not exists vocabulary authorization dcc_owner;
-create schema if not exists dcc_ids authorization dcc_owner;
+create schema if not exists vocabulary authorization {{.Owner}};
+create schema if not exists dcc_ids authorization {{.Owner}};
+"""
+
+SQL_OTHER_ID_ONLY = """
+create schema if not exists vocabulary authorization {{.Owner}};
+create schema if not exists {{.IdName}}_ids authorization {{.Owner}};
+"""
+
+SQL_OTHER_ID = """
+create schema if not exists vocabulary authorization {{.Owner}};
+create schema if not exists dcc_ids authorization {{.Owner}};
+create schema if not exists {{.IdName}}_ids authorization {{.Owner}};
 """
 
 
-def _other_sql():
+def _other_sql(id_name='dcc', alt_id_only=False, owner='dcc_owner'):
     """Return a list of statements to create non-site schemas.
-
+    :param id_name: name of ids used, default = dcc'
+    :type: str
+    :param alt_id_only: if id_name not dcc, should only id_name be created
+    :type: bool
+    :param id_name: owner of schema, default = dcc_owner'
+    :type: str
     :rtype: list(str)
     :raises: ValueError
     """
-    sql = SQL_OTHER
+    if id_name == 'dcc':
+        sql = SQL_OTHER
+    else:
+        if alt_id_only:
+            sql = SQL_OTHER_ID_ONLY
+        else:
+            sql = SQL_OTHER_ID
+        sql = sql.replace('{{.IdName}}', id_name)
+
+    sql = sql.replace('{{.Owner}}', owner)
     return [_despace(x) for x in sql.split("\n") if x]
 
 
@@ -215,7 +282,7 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     grant_database_permissions(conn_str, database_name)
     # Operate on the newly created database.
     stmts = StatementList()
-    for site in _sites_and_dcc(dcc_only, True):
+    for site in _sites_and_dcc(dcc_only):
         stmts.extend([Statement(x) for x in _site_sql(site)])
 
     stmts.extend([Statement(x) for x in _other_sql()])
@@ -232,71 +299,14 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     for stmt in stmts:
         check_stmt_err(stmt, 'database preparation')
 
-    for ext_site in EXTERNAL_SITES:
-        _delete_external_schemas(new_conn_str, ext_site)
-
-    logger.info({
-        'msg': 'finished database preparation',
-        'model_version': model_version,
-        'elapsed': secs_since(starttime)})
-
-    return True
-
-def prepare_database(model_version, conn_str, update=False, dcc_only=False):
-    """Create a new database containing vocabulary and site schemas.
-
-    The initial conn_str is used for issuing a CREATE DATABASE statement.
-    statement.
-
-    A subsequent connection to the newly created database is established
-    in order to create schemas.
-
-    :param model_version: PEDSnet model version, e.g. X.Y.Z
-    :type: str
-    :param conn_str: libpq connection string
-    :type: str
-    :param update: assume the database is already created
-    :type: bool
-    :param dcc_only: only create schemas for `dcc` (no sites)
-    :return: True on success, False otherwise
-    :raises RuntimeError: if any of the sql statements cause an error
     """
-    logger.info({'msg': 'starting database preparation',
-                 'model': model_version})
-    starttime = time.time()
-
-    database_name = _make_database_name(model_version)
-
-    stmts = StatementList()
-
-    if not update:
-        stmts.extend(
-            [Statement(x) for x in _create_database_sql(database_name)])
-
-    stmts.serial_execute(conn_str)
-
-    grant_database_permissions(conn_str, database_name)
-    # Operate on the newly created database.
-    stmts = StatementList()
-    for site in _sites_and_dcc(dcc_only, True):
-        stmts.extend([Statement(x) for x in _site_sql(site)])
-
-    stmts.extend([Statement(x) for x in _other_sql()])
-
-    # Create new_conn_str to target the new database
-    new_conn_str = _conn_str_with_database(conn_str, database_name)
-
-    stmts.serial_execute(new_conn_str)
-
-    grant_loading_user_permissions(new_conn_str, True)
-    grant_schema_permissions(new_conn_str, True)
-    grant_vocabulary_permissions(new_conn_str)
-
-    for stmt in stmts:
-        check_stmt_err(stmt, 'database preparation')
-
-    for ext_site in EXTERNAL_SITES:
+    _sites_and_dcc(dcc_only=False, inc_external=False)
+    before: inc_external=True and then external sites deleted
+    now: nc_external not passed and external sites not created
+    previous code:
+        for ext_site in EXTERNAL_SITES:
         _delete_external_schemas(new_conn_str, ext_site)
+    """
 
     logger.info({
         'msg': 'finished database preparation',
@@ -306,7 +316,8 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     return True
 
 
-def prepare_database_altname(model_version, conn_str, name, addsites, new, limit, update=False, dcc_only=False):
+def prepare_database_altname(model_version, conn_str, name, addsites, skipsites, id_name,
+                             alt_id_only, owner, pedsnet_only, inc_ext, new, limit, update=False, dcc_only=False):
     """Create a new database containing vocabulary and site schemas.
 
     The initial conn_str is used for issuing a CREATE DATABASE statement.
@@ -323,6 +334,18 @@ def prepare_database_altname(model_version, conn_str, name, addsites, new, limit
     :type: str
     :param addsites: sites to add
     :type: str
+    :param skipsites: sites to ignore
+    :type: str
+    :param id_name: name of the id other than dcc
+    :type: str
+    :param alt_id_only: should only non dcc ids be created
+    :type: bool
+    :param owner: owner of db and schemas
+    :type: str
+    :param pedsnet_only: create only PEDSnet schemas (no PCORnet)
+    :type: bool
+    :param inc_ext: should external sites be included
+    :type: bool
     :param new: db version > 10
     :type: bool
     :param limit: limit access to super users
@@ -337,8 +360,33 @@ def prepare_database_altname(model_version, conn_str, name, addsites, new, limit
                  'model': model_version})
     starttime = time.time()
 
-    # Get Sites to add (must be existing external site)
-    add_sites = addsites.split(",")
+    # Get base sites
+    if inc_ext:
+        base_sites = SITES_AND_EXTERNAL
+    else:
+        base_sites = SITES
+
+    if id_name == 'dcc' or not alt_id_only:
+        if dcc_only:
+            primary_sites = (id_name,)
+        else:
+            primary_sites = (id_name,) + base_sites
+    else:
+        primary_sites = ()
+
+    if id_name != 'dcc':
+        # Get Sites to skip
+        skip_sites = skipsites.split(",")
+        tmp_sites = list(set(base_sites) - set(skip_sites))
+
+        # Get Sites to add
+        add_sites = addsites.split(",")
+        tmp_sites = list(set(tmp_sites) | set(add_sites))
+
+        tmp_sites = list(filter(None, tmp_sites))
+        alt_sites = (id_name,) + tuple(tmp_sites)
+    else:
+        alt_sites = ()
 
     database_name = _make_database_name_alt(model_version, name)
 
@@ -347,10 +395,10 @@ def prepare_database_altname(model_version, conn_str, name, addsites, new, limit
     if not update:
         if new:
             stmts.extend(
-                [Statement(x) for x in _create_database_sql_new(database_name)])
+                [Statement(x) for x in _create_database_sql_new(database_name, owner)])
         else:
             stmts.extend(
-                [Statement(x) for x in _create_database_sql(database_name)])
+                [Statement(x) for x in _create_database_sql(database_name, owner)])
 
     stmts.serial_execute(conn_str)
 
@@ -359,36 +407,47 @@ def prepare_database_altname(model_version, conn_str, name, addsites, new, limit
             check_stmt_err(stmnt, 'creating database')
 
     if limit:
-        grant_database_permissions_limited(conn_str, database_name)
+        grant_database_permissions_limited(conn_str, database_name, owner)
     else:
         grant_database_permissions(conn_str, database_name)
 
     # Operate on the newly created database.
     stmts = StatementList()
-    for site in _sites_and_dcc(dcc_only, True):
-        stmts.extend([Statement(x) for x in _site_sql(site)])
+    if id_name == 'dcc' or not alt_id_only:
+        for site in primary_sites:
+            stmts.extend([Statement(x) for x in _site_sql(site, owner, 'dcc', pedsnet_only)])
+    if id_name != 'dcc':
+        for site in alt_sites:
+            stmts.extend([Statement(x) for x in _site_sql(site, owner, id_name)])
 
-    stmts.extend([Statement(x) for x in _other_sql()])
+    stmts.extend([Statement(x) for x in _other_sql(id_name, alt_id_only, owner)])
 
     # Create new_conn_str to target the new database
     new_conn_str = _conn_str_with_database(conn_str, database_name)
 
     stmts.serial_execute(new_conn_str)
 
-    grant_loading_user_permissions(new_conn_str, True)
+    if owner == 'loading_user':
+        grant_loading_user_permissions(new_conn_str, True)
+
     if limit:
-        grant_schema_permissions_limited(new_conn_str, True)
-        grant_vocabulary_permissions_limited(new_conn_str)
+        if primary_sites:
+            grant_schema_permissions_limited(new_conn_str, inc_ext, owner, 'dcc', primary_sites)
+        if alt_sites:
+            grant_schema_permissions_limited(new_conn_str, inc_ext, owner, id_name, alt_sites)
+        if id_name == 'dcc':
+            grant_vocabulary_permissions_limited(new_conn_str, owner)
+        else:
+            grant_vocabulary_only_permissions_limited(new_conn_str, owner)
+            grant_ids_permissions_limited(new_conn_str, owner, id_name)
+            if not alt_id_only:
+                grant_ids_permissions_limited(new_conn_str, owner, 'dcc')
     else:
         grant_schema_permissions(new_conn_str, True)
         grant_vocabulary_permissions(new_conn_str)
 
     for stmt in stmts:
         check_stmt_err(stmt, 'database preparation')
-
-    external_sites = list(set(EXTERNAL_SITES) - set(add_sites))
-    for ext_site in external_sites:
-        _delete_external_schemas(new_conn_str, ext_site)
 
     logger.info({
         'msg': 'finished database preparation',
