@@ -169,7 +169,10 @@ def _site_sql(site, owner='dcc_owner', id_name='dcc', pedsnet_only=False):
     if id_name != 'dcc':
         sql = sql.replace('{{.IdName}}', id_name)
 
-    statements = [_despace(x) for x in sql.split("\n") if x]
+    if site == 'dcc' or site != id_name:
+        statements = [_despace(x) for x in sql.split("\n") if x]
+    else:
+        statements = []
 
     if site == 'dcc' and id_name != 'dcc':
         if pedsnet_only:
