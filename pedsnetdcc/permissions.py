@@ -11,7 +11,7 @@ from pedsnetdcc.utils import check_stmt_err, combine_dicts, get_conn_info_dict
 logger = logging.getLogger(__name__)
 
 PREP_DB_SQL_TEMPLATE = """
-grant all on schema {{.Site}}_pcornet to loading_user with grant option;
+grant all on schema {{.Site}}_pcornet to {{.Owner}} with grant option;
 """
 
 # SQL template for creating site schemas in an internal database instance.
@@ -70,10 +70,12 @@ grant all                  on schema {{.IdName}}_ids    to {{.Owner}};
 """
 
 
-def _loading_user_privileges_sql(site):
+def _loading_user_privileges_sql(site, owner='loading_user'):
     """Return a list of statements to set the correct permissions loading_user during prepdb.
 
     :param site: site name, e.g. 'dcc' or 'stlouis'
+    :type: str
+    :param owner: role that should own schema
     :type: str
     :return: SQL statements
     :rtype: list(str)
@@ -82,6 +84,7 @@ def _loading_user_privileges_sql(site):
 
     tmpl = PREP_DB_SQL_TEMPLATE
     sql = tmpl.replace('{{.Site}}', site)
+    sql = sql.replace('{{.Owner}}', owner)
 
     return [_despace(x) for x in sql.split("\n") if x]
 
@@ -189,24 +192,24 @@ def _vocabulary_permissions_sql():
 
 def _vocabulary_permissions_sql_limited(owner='loading_user'):
     sql = VOCABULARY_PERM_SQL_TEMPL_LIMITED
-    sql = sql('{{.Owner}}', owner)
+    sql = sql.replace('{{.Owner}}', owner)
     return [_despace(x) for x in sql.split("\n") if x]
 
 
 def _vocabulary_only_permissions_sql_limited(owner='loading_user'):
     sql = VOCABULARY_ONLY_PERM_SQL_TEMPL_LIMITED
-    sql = sql('{{.Owner}}', owner)
+    sql = sql.replace('{{.Owner}}', owner)
     return [_despace(x) for x in sql.split("\n") if x]
 
 
 def _ids_permissions_sql_limited(owner='loading_user', id_name='dcc'):
     sql = IDS_PERM_SQL_TEMPL_LIMITED
-    sql = sql('{{.Owner}}', owner)
-    sql = sql('{{.IdName}}', id_name)
+    sql = sql.replace('{{.Owner}}', owner)
+    sql = sql.replace('{{.IdName}}', id_name)
     return [_despace(x) for x in sql.split("\n") if x]
 
 
-def grant_loading_user_permissions(conn_str, inc_external = False):
+def grant_loading_user_permissions(conn_str, inc_external = False, owner='loading_user'):
     """Grant loading_user grant permissions for pcornet
 
     :param conn_str: connection string to database
@@ -225,10 +228,9 @@ def grant_loading_user_permissions(conn_str, inc_external = False):
     else:
         site_list = SITES_AND_DCC
 
-
     for site in site_list:
         stmnts.extend(
-            [Statement(x) for x in _loading_user_privileges_sql(site)]
+            [Statement(x) for x in _loading_user_privileges_sql(site, owner)]
         )
 
     stmnts.serial_execute(conn_str)

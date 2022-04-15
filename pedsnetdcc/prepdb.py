@@ -437,8 +437,8 @@ def prepare_database_altname(model_version, conn_str, name, addsites, skipsites,
 
     stmts.serial_execute(new_conn_str)
 
-    if owner == 'loading_user' and not pedsnet_only:
-        grant_loading_user_permissions(new_conn_str, inc_ext)
+    if not alt_id_only and not pedsnet_only:
+        grant_loading_user_permissions(new_conn_str, inc_ext, owner)
 
     if limit:
         if primary_sites:
