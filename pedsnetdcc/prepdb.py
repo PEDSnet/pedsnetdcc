@@ -460,7 +460,7 @@ def prepare_database_altname(model_version, conn_str, name, addsites, skipsites,
     for stmt in stmts:
         check_stmt_err(stmt, 'database preparation')
 
-    if id_name == 'dcc' and not inc_ext:
+    if id_name == 'dcc' or not alt_id_only:
         for ext_site in EXTERNAL_SITES:
             _delete_external_schemas(new_conn_str, ext_site)
 
