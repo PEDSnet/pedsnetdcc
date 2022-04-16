@@ -368,7 +368,7 @@ def prepare_database_altname(model_version, conn_str, name, addsites, skipsites,
     starttime = time.time()
 
     # Get base sites
-    if inc_ext or id_name == 'dcc':
+    if inc_ext:
         base_sites = SITES_AND_EXTERNAL
     else:
         base_sites = SITES
@@ -377,7 +377,11 @@ def prepare_database_altname(model_version, conn_str, name, addsites, skipsites,
         if dcc_only:
             primary_sites = ('dcc',)
         else:
-            primary_sites = ('dcc',) + base_sites
+            # need to create id_maps for external sites for dcc
+            if not inc_ext:
+                primary_sites = ('dcc',) + base_sites + EXTERNAL_SITES
+            else:
+                primary_sites = ('dcc',) + base_sites
     else:
         primary_sites = ()
 
