@@ -220,10 +220,10 @@ def run_recover_cohort(conn_str, site, search_path, model_version):
     conn_info_dict = get_conn_info_dict(conn_str)
 
     # Log start of the function and set the starting time.
-    logger_msg = 'Creating RECOVER Cohort for {0}'
+    logger_msg = '{0} RECOVER Cohort for {1}'
     log_dict = combine_dicts({'site': site},
                              conn_info_dict)
-    logger.info(combine_dicts({'msg': logger_msg.format(site)},
+    logger.info(combine_dicts({'msg': logger_msg.format("starting", site)},
                               log_dict))
     start_time = time.time()
     schema = primary_schema(search_path)

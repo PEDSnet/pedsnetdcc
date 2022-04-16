@@ -48,12 +48,16 @@ def pedsnetdcc(logfmt, loglvl):
               help='PEDSnet site name to add to tables.')
 @click.option('--name', required=False, default='dcc',
               help='name of the id (ex: onco')
+@click.option('--limit', is_flag=True, default=False,
+              help='Limit permissions to owner.')
+@click.option('--owner', required=False, default='loading_user',
+              help='the role that permissions should be granted to if permissions limited')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def post_load(searchpath, pwprompt, dburi, site, name, force, model_version):
+def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, model_version):
     """Run all post load operations
 
     Run check_fact_relationship
@@ -87,7 +91,7 @@ def post_load(searchpath, pwprompt, dburi, site, name, force, model_version):
 
     from pedsnetdcc.transform_runner import run_transformation
     success = run_transformation(conn_str, model_version, site, searchpath, name,
-                                 force)
+                                 limit, owner, force)
 
     if not success:
         sys.exit(1)
@@ -277,6 +281,10 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt, name, skipsites, addsites):
               help='PEDSnet site name to add to tables.')
 @click.option('--name', required=False, default='dcc',
               help='name of the id (ex: onco')
+@click.option('--limit', is_flag=True, default=False,
+              help='Limit permissions to owner.')
+@click.option('--owner', required=False, default='loading_user',
+              help='the role that permissions should be granted to if permissions limited')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
@@ -284,7 +292,7 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt, name, skipsites, addsites):
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
-def transform(pwprompt, searchpath, site, name, force, model_version, undo, dburi):
+def transform(pwprompt, searchpath, site, name, limit, owner, force, model_version, undo, dburi):
     """Transform PEDSnet data into the DCC format.
 
     Using the hard-coded set of transformations in this tool, transform data
@@ -314,7 +322,7 @@ def transform(pwprompt, searchpath, site, name, force, model_version, undo, dbur
     if not undo:
         from pedsnetdcc.transform_runner import run_transformation
         success = run_transformation(conn_str, model_version, site, searchpath, name,
-                                     force)
+                                     limit, owner, force)
     else:
         from pedsnetdcc.transform_runner import undo_transformation
         success = undo_transformation(conn_str, model_version, searchpath)
@@ -764,8 +772,12 @@ def merge_schema(pwprompt, schema, altname, skipsites, addsites, force, notable,
               help='Create measurements view.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--limit', is_flag=True, default=False,
+              help='Limit permissions to owner.')
+@click.option('--owner', required=False, default='loading_user',
+              help='the role that permissions should be granted to if permissions limited')
 @click.argument('dburi')
-def split_measurement(pwprompt, searchpath, truncate, view, model_version, dburi):
+def split_measurement(pwprompt, searchpath, truncate, view, model_version, limit, owner, dburi):
     """Split measurement table into anthro, labs, and vitals.
 
     The steps are:
@@ -793,7 +805,7 @@ def split_measurement(pwprompt, searchpath, truncate, view, model_version, dburi
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.split_measurement import split_measurement_table
-    success = split_measurement_table(conn_str, truncate, view, model_version, searchpath)
+    success = split_measurement_table(conn_str, truncate, view, model_version, searchpath, limit, owner)
 
     if not success:
         sys.exit(1)
@@ -2428,8 +2440,12 @@ def run_r_lab_loinc(pwprompt, searchpath, site, model_version, copy, dburi):
               help='name of the id (ex: onco')
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to output.')
+@click.option('--limit', is_flag=True, default=False,
+              help='Limit permissions to owner.')
+@click.option('--owner', required=False, default='loading_user',
+              help='the role that permissions should be granted to if permissions limited')
 @click.argument('dburi')
-def run_r_obs_covid(pwprompt, searchpath, site, model_version, idname, copy, dburi):
+def run_r_obs_covid(pwprompt, searchpath, site, model_version, idname, copy, limit, owner, dburi):
     """Run R Script.
 
     The steps are:
@@ -2451,7 +2467,8 @@ def run_r_obs_covid(pwprompt, searchpath, site, model_version, idname, copy, dbu
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.r_obs_covid import run_r_obs_covid
-    success = run_r_obs_covid(conn_str, site, password, searchpath, model_version, idname, copy)
+    success = run_r_obs_covid(conn_str, site, password, searchpath, model_version, idname,
+                              limit, owner, copy)
 
     if not success:
         sys.exit(1)
@@ -2469,8 +2486,12 @@ def run_r_obs_covid(pwprompt, searchpath, site, model_version, idname, copy, dbu
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to drug_exposure.')
+@click.option('--limit', is_flag=True, default=False,
+              help='Limit permissions to owner.')
+@click.option('--owner', required=False, default='loading_user',
+              help='the role that permissions should be granted to if permissions limited')
 @click.argument('dburi')
-def run_r_dose(pwprompt, searchpath, site, model_version, copy, dburi):
+def run_r_dose(pwprompt, searchpath, site, model_version, copy, limit, owner, dburi):
     """Run R Script.
 
     The steps are:
@@ -2492,7 +2513,8 @@ def run_r_dose(pwprompt, searchpath, site, model_version, copy, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.r_dose import run_r_dose
-    success = run_r_dose(conn_str, site, password, searchpath, model_version, copy)
+    success = run_r_dose(conn_str, site, password, searchpath, model_version,
+                         limit, owner, copy)
 
     if not success:
         sys.exit(1)
@@ -2530,6 +2552,10 @@ def run_r_dose(pwprompt, searchpath, site, model_version, copy, dburi):
               help='Skip primary keys.')
 @click.option('--nonull', is_flag=True, default=False,
               help='Skip set columns not null.')
+@click.option('--limit', is_flag=True, default=False,
+              help='Limit permissions to owner.')
+@click.option('--owner', required=False, default='loading_user',
+              help='the role that permissions should be granted to if permissions limited')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--cohort_table', required=True,
@@ -2537,7 +2563,7 @@ def run_r_dose(pwprompt, searchpath, site, model_version, copy, dburi):
 @click.argument('dburi')
 def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_schema, target_schema, cohort_table,
                      concept_create, drug_dose, covid_obs, inc_hash, split_measure, index_create,
-                     fk_create, notable, nopk, nonull):
+                     fk_create, notable, nopk, limit, owner, nonull):
     """Create tables for subset based on a cohort/person_id table
 
     The database should be specified using a DBURI:
@@ -2556,14 +2582,14 @@ def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_s
     from pedsnetdcc.subset_by_cohort import run_subset_by_cohort
     success = run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, cohort_table,
                          concept_create, drug_dose, covid_obs, inc_hash, index_create, fk_create, notable,
-                         nopk, nonull, force)
+                         nopk, nonull, limit, owner, force)
 
     if not success:
         sys.exit(1)
 
     if split_measure:
         from pedsnetdcc.split_measurement import split_measurement_table
-        success = split_measurement_table(conn_str, False, False, model_version, searchpath)
+        success = split_measurement_table(conn_str, False, False, model_version, searchpath, limit, owner)
         if success:
             from pedsnetdcc.partition_measurement import partition_measurement_table
             success = partition_measurement_table(conn_str, model_version, searchpath, False, True)

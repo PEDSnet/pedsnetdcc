@@ -16,7 +16,8 @@ GRANT_TABLE_SQL = 'grant select on table {0}.{1} to {2}'
 
 def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, cohort_table,
                          concept_create=False, drug_dose=False, covid_obs=False, inc_hash=False,
-                         index_create=False, fk_create=False, notable=False, nopk=False, nonull=False, force=False):
+                         index_create=False, fk_create=False, notable=False, nopk=False, nonull=False,
+                         limit=False, owner='loading_user', force=False):
     """Create SQL for `select` statement transformations.
 
     The `search_path` only needs to contain the source schema; the target
@@ -38,6 +39,8 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
     :param bool notable: if True, don't create tables
     :param bool nopk: if True, don't create primary keys
     :param bool nonull: if True, don't set column not null
+    :param bool limit: if True, limit permissions to owner
+    :param str owner:  owner of the to grant permissions to
     :param bool force: if True, ignore benign errors
     :returns:   True if the function succeeds
     :rtype: bool
@@ -279,7 +282,10 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
     # Grant permissions
     stmts.clear()
     logger.info({'msg': 'setting permissions'})
-    users = ('achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff', 'dcc_analytics')
+    if limit:
+        users = (owner,)
+    else:
+        users = ('achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff', 'dcc_analytics')
     for target_table in grant_vacuum_tables:
         # alter_stmt = Statement(ALTER_OWNER_SQL.format(target_schema, target_table))
         # stmts.add(alter_stmt)

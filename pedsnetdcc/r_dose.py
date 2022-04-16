@@ -85,7 +85,7 @@ def _fix_run(file_path, site):
     return True
 
 
-def run_r_dose(conn_str, site, password, search_path, model_version, copy):
+def run_r_dose(conn_str, site, password, search_path, model_version, copy, limit=False, owner='loading_user'):
     """Run an R script.
 
     * Create argos file
@@ -97,6 +97,8 @@ def run_r_dose(conn_str, site, password, search_path, model_version, copy):
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
     :param bool copy: if True, copy results to drug exposure
+    :param bool limit: if True, limit permissions to owner
+    :param str owner:  owner of the to grant permissions to
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -150,7 +152,11 @@ def run_r_dose(conn_str, site, password, search_path, model_version, copy):
     # Set permissions
     stmts = StatementSet()
     logger.info({'msg': 'setting permissions'})
-    users = ('peds_staff', 'dcc_analytics')
+
+    if limit:
+        users = (owner,)
+    else:
+        users = ('peds_staff', 'dcc_analytics')
 
     for usr in users:
         grant_stmt = Statement(GRANT_OBS_MGKG_DERIVATION_SQL.format(schema, usr))

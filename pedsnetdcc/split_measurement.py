@@ -47,7 +47,7 @@ def _make_index_name(table_name, column_name):
     return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
 
 
-def split_measurement_table(conn_str, truncate, view, model_version, search_path):
+def split_measurement_table(conn_str, truncate, view, model_version, search_path, limit=False, owner='loading_user'):
     """Split measurement into anthro, lab, and vital.
 
     * Create the measurement_anthro, measurement_labs, and measurement_vitals from measurement
@@ -64,6 +64,8 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
     :param bool view: if True, create the measurements view
     :param model_version: PEDSnet model version, e.g. 2.3.0
     :param str search_path: PostgreSQL schema search path
+    :param bool limit: if True, limit permissions to owner
+    :param str owner: role to give permissions to if limited
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -268,7 +270,12 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
     # Set permissions
     stmts.clear()
     logger.info({'msg': 'setting permissions'})
-    users = ('peds_staff', 'dcc_analytics')
+
+    if limit:
+        users = (owner,)
+    else:
+        users = ('peds_staff', 'dcc_analytics')
+
     for measure_like_table in measure_like_tables:
         for usr in users:
             grant_stmt = Statement(GRANT_MEASURE_LIKE_TABLE_SQL.format(schema, measure_like_table, usr))

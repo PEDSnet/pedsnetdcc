@@ -24,7 +24,9 @@ from pedsnetdcc.concept_name_transform import ConceptNameTransform
 from pedsnetdcc.site_name_transform import SiteNameTransform
 from pedsnetdcc.id_mapping_transform import IDMappingTransform
 from pedsnetdcc.add_index_transform import AddIndexTransform
-from pedsnetdcc.permissions import grant_database_permissions, grant_schema_permissions, grant_vocabulary_permissions
+from pedsnetdcc.permissions import grant_database_permissions, grant_schema_permissions, \
+                                    grant_vocabulary_permissions, grant_schema_permissions_limited, \
+                                    grant_vocabulary_only_permissions_limited
 from pedsnetdcc.concept_group_tables import create_index_replacement_tables
 
 logger = logging.getLogger(__name__)
@@ -753,7 +755,7 @@ def _drop_target_tables_statements(model_version, schema, target_table, if_exist
 
 
 def run_transformation(conn_str, model_version, site, search_path, id_name,
-                       force=False):
+                       limit=False, owner='loading_user', force=False):
     """Run all transformations, backing up existing tables to a backup schema.
 
     * Create new schema FOO_transformed.
@@ -770,6 +772,8 @@ def run_transformation(conn_str, model_version, site, search_path, id_name,
     :param str site: site label, e.g. 'stlouis'
     :param str search_path: PostgreSQL schema search path
     :param str id_name: name of the id ex: dcc or onco
+    :param bool limit: if True, limit permissions to owner
+    :param str owner: role to give permissions to if limited
     :param bool force: if True, ignore benign errors
     :return: True if no exception raised
     :rtype: bool
@@ -851,9 +855,14 @@ def run_transformation(conn_str, model_version, site, search_path, id_name,
             tpl = 'moving tables after transformation ({sql}): {err}'
             raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
 
-    ## Regrant permissions after renaming schemas
-    grant_schema_permissions(new_conn_str)
-    grant_vocabulary_permissions(new_conn_str)
+    # Regrant permissions after renaming schemas
+
+    if limit:
+        grant_schema_permissions_limited(new_conn_str, False, owner, id_name, (site,))
+        grant_vocabulary_only_permissions_limited(new_conn_str, owner)
+    else:
+        grant_schema_permissions(new_conn_str)
+        grant_vocabulary_permissions(new_conn_str)
 
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),
@@ -1043,6 +1052,93 @@ def run_age_transformation(conn_str, model_version, site, search_path, target_ta
 
 
 def run_concept_transformation(conn_str, model_version, site, search_path, target_table, force=False):
+    """Run concept transformation.
+
+    * Create new schema FOO_transformed.
+    * Create transformed tables in FOO_schema.
+
+    :param str conn_str: pq connection string
+    :param str model_version: pedsnet model version, e.g. 2.3.0
+    :param str site: site label, e.g. 'stlouis'
+    :param str search_path: PostgreSQL schema search path
+    :param str target_table: table to transform
+    :param bool force: if True, ignore benign errors
+    :return: True if no exception raised
+    :rtype: bool
+    :raise: various possible exceptions ...
+    """
+    log_dict = combine_dicts({'model_version': model_version,
+                              'search_path': search_path, 'force': force},
+                             get_conn_info_dict(conn_str))
+
+    task = 'running concept transformation'
+    start_time = time.time()
+    # TODO: define spec for computer readable log messages
+    # E.g. we might want both 'task' and 'msg' keys, maybe 'submsg'
+    logger.info(combine_dicts({'msg': 'started {}'.format(task)}, log_dict))
+
+    # TODO: should we catch all exceptions and perform logger.error?
+    # and a logger.info to record the elapsed time at abort.
+
+    # TODO: do we need to validate the primary schema at all?
+    schema = primary_schema(search_path)
+
+    # Create the schema to hold the transformed tables.
+    tmp_schema = schema + '_' + 'transformed'
+    create_schema(conn_str, tmp_schema, force)
+
+    # Perform the transformation.
+    _transform_concept(conn_str, model_version, site, tmp_schema, target_table, force)
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    # Set up new connection string for manipulating the target schema
+    new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
+    new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
+
+    # Set tables to logged
+    set_logged(new_conn_str, model_version, False, target_table.split(","))
+
+    # Move the old tables to a backup schema and move the new ones into
+    # the original schema; then drop the temporary schema.
+    backup_schema = schema + '_backup'
+
+    stmts = StatementList()
+    stmts.append(
+        drop_schema_statement(backup_schema, if_exists=True, cascade=True))
+    stmts.append(create_schema_statement(backup_schema))
+    stmts.extend(_move_target_tables_statements(model_version, schema, backup_schema, target_table))
+    stmts.extend(_move_target_tables_statements(model_version, tmp_schema, schema, target_table))
+    stmts.append(
+        drop_schema_statement(tmp_schema, if_exists=False, cascade=True))
+    stmts.serial_execute(conn_str, transaction=True)
+    for stmt in stmts:
+        # Must check through all results to find the first (and last) real
+        # error that caused the transaction to fail.
+        if stmt.err:
+            if pg_error(stmt) == 'IN_FAILED_SQL_TRANSACTION':
+                continue
+            logger.error(combine_dicts({'msg': 'error ' + task,
+                                        'submsg': stmt.msg,
+                                        'err': stmt.err,
+                                        'sql': stmt.sql},
+                                       log_dict))
+            logger.info(combine_dicts({'msg': 'aborted {}'.format(task),
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            tpl = 'moving tables after transformation ({sql}): {err}'
+            raise DatabaseError(tpl.format(sql=stmt.sql, err=stmt.err))
+
+    logger.info(combine_dicts(
+        {'msg': 'finished {}'.format(task),
+         'elapsed': secs_since(start_time)}, log_dict))
+
+    return True
+
+
+def run_concept_age_transformation(conn_str, model_version, site, search_path, target_table, force=False):
     """Run concept transformation.
 
     * Create new schema FOO_transformed.
