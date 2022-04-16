@@ -295,7 +295,7 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     grant_database_permissions(conn_str, database_name)
     # Operate on the newly created database.
     stmts = StatementList()
-    for site in _sites_and_dcc(dcc_only):
+    for site in _sites_and_dcc(dcc_only, True):
         stmts.extend([Statement(x) for x in _site_sql(site)])
 
     stmts.extend([Statement(x) for x in _other_sql()])
@@ -312,14 +312,8 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     for stmt in stmts:
         check_stmt_err(stmt, 'database preparation')
 
-    """
-    _sites_and_dcc(dcc_only=False, inc_external=False)
-    before: inc_external=True and then external sites deleted
-    now: nc_external not passed and external sites not created
-    previous code:
-        for ext_site in EXTERNAL_SITES:
+    for ext_site in EXTERNAL_SITES:
         _delete_external_schemas(new_conn_str, ext_site)
-    """
 
     logger.info({
         'msg': 'finished database preparation',
@@ -374,7 +368,7 @@ def prepare_database_altname(model_version, conn_str, name, addsites, skipsites,
     starttime = time.time()
 
     # Get base sites
-    if inc_ext:
+    if inc_ext or id_name == 'dcc':
         base_sites = SITES_AND_EXTERNAL
     else:
         base_sites = SITES
@@ -461,6 +455,10 @@ def prepare_database_altname(model_version, conn_str, name, addsites, skipsites,
 
     for stmt in stmts:
         check_stmt_err(stmt, 'database preparation')
+
+    if id_name == 'dcc' and not inc_ext:
+        for ext_site in EXTERNAL_SITES:
+            _delete_external_schemas(new_conn_str, ext_site)
 
     logger.info({
         'msg': 'finished database preparation',
