@@ -2468,7 +2468,7 @@ def run_r_obs_covid(pwprompt, searchpath, site, model_version, idname, copy, lim
 
     from pedsnetdcc.r_obs_covid import run_r_obs_covid
     success = run_r_obs_covid(conn_str, site, password, searchpath, model_version, idname,
-                              limit, owner, copy)
+                              copy, limit, owner)
 
     if not success:
         sys.exit(1)
