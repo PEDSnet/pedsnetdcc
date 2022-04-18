@@ -2514,7 +2514,7 @@ def run_r_dose(pwprompt, searchpath, site, model_version, copy, limit, owner, db
 
     from pedsnetdcc.r_dose import run_r_dose
     success = run_r_dose(conn_str, site, password, searchpath, model_version,
-                         limit, owner, copy)
+                         copy, limit, owner)
 
     if not success:
         sys.exit(1)
