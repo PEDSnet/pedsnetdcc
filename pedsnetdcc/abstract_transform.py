@@ -28,7 +28,7 @@ class Transform(object):
     __metaclass__ = ABCMeta
 
     @classmethod
-    def pre_transform(cls, conn_str, metadata, id_name='dcc'):
+    def pre_transform(cls, conn_str, metadata, id_name='dcc', id_type='BigInteger'):
         """Execute statements required before a transform.
 
         A Transform can override this method to execute prerequisite
@@ -36,6 +36,8 @@ class Transform(object):
 
         :param str conn_str:   libpq connection string or URI
         :param sqlalchemy.schema.MetaData metadata: object describing tables
+        :param str id_name: Name of the id
+        :param str id_type: Type of the site id
         and columns
         :return: None
         """
@@ -43,7 +45,7 @@ class Transform(object):
 
     @classmethod
     @abstractmethod
-    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc', id_type='BigInteger'):
         """Transform a Select object into a new Select object.
 
         Also transform a corresponding Join object by chaining any
@@ -75,6 +77,8 @@ class Transform(object):
         :param sqlalchemy.sql.expression.Select select: SQLAlchemy Select
         statement to transform
         :param sqlalchemy.sql.expression.Join join:
+        :param str id_name: Name of the id
+        :param str id_type: Type of the site id
         :rtype: sqlalchemy.sql.expression.Select,
         sqlalchemy.sql.expression.Join
 
@@ -82,7 +86,7 @@ class Transform(object):
         pass
 
     @classmethod
-    def modify_metadata(cls, metadata):
+    def modify_metadata(cls, metadata, id_type='BigInteger'):
         """Modify SQLAlchemy metadata for all appropriate tables.
 
         Iterate over all non-vocabulary tables and run `modify_table`.
@@ -92,6 +96,7 @@ class Transform(object):
 
         :param sqlalchemy.MetaData metadata: SQLAlchemy Metadata object
         describing tables and columns
+        :param str id_type: type of id for site id
         :rtype: sqlalchemy.MetaData
 
         """
@@ -99,19 +104,20 @@ class Transform(object):
             if table_name in VOCAB_TABLES:
                 continue
 
-            cls.modify_table(metadata, table)
+            cls.modify_table(metadata, table, id_type)
 
         return metadata
 
     @classmethod
     @abstractmethod
-    def modify_table(cls, metadata, table):
+    def modify_table(cls, metadata, table, id_type='BigInteger'):
         """Helper function to apply the transformation to a table in place.
 
         The user must implement this method.
 
         :param sqlalchemy.schema.MetaData metadata:
         :param sqlalchemy.schema.Table table:
+        :param str id_type: type of the site id
         :return: None
         """
         pass
