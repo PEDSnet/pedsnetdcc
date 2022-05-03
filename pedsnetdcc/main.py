@@ -52,12 +52,14 @@ def pedsnetdcc(logfmt, loglvl):
               help='Limit permissions to owner.')
 @click.option('--owner', required=False, default='loading_user',
               help='the role that permissions should be granted to if permissions limited')
+@click.option('--stringid', is_flag=True, default=False,
+              help='Use string type for ids.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, model_version):
+def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stringid, model_version):
     """Run all post load operations
 
     Run check_fact_relationship
@@ -89,8 +91,13 @@ def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, mode
     if not success:
         sys.exit(1)
 
+    if stringid:
+        idtype = 'String'
+    else:
+        idtype = 'BigInteger'
+
     from pedsnetdcc.transform_runner import run_transformation
-    success = run_transformation(conn_str, model_version, site, searchpath, name,
+    success = run_transformation(conn_str, model_version, site, searchpath, name, idtype,
                                  limit, owner, force)
 
     if not success:
@@ -285,6 +292,8 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt, name, skipsites, addsites):
               help='Limit permissions to owner.')
 @click.option('--owner', required=False, default='loading_user',
               help='the role that permissions should be granted to if permissions limited')
+@click.option('--stringid', is_flag=True, default=False,
+              help='Use string type for ids.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
@@ -292,7 +301,7 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt, name, skipsites, addsites):
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
-def transform(pwprompt, searchpath, site, name, limit, owner, force, model_version, undo, dburi):
+def transform(pwprompt, searchpath, site, name, limit, owner, stringid, force, model_version, undo, dburi):
     """Transform PEDSnet data into the DCC format.
 
     Using the hard-coded set of transformations in this tool, transform data
@@ -319,9 +328,14 @@ def transform(pwprompt, searchpath, site, name, limit, owner, force, model_versi
 
     conn_str = make_conn_str(dburi, searchpath, password)
 
+    if stringid:
+        idtype = 'String'
+    else:
+        idtype = 'BigInteger'
+
     if not undo:
         from pedsnetdcc.transform_runner import run_transformation
-        success = run_transformation(conn_str, model_version, site, searchpath, name,
+        success = run_transformation(conn_str, model_version, site, searchpath, name, idtype,
                                      limit, owner, force)
     else:
         from pedsnetdcc.transform_runner import undo_transformation
@@ -1697,7 +1711,7 @@ def copy_drug_era(pwprompt, searchpath, site, dburi):
 @click.option('--size', required=False, default='5000',
               help='size of the group of persons processed at a time')
 @click.argument('dburi')
-def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids, nopk, novac, size, dburi):
+def run_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids, nopk, novac, size, dburi):
     """Run Drug Era derivation.
 
     The steps are:

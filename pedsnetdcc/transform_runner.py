@@ -35,7 +35,7 @@ TRANSFORMS = (AgeTransform, ConceptNameTransform, SiteNameTransform,
               IDMappingTransform, AddIndexTransform)
 
 
-def _transform_select_sql(model_version, site, target_schema, id_name):
+def _transform_select_sql(model_version, site, target_schema, id_name, id_type):
     """Create SQL for `select` statement transformations.
 
     The `search_path` only needs to contain the source schema; the target
@@ -51,6 +51,7 @@ def _transform_select_sql(model_version, site, target_schema, id_name):
     :param site: site name, e.g. 'stlouis'
     :param target_schema: schema in which to create the transformed tables
     :param id_name: name of the id set
+    :param id_type: type of the site id set
     :return: set of tuples of SQL statement strings and messages
     :rtype: set
     :raise: psycopg2.ProgrammingError (from the modify_select)
@@ -71,7 +72,8 @@ def _transform_select_sql(model_version, site, target_schema, id_name):
                     table_name,
                     select_obj,
                     join_obj,
-                    id_name)
+                    id_name,
+                    id_type)
 
         final_select_obj = select_obj.select_from(join_obj)
 
@@ -89,7 +91,7 @@ def _transform_select_sql(model_version, site, target_schema, id_name):
     return stmt_pairs
 
 
-def _transform_target_select_sql(model_version, site, target_schema, id_name, target_table):
+def _transform_target_select_sql(model_version, site, target_schema, id_name, id_type, target_table):
     """Create SQL for `select` statement transformations.
 
     The `search_path` only needs to contain the source schema; the target
@@ -105,6 +107,7 @@ def _transform_target_select_sql(model_version, site, target_schema, id_name, ta
     :param site: site name, e.g. 'stlouis'
     :param target_schema: schema in which to create the transformed tables
     :param id_name: name of the id set
+    :param id_type: type of the site id set
     :param target_table: table to use
     :return: set of tuples of SQL statement strings and messages
     :rtype: set
@@ -129,7 +132,8 @@ def _transform_target_select_sql(model_version, site, target_schema, id_name, ta
                 table_name,
                 select_obj,
                 join_obj,
-                id_name)
+                id_name,
+                id_type)
 
         final_select_obj = select_obj.select_from(join_obj)
 
@@ -306,7 +310,7 @@ def _transform_site_select_sql(model_version, site, target_schema, target_table)
     return stmt_pairs
 
 
-def _transform_id_select_sql(model_version, site, target_schema, target_table, id_name):
+def _transform_id_select_sql(model_version, site, target_schema, target_table, id_name, id_type):
     """Create SQL for `select` statement transformations.
 
     The `search_path` only needs to contain the source schema; the target
@@ -323,6 +327,7 @@ def _transform_id_select_sql(model_version, site, target_schema, target_table, i
     :param target_schema: schema in which to create the transformed tables
     :param target_table: table to use
     :param id_name: name of the id set
+    :param id_type: type of the site id (BigInteger vs String(256)
     :return: set of tuples of SQL statement strings and messages
     :rtype: set
     :raise: psycopg2.ProgrammingError (from the modify_select)
@@ -343,7 +348,8 @@ def _transform_id_select_sql(model_version, site, target_schema, target_table, i
                 table_name,
                 select_obj,
                 join_obj,
-                id_name)
+                id_name,
+                id_type)
 
             final_select_obj = select_obj.select_from(join_obj)
 
@@ -414,7 +420,7 @@ def _transform_index_select_sql(model_version, site, target_schema, target_table
     return stmt_pairs
 
 
-def _transform(conn_str, model_version, site, target_schema, id_name, force=False):
+def _transform(conn_str, model_version, site, target_schema, id_name, id_type, force=False):
     """Run transformations.
 
     TODO: Check whether exception handling is consistent e.g. DatabaseError.
@@ -423,15 +429,16 @@ def _transform(conn_str, model_version, site, target_schema, id_name, force=Fals
     :param str model_version: pedsnet model version
     :param str target_schema: temporary schema to hold transformed tables
     :param str id_name: name of the id set
+    :param str id_type: type of the site id set
     :return: list of SQL statement strings
     :raise: psycopg2.ProgrammingError (from pre_transform)
     """
 
     for transform in TRANSFORMS:
-            transform.pre_transform(conn_str, stock_metadata(model_version), id_name)
+        transform.pre_transform(conn_str, stock_metadata(model_version), id_name, id_type)
 
     stmts = StatementSet()
-    for sql, msg in _transform_select_sql(model_version, site, target_schema, id_name):
+    for sql, msg in _transform_select_sql(model_version, site, target_schema, id_name, id_type):
         stmts.add(Statement(sql, msg))
 
     # Execute creation of transformed tables in parallel.
@@ -446,7 +453,7 @@ def _transform(conn_str, model_version, site, target_schema, id_name, force=Fals
                                                       err=stmt.err))
 
 
-def _transform_target(conn_str, model_version, site, target_schema, id_name, target_table, force=False):
+def _transform_target(conn_str, model_version, site, target_schema, id_name, id_type, target_table, force=False):
     """Run transformations.
 
     TODO: Check whether exception handling is consistent e.g. DatabaseError.
@@ -455,16 +462,17 @@ def _transform_target(conn_str, model_version, site, target_schema, id_name, tar
     :param str model_version: pedsnet model version
     :param str target_schema: temporary schema to hold transformed tables
     :param str id_name: name of the id set
+    :param str id_type: type of the site id set
     :param target_table: table to use
     :return: list of SQL statement strings
     :raise: psycopg2.ProgrammingError (from pre_transform)
     """
 
     for transform in TRANSFORMS:
-            transform.pre_transform(conn_str, stock_metadata(model_version), id_name)
+            transform.pre_transform(conn_str, stock_metadata(model_version), id_name, id_type)
 
     stmts = StatementSet()
-    for sql, msg in _transform_target_select_sql(model_version, site, target_schema, id_name, target_table):
+    for sql, msg in _transform_target_select_sql(model_version, site, target_schema, id_name, id_type, target_table):
         stmts.add(Statement(sql, msg))
 
     # Execute creation of transformed tables in parallel.
@@ -477,8 +485,6 @@ def _transform_target(conn_str, model_version, site, target_schema, id_name, tar
                 return
             raise DatabaseError('{msg}: {err}'.format(msg=stmt.msg,
                                                       err=stmt.err))
-
-
 
 def _transform_age(conn_str, model_version, site, target_schema, target_table, force=False):
     """Run transformations.
@@ -573,7 +579,7 @@ def _transform_site(conn_str, model_version, site, target_schema, target_table, 
                                                       err=stmt.err))
 
 
-def _transform_id(conn_str, model_version, site, target_schema, target_table, id_name, force=False):
+def _transform_id(conn_str, model_version, site, target_schema, target_table, id_name, id_type, force=False):
     """Run transformations.
 
     TODO: Check whether exception handling is consistent e.g. DatabaseError.
@@ -583,14 +589,15 @@ def _transform_id(conn_str, model_version, site, target_schema, target_table, id
     :param str target_schema: temporary schema to hold transformed tables
     :param str target_table: transform table
     :param str id_name: name of the id set
+    :param str id_type: type of the site id set
     :return: list of SQL statement strings
     :raise: psycopg2.ProgrammingError (from pre_transform)
     """
 
-    IDMappingTransform.pre_transform(conn_str, stock_metadata(model_version), id_name)
+    IDMappingTransform.pre_transform(conn_str, stock_metadata(model_version), id_name, id_type)
 
     stmts = StatementSet()
-    for sql, msg in _transform_id_select_sql(model_version, site, target_schema, target_table, id_name):
+    for sql, msg in _transform_id_select_sql(model_version, site, target_schema, target_table, id_name, id_type):
         stmts.add(Statement(sql, msg))
 
     # Execute creation of transformed tables in parallel.
@@ -754,7 +761,7 @@ def _drop_target_tables_statements(model_version, schema, target_table, if_exist
     return stmts
 
 
-def run_transformation(conn_str, model_version, site, search_path, id_name,
+def run_transformation(conn_str, model_version, site, search_path, id_name, id_type,
                        limit=False, owner='loading_user', force=False):
     """Run all transformations, backing up existing tables to a backup schema.
 
@@ -772,6 +779,7 @@ def run_transformation(conn_str, model_version, site, search_path, id_name,
     :param str site: site label, e.g. 'stlouis'
     :param str search_path: PostgreSQL schema search path
     :param str id_name: name of the id ex: dcc or onco
+    :param str id_type: type of the site id: BigInteger or String
     :param bool limit: if True, limit permissions to owner
     :param str owner: role to give permissions to if limited
     :param bool force: if True, ignore benign errors
@@ -800,7 +808,7 @@ def run_transformation(conn_str, model_version, site, search_path, id_name,
     create_schema(conn_str, tmp_schema, force)
 
     # Perform the transformation.
-    _transform(conn_str, model_version, site, tmp_schema, id_name, force)
+    _transform(conn_str, model_version, site, tmp_schema, id_name, id_type, force)
 
     # Set up new connection string for manipulating the target schema
     new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
@@ -858,7 +866,7 @@ def run_transformation(conn_str, model_version, site, search_path, id_name,
     # Regrant permissions after renaming schemas
 
     if limit:
-        grant_schema_permissions_limited(new_conn_str, False, owner, id_name, (site,))
+        grant_schema_permissions_limited(new_conn_str, False, owner, id_name, id_type, (site,))
         grant_vocabulary_only_permissions_limited(new_conn_str, owner)
     else:
         grant_schema_permissions(new_conn_str)
@@ -871,7 +879,7 @@ def run_transformation(conn_str, model_version, site, search_path, id_name,
     return True
 
 
-def run_target_transformation(conn_str, model_version, site, search_path, target_table, id_name, force=False):
+def run_target_transformation(conn_str, model_version, site, search_path, target_table, id_name, id_type, force=False):
     """Run transformation on target tables.
 
     * Create new schema FOO_transformed.
@@ -883,6 +891,7 @@ def run_target_transformation(conn_str, model_version, site, search_path, target
     :param str search_path: PostgreSQL schema search path
     :param str target_table: table to transform
     :param str id_name: name of the id (ex. dcc or onco)
+    :param str id_type: type of the id (BigInteger or String)
     :param bool force: if True, ignore benign errors
     :return: True if no exception raised
     :rtype: bool
@@ -910,7 +919,7 @@ def run_target_transformation(conn_str, model_version, site, search_path, target
 
     # Perform the transformation.
     task = 'running transformations'
-    _transform_target(conn_str, model_version, site, tmp_schema, id_name, target_table, force)
+    _transform_target(conn_str, model_version, site, tmp_schema, id_name, id_type, target_table, force)
 
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),
@@ -1312,7 +1321,7 @@ def run_site_transformation(conn_str, model_version, site, search_path, target_t
     return True
 
 
-def run_id_transformation(conn_str, model_version, site, search_path, target_table, id_name, force=False):
+def run_id_transformation(conn_str, model_version, site, search_path, target_table, id_name, id_type, force=False):
     """Run id transformation.
 
     * Create new schema FOO_transformed.
@@ -1324,6 +1333,7 @@ def run_id_transformation(conn_str, model_version, site, search_path, target_tab
     :param str search_path: PostgreSQL schema search path
     :param str target_table: table to transform
     :param str id_name: name of the id (ex. dcc or onco)
+    :param str id_type: type of the site id (BigInteger or String)
     :param bool force: if True, ignore benign errors
     :return: True if no exception raised
     :rtype: bool
@@ -1350,7 +1360,7 @@ def run_id_transformation(conn_str, model_version, site, search_path, target_tab
     create_schema(conn_str, tmp_schema, force)
 
     # Perform the transformation.
-    _transform_id(conn_str, model_version, site, tmp_schema, target_table, id_name, force)
+    _transform_id(conn_str, model_version, site, tmp_schema, target_table, id_name, id_type, force)
 
     logger.info(combine_dicts(
         {'msg': 'finished {}'.format(task),

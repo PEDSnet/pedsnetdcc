@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 class IDMappingTransform(Transform):
     @classmethod
-    def pre_transform(cls, conn_str, metadata, id_name='dcc'):
+    def pre_transform(cls, conn_str, metadata, id_name='dcc', id_type='BigInteger'):
         """Generate DCC IDs in the database.
 
         See also Transform.pre_transform.
@@ -71,6 +71,8 @@ class IDMappingTransform(Transform):
             # Set name of the id
             tpl_vars['id_name'] = id_name
 
+            # Set name of the id type
+            tpl_vars['id_type'] = id_type
 
             # In some versions the death table has a primary key constraint
             # on the person_id column.
@@ -170,7 +172,7 @@ class IDMappingTransform(Transform):
 
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc', id_type='BigInteger'):
         """Alter foreign key columns to get mapped DCC IDs.
 
         The primary key and each foreign key which points at a data table
@@ -180,6 +182,11 @@ class IDMappingTransform(Transform):
 
         # Get table object.
         table = metadata.tables[table_name]
+
+        # Data from PCORnet may not be numeric
+        site_id_type = sqlalchemy.BigInteger
+        if id_type == 'String':
+            site_id_type = sqlalchemy.String(256)
 
         # Raise error if attempted on a multi-column primary key table.
         if len(table.primary_key.columns) > 1:
@@ -201,8 +208,8 @@ class IDMappingTransform(Transform):
             if map_table_name not in metadata.tables:
                 map_table = sqlalchemy.Table(
                     map_table_name, metadata,
-                    sqlalchemy.Column(id_name + '_id', sqlalchemy.Integer),
-                    sqlalchemy.Column('site_id', sqlalchemy.Integer))
+                    sqlalchemy.Column(id_name + '_id', sqlalchemy.BigInteger),
+                    sqlalchemy.Column('site_id', site_id_type))
             else:
                 map_table = metadata.tables[map_table_name]
 
@@ -247,8 +254,8 @@ class IDMappingTransform(Transform):
             if map_table_name not in metadata.tables:
                 map_table = sqlalchemy.Table(
                     map_table_name, metadata,
-                    sqlalchemy.Column(id_name + '_id', sqlalchemy.Integer),
-                    sqlalchemy.Column('site_id', sqlalchemy.Integer))
+                    sqlalchemy.Column(id_name + '_id', sqlalchemy.BigInteger),
+                    sqlalchemy.Column('site_id', site_id_type))
             else:
                 map_table = metadata.tables[map_table_name]
 
@@ -294,8 +301,8 @@ class IDMappingTransform(Transform):
                 if map_table_name not in metadata.tables:
                     map_table = sqlalchemy.Table(
                         map_table_name, metadata,
-                        sqlalchemy.Column(id_name + '_id', sqlalchemy.Integer),
-                        sqlalchemy.Column('site_id', sqlalchemy.Integer))
+                        sqlalchemy.Column(id_name + '_id', sqlalchemy.BigInteger),
+                        sqlalchemy.Column('site_id', sqlalchemy.site_id_type))
                 else:
                     map_table = metadata.tables[map_table_name]
 
@@ -349,19 +356,23 @@ class IDMappingTransform(Transform):
         return select, join
 
     @classmethod
-    def modify_table(cls, metadata, table):
+    def modify_table(cls, metadata, table, id_type='BigInteger'):
         """Helper function to apply the transformation to a table in place.
         See Transform.modify_table for signature.
         """
 
+        site_id_type = sqlalchemy.BigInteger
+        if id_type == 'String':
+            site_id_type = sqlalchemy.String(256)
+
         if len(table.primary_key.columns) == 1 and not \
                 (table.name == 'death' and 'person_id' in
                  table.primary_key.columns):
-            new_col = sqlalchemy.Column('site_id', sqlalchemy.Integer)
+            new_col = sqlalchemy.Column('site_id', site_id_type)
             table.append_column(new_col)
 
         if table.name == 'fact_relationship':
-            new_col_1 = sqlalchemy.Column('site_id_1', sqlalchemy.Integer)
-            new_col_2 = sqlalchemy.Column('site_id_2', sqlalchemy.Integer)
+            new_col_1 = sqlalchemy.Column('site_id_1', site_id_type)
+            new_col_2 = sqlalchemy.Column('site_id_2', site_id_type)
             table.append_column(new_col_1)
             table.append_column(new_col_2)
