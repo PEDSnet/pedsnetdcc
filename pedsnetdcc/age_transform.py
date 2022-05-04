@@ -2,6 +2,7 @@ import psycopg2
 from sqlalchemy import literal_column
 from sqlalchemy.schema import Column, Index
 from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
+from sqlalchemy.sql.expression import cast
 
 from pedsnetdcc.abstract_transform import Transform
 
@@ -93,6 +94,11 @@ class AgeTransform(Transform):
 
         person = metadata.tables['person']
 
+        # Data from PCORnet may not be numeric
+        site_id_type = sqlalchemy.BigInteger
+        if id_type == 'String':
+            site_id_type = sqlalchemy.String(256)
+
         # Don't join person twice to the same table
         joined_already_for_table_name = {}
 
@@ -119,8 +125,8 @@ class AgeTransform(Transform):
 
             if not joined_already_for_table_name.get(table_name, False):
                 join = join.join(person,
-                                 person.c.person_id
-                                 == table.c.person_id)
+                                 cast(person.c.person_id, site_id_type)
+                                 == cast(table.c.person_id, site_id_type))
                 joined_already_for_table_name[table_name] = True
 
             select = select.column(new_col)
