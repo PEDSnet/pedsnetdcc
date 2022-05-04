@@ -11,7 +11,7 @@ from pedsnetdcc.utils import check_stmt_err, check_stmt_data
 # Pre-transform ID map creation statements.
 
 new_id_count_sql = """SELECT COUNT(*)
-FROM {table_name} LEFT JOIN {map_table_name} ON {pkey_name} = site_id
+FROM {table_name} LEFT JOIN {map_table_name} ON {pkey_name}::text = site_id::text
 WHERE site_id IS NULL"""
 new_id_count_msg = "counting new IDs needed for {table_name}"
 
