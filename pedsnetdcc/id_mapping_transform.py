@@ -208,7 +208,7 @@ class IDMappingTransform(Transform):
             if map_table_name not in metadata.tables:
                 map_table = sqlalchemy.Table(
                     map_table_name, metadata,
-                    sqlalchemy.Column(id_name + '_id', sqlalchemy.BigInteger),
+                    sqlalchemy.Column(id_name + '_id', site_id_type),
                     sqlalchemy.Column('site_id', site_id_type))
             else:
                 map_table = metadata.tables[map_table_name]
@@ -254,7 +254,7 @@ class IDMappingTransform(Transform):
             if map_table_name not in metadata.tables:
                 map_table = sqlalchemy.Table(
                     map_table_name, metadata,
-                    sqlalchemy.Column(id_name + '_id', sqlalchemy.BigInteger),
+                    sqlalchemy.Column(id_name + '_id', site_id_type),
                     sqlalchemy.Column('site_id', site_id_type))
             else:
                 map_table = metadata.tables[map_table_name]
@@ -301,7 +301,7 @@ class IDMappingTransform(Transform):
                 if map_table_name not in metadata.tables:
                     map_table = sqlalchemy.Table(
                         map_table_name, metadata,
-                        sqlalchemy.Column(id_name + '_id', sqlalchemy.BigInteger),
+                        sqlalchemy.Column(id_name + '_id', site_id_type),
                         sqlalchemy.Column('site_id', site_id_type))
                 else:
                     map_table = metadata.tables[map_table_name]
