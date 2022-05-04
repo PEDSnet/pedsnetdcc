@@ -86,7 +86,7 @@ class Transform(object):
         pass
 
     @classmethod
-    def modify_metadata(cls, metadata, id_type='BigInteger'):
+    def modify_metadata(cls, metadata):
         """Modify SQLAlchemy metadata for all appropriate tables.
 
         Iterate over all non-vocabulary tables and run `modify_table`.
@@ -104,7 +104,7 @@ class Transform(object):
             if table_name in VOCAB_TABLES:
                 continue
 
-            cls.modify_table(metadata, table, id_type)
+            cls.modify_table(metadata, table)
 
         return metadata
 

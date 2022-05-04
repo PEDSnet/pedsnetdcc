@@ -1,5 +1,6 @@
 import logging
 import sqlalchemy
+from sqlalchemy.sql.expression import cast
 import time
 
 from pedsnetdcc import VOCAB_TABLES, FACT_RELATIONSHIP_DOMAINS
@@ -170,7 +171,6 @@ class IDMappingTransform(Transform):
                          'table': table_name,
                          'elapsed': secs_since(starttime)})
 
-
     @classmethod
     def modify_select(cls, metadata, table_name, select, join, id_name='dcc', id_type='BigInteger'):
         """Alter foreign key columns to get mapped DCC IDs.
@@ -208,7 +208,7 @@ class IDMappingTransform(Transform):
             if map_table_name not in metadata.tables:
                 map_table = sqlalchemy.Table(
                     map_table_name, metadata,
-                    sqlalchemy.Column(id_name + '_id', site_id_type),
+                    sqlalchemy.Column(id_name + '_id', sqlalchemy.BigInteger),
                     sqlalchemy.Column('site_id', site_id_type))
             else:
                 map_table = metadata.tables[map_table_name]
@@ -254,7 +254,7 @@ class IDMappingTransform(Transform):
             if map_table_name not in metadata.tables:
                 map_table = sqlalchemy.Table(
                     map_table_name, metadata,
-                    sqlalchemy.Column(id_name + '_id', site_id_type),
+                    sqlalchemy.Column(id_name + '_id', sqlalchemy.BigInteger),
                     sqlalchemy.Column('site_id', site_id_type))
             else:
                 map_table = metadata.tables[map_table_name]
@@ -265,8 +265,8 @@ class IDMappingTransform(Transform):
             isouter = table.c[fkey_name].nullable
 
             map_table_alias = map_table.alias()
-            # Add a join to the mapping table.)
-            join = join.join(map_table_alias, table.c[fkey_name] ==
+            # Add a join to the mapping table.
+            join = join.join(map_table_alias, cast(table.c[fkey_name], site_id_type) ==
                              map_table_alias.c['site_id'], isouter=isouter)
 
             # Create a new select object, because we need to replace the
@@ -301,7 +301,7 @@ class IDMappingTransform(Transform):
                 if map_table_name not in metadata.tables:
                     map_table = sqlalchemy.Table(
                         map_table_name, metadata,
-                        sqlalchemy.Column(id_name + '_id', site_id_type),
+                        sqlalchemy.Column(id_name + '_id', sqlalchemy.BigInteger),
                         sqlalchemy.Column('site_id', site_id_type))
                 else:
                     map_table = metadata.tables[map_table_name]
@@ -376,3 +376,5 @@ class IDMappingTransform(Transform):
             new_col_2 = sqlalchemy.Column('site_id_2', site_id_type)
             table.append_column(new_col_1)
             table.append_column(new_col_2)
+
+
