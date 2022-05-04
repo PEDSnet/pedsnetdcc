@@ -31,8 +31,13 @@ from pedsnetdcc.concept_group_tables import create_index_replacement_tables
 
 logger = logging.getLogger(__name__)
 
+'''
 TRANSFORMS = (AgeTransform, ConceptNameTransform, SiteNameTransform,
               IDMappingTransform, AddIndexTransform)
+'''
+
+TRANSFORMS = (SiteNameTransform,
+              IDMappingTransform)
 
 
 def _transform_select_sql(model_version, site, target_schema, id_name, id_type):
@@ -334,6 +339,7 @@ def _transform_id_select_sql(model_version, site, target_schema, target_table, i
     """
     metadata = stock_metadata(model_version)
     metadata.info['site'] = site
+
     stmt_pairs = set()
     target_table = target_table.split(",")
 
