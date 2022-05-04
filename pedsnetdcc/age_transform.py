@@ -1,4 +1,5 @@
 import psycopg2
+import sqlalchemy
 from sqlalchemy import literal_column
 from sqlalchemy.schema import Column, Index
 from sqlalchemy.dialects.postgresql import DOUBLE_PRECISION
