@@ -23,7 +23,7 @@ class AddIndexTransform(Transform):
     }
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc', id_type='BigInteger'):
         """
         No transform for columns needed
         """

@@ -36,7 +36,7 @@ class ConceptNameTransform(Transform):
     }
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc', id_type='BigInteger'):
         """Add a _concept_name column for each _concept_id column in a table.
 
         Requirements: `concept` table exists.
@@ -58,7 +58,7 @@ class ConceptNameTransform(Transform):
         return select, join
 
     @classmethod
-    def modify_table(cls, metadata, table):
+    def modify_table(cls, metadata, table, id_type='BigInteger'):
         """Helper function to apply the transformation to a table in place.
         See Transform.modify_table for signature.
         """

@@ -19,7 +19,7 @@ class DropIndexTransform(Transform):
     }
 
     @classmethod
-    def modify_metadata(cls, metadata):
+    def modify_metadata(cls, metadata, id_type='BigInteger'):
         """Modify SQLAlchemy metadata for all appropriate tables.
 
         Iterate over all non-vocabulary tables and run `modify_table`.
@@ -45,7 +45,7 @@ class DropIndexTransform(Transform):
         return indexes
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc', id_type='BigInteger'):
         """
         No transform for columns needed
         """
@@ -53,7 +53,7 @@ class DropIndexTransform(Transform):
 
 
     @classmethod
-    def modify_table(cls, metadata, table):
+    def modify_table(cls, metadata, table, id_type='BigInteger'):
         """Helper function to apply the transformation to a table in place.
         See Transform.modify_table for signature.
         """

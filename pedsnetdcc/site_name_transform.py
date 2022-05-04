@@ -15,7 +15,7 @@ class SiteNameTransform(Transform):
     }
 
     @classmethod
-    def modify_select(cls, metadata, table_name, select, join, id_name='dcc'):
+    def modify_select(cls, metadata, table_name, select, join, id_name='dcc', id_type='BigInteger'):
         """Add a site name column to the table.
 
         The text value of the column is drawn from the `metadata.info` dict.
@@ -34,7 +34,7 @@ class SiteNameTransform(Transform):
         return select, join
 
     @classmethod
-    def modify_table(cls, metadata, table):
+    def modify_table(cls, metadata, table, id_type='BigInteger'):
         """Helper function to apply the transformation to a table in place.
         See Transform.modify_table for signature.
         """
