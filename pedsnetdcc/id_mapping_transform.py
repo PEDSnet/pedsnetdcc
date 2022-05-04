@@ -25,7 +25,7 @@ update_last_id_msg = "updating {table_name} last ID tracking table to reserve ne
 
 insert_new_maps_sql = """INSERT INTO {map_table_name} (site_id, {id_name}_id)
 SELECT {pkey_name}, row_number() over (range unbounded preceding) + '{old_last_id}'::bigint
-FROM {table_name} LEFT JOIN {map_table_name} on {pkey_name} = site_id
+FROM {table_name} LEFT JOIN {map_table_name} on {pkey_name}::text = site_id::text
 WHERE site_id IS NULL"""  # noqa
 insert_new_maps_msg = "inserting new {table_name} ID mappings into map table"
 
