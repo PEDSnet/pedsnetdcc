@@ -11,9 +11,14 @@ from pedsnetdcc.utils import check_stmt_err, check_stmt_data
 
 # Pre-transform ID map creation statements.
 
-new_id_count_sql = """SELECT COUNT(*)
-FROM {table_name} LEFT JOIN {map_table_name} ON {pkey_name}::text = site_id::text
+new_id_text_count_sql = """SELECT COUNT(*)
+FROM {table_name} LEFT JOIN {map_table_name} ON {pkey_name} = site_id::text
 WHERE site_id IS NULL"""
+
+new_id_bigint_count_sql = """SELECT COUNT(*)
+FROM {table_name} LEFT JOIN {map_table_name} ON {pkey_name} = site_id
+WHERE site_id IS NULL"""
+
 new_id_count_msg = "counting new IDs needed for {table_name}"
 
 lock_last_id_sql = """LOCK {last_id_table_name}"""
@@ -24,10 +29,16 @@ SET last_id = new.last_id + '{new_id_count}'::bigint
 FROM {last_id_table_name} AS old RETURNING old.last_id, new.last_id"""
 update_last_id_msg = "updating {table_name} last ID tracking table to reserve new IDs"  # noqa
 
-insert_new_maps_sql = """INSERT INTO {map_table_name} (site_id, {id_name}_id)
+insert_new_bigint_maps_sql = """INSERT INTO {map_table_name} (site_id, {id_name}_id)
 SELECT {pkey_name}, row_number() over (range unbounded preceding) + '{old_last_id}'::bigint
-FROM {table_name} LEFT JOIN {map_table_name} on {pkey_name}::text = site_id::text
+FROM {table_name} LEFT JOIN {map_table_name} on {pkey_name} = site_id
 WHERE site_id IS NULL"""  # noqaxf
+
+insert_new_text_maps_sql = """INSERT INTO {map_table_name} (site_id, {id_name}_id)
+SELECT {pkey_name}, row_number() over (range unbounded preceding) + '{old_last_id}'::bigint
+FROM {table_name} LEFT JOIN {map_table_name} on {pkey_name} = site_id::text
+WHERE site_id IS NULL"""  # noqaxf
+
 insert_new_maps_msg = "inserting new {table_name} ID mappings into map table"
 
 # Mapping and last ID table naming conventions.
@@ -110,9 +121,12 @@ class IDMappingTransform(Transform):
                 format(**tpl_vars)
 
             # Build the statement to count how many new ID mappings are needed.
-            new_id_count_stmt = Statement(new_id_count_sql.format(**tpl_vars),
+            if id_type == 'BigInteger':
+                new_id_count_stmt = Statement(new_id_bigint_count_sql.format(**tpl_vars),
                                           new_id_count_msg.format(**tpl_vars))
-
+            else:
+                new_id_count_stmt = Statement(new_id_text_count_sql.format(**tpl_vars),
+                                              new_id_count_msg.format(**tpl_vars))
             # Execute the new ID mapping count statement and ensure it didn't
             # error and did return a result.
             new_id_count_stmt.execute(conn_str)
@@ -152,10 +166,15 @@ class IDMappingTransform(Transform):
                          'new_last_id': tpl_vars['new_last_id']})
 
             # Build statement to generate new ID maps.
-            insert_new_maps_stmt = Statement(
-                insert_new_maps_sql.format(**tpl_vars),
-                insert_new_maps_msg.format(**tpl_vars))
-
+            if id_type == 'BigInteger':
+                insert_new_maps_stmt = Statement(
+                    insert_new_bigint_maps_sql.format(**tpl_vars),
+                    insert_new_maps_msg.format(**tpl_vars))
+            else:
+                insert_new_maps_stmt = Statement(
+                    insert_new_text_maps_sql.format(**tpl_vars),
+                    insert_new_maps_msg.format(**tpl_vars))
+                
             # Execute new map generation statement and ensure it didn't error.
             insert_new_maps_stmt.execute(conn_str)
             check_stmt_err(insert_new_maps_stmt, 'id mapping pre-transform')
