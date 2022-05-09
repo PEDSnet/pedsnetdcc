@@ -155,7 +155,7 @@ class IDMappingTransform(Transform):
 
             # Build statement to generate new ID maps.
             insert_new_maps_stmt = Statement(
-                insert_new_bigint_maps_sql.format(**tpl_vars),
+                insert_new_maps_sql.format(**tpl_vars),
                 insert_new_maps_msg.format(**tpl_vars))
 
             # Execute new map generation statement and ensure it didn't error.
