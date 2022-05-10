@@ -868,7 +868,7 @@ def run_transformation(conn_str, model_version, site, search_path, id_name, id_t
     # Regrant permissions after renaming schemas
 
     if limit:
-        grant_schema_permissions_limited(new_conn_str, False, owner, id_name, id_type, (site,))
+        grant_schema_permissions_limited(new_conn_str, False, owner, id_name, (site,))
         grant_vocabulary_only_permissions_limited(new_conn_str, owner)
     else:
         grant_schema_permissions(new_conn_str)
