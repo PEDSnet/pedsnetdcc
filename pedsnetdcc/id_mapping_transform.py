@@ -268,7 +268,7 @@ class IDMappingTransform(Transform):
 
             map_table_alias = map_table.alias()
             # Add a join to the mapping table.
-            join = join.join(map_table_alias, table.c[fkey_name] ==
+            join = join.join(map_table_alias, cast(table.c[fkey_name], site_id_type) ==
                              map_table_alias.c['site_id'], isouter=isouter)
 
             # Create a new select object, because we need to replace the
