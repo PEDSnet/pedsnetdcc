@@ -126,8 +126,8 @@ class AgeTransform(Transform):
 
             if not joined_already_for_table_name.get(table_name, False):
                 join = join.join(person,
-                                 person.c.person_id
-                                 == table.c.person_id)
+                                 cast(person.c.person_id, site_id_type)
+                                 == cast(table.c.person_id, site_id_type))
                 joined_already_for_table_name[table_name] = True
 
             select = select.column(new_col)
