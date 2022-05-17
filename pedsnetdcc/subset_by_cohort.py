@@ -61,13 +61,13 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
         'location',
         'care_site',
         'provider',
+        'specialty',
         'lab_site_mapping'
     )
     special_handling = {
         'visit_payer',
         'fact_relationship',
         'location_history',
-        'specialty',
         'hash_token'
     }
     create_dict = {}
@@ -137,8 +137,6 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
                     create = create + ' or exists(select 1 from ' + target_schema + '.observation o'
                     create = create + ' where t.domain_concept_id_1 = 27 and t.fact_id_1 = o.observation_id)'
                 if table_name == 'location_history':
-                    create = create + ' join ' + target_schema + '.' + cohort_table + ' c on c.person_id = t.entity_id'
-                if table_name == 'specialty':
                     create = create + ' join ' + target_schema + '.' + cohort_table + ' c on c.person_id = t.entity_id'
                 if table_name == 'visit_payer':
                     create = create + ' join ' + target_schema + '.visit_occurrence v on v.visit_occurrence_id = t.visit_occurrence_id'

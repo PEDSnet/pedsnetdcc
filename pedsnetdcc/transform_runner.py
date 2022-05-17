@@ -17,7 +17,7 @@ from pedsnetdcc.schema import (create_schema_statement, create_schema,
                                schema_exists, tables_in_schema)
 from pedsnetdcc.utils import (DatabaseError, get_conn_info_dict, combine_dicts,
                               stock_metadata, conn_str_with_search_path,
-                              pg_error, set_logged)
+                              pg_error, set_logged, check_stmt_err, check_stmt_data)
 
 from pedsnetdcc.age_transform import AgeTransform
 from pedsnetdcc.concept_name_transform import ConceptNameTransform
@@ -488,6 +488,7 @@ def _transform_target(conn_str, model_version, site, target_schema, id_name, id_
             raise DatabaseError('{msg}: {err}'.format(msg=stmt.msg,
                                                       err=stmt.err))
 
+
 def _transform_age(conn_str, model_version, site, target_schema, target_table, force=False):
     """Run transformations.
 
@@ -763,6 +764,32 @@ def _drop_target_tables_statements(model_version, schema, target_table, if_exist
     return stmts
 
 
+def _adjust_specialty_entity_ids(conn_str, schema):
+    update_specialty_sql = """
+        UPDATE {0}.specialty s
+        SET entity_id=et.entity_id
+        FROM (
+            select site_id, care_site_id as entity_id, 'CARE_SITE' as entity_type
+            from {0}.care_site
+            union
+            select site_id, provider_id as entity_id, 'PROVIDER' as entity_type
+            from {0}.provider
+        ) et
+        WHERE s.entity_id = et.site_id and s.domain_id = et.entity_type;
+    """
+    update_specialty_msg = "updating {0}.specialty entity_id"
+
+    # Update the entity_id
+    update_specialty_stmt = Statement(update_specialty_sql.format(schema), update_specialty_msg.format(schema))
+
+    # Execute the statement and ensure it didn't error
+    update_specialty_stmt.execute(conn_str)
+    check_stmt_err(update_specialty_stmt, 'update specialty entity_id')
+
+    # If reached without error, then success!
+    return True
+
+
 def run_transformation(conn_str, model_version, site, search_path, id_name, id_type,
                        limit=False, owner='loading_user', force=False):
     """Run all transformations, backing up existing tables to a backup schema.
@@ -822,6 +849,9 @@ def run_transformation(conn_str, model_version, site, search_path, id_name, id_t
     # Add primary keys to the transformed tables
     add_primary_keys(new_conn_str, model_version, force)
 
+    # Update the speciality.entity_id based on domain_id
+    _adjust_specialty_entity_ids(new_conn_str, tmp_schema)
+
     # Add NOT NULL constraints to the transformed tables (no force option)
     set_not_nulls(new_conn_str, model_version)
 
@@ -833,7 +863,6 @@ def run_transformation(conn_str, model_version, site, search_path, id_name, id_t
 
     # Add constraints to the transformed tables
     add_foreign_keys(new_conn_str, model_version, force)
-
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.
@@ -1410,7 +1439,6 @@ def run_id_transformation(conn_str, model_version, site, search_path, target_tab
          'elapsed': secs_since(start_time)}, log_dict))
 
     return True
-
 
 def run_index_transformation(conn_str, model_version, site, search_path, target_table, force=False):
     """Run index transformation.
