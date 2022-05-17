@@ -84,6 +84,7 @@ ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
     'observation',
     'observation_period',
     'procedure_occurrence',
+    'specialty',
     'visit_payer'
 )
 
