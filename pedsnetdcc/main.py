@@ -56,12 +56,14 @@ def pedsnetdcc(logfmt, loglvl):
               help='Use string type for ids.')
 @click.option('--logged', is_flag=True, default=False,
               help='Create logged tables.')
+@click.option('--pool1', is_flag=True, default=False,
+              help='Limit pool size to 1.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stringid, logged, model_version):
+def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stringid, logged, pool1, model_version):
     """Run all post load operations
 
     Run check_fact_relationship
@@ -99,7 +101,7 @@ def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stri
         idtype = 'BigInteger'
 
     from pedsnetdcc.transform_runner import run_transformation
-    success = run_transformation(conn_str, model_version, site, searchpath, name, idtype, logged,
+    success = run_transformation(conn_str, model_version, site, searchpath, name, idtype, logged, pool1,
                                  limit, owner, force)
 
     if not success:
@@ -302,6 +304,8 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt, name, skipsites, addsites):
               help='Use string type for ids.')
 @click.option('--logged', is_flag=True, default=False,
               help='Create logged tables.')
+@click.option('--pool1', is_flag=True, default=False,
+              help='Limit pool size to 1')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
@@ -309,7 +313,7 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt, name, skipsites, addsites):
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
-def transform(pwprompt, searchpath, site, name, limit, owner, stringid, logged, force, model_version, undo, dburi):
+def transform(pwprompt, searchpath, site, name, limit, owner, stringid, logged, pool1, force, model_version, undo, dburi):
     """Transform PEDSnet data into the DCC format.
 
     Using the hard-coded set of transformations in this tool, transform data
@@ -343,7 +347,7 @@ def transform(pwprompt, searchpath, site, name, limit, owner, stringid, logged, 
 
     if not undo:
         from pedsnetdcc.transform_runner import run_transformation
-        success = run_transformation(conn_str, model_version, site, searchpath, name, idtype, logged,
+        success = run_transformation(conn_str, model_version, site, searchpath, name, idtype, logged, pool1,
                                      limit, owner, force)
     else:
         from pedsnetdcc.transform_runner import undo_transformation

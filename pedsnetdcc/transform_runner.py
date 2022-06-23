@@ -427,7 +427,7 @@ def _transform_index_select_sql(model_version, site, target_schema, target_table
     return stmt_pairs
 
 
-def _transform(conn_str, model_version, site, target_schema, id_name, id_type, logged, force=False):
+def _transform(conn_str, model_version, site, target_schema, id_name, id_type, logged, pool_limit, force=False):
     """Run transformations.
 
     TODO: Check whether exception handling is consistent e.g. DatabaseError.
@@ -437,7 +437,8 @@ def _transform(conn_str, model_version, site, target_schema, id_name, id_type, l
     :param str target_schema: temporary schema to hold transformed tables
     :param str id_name: name of the id set
     :param str id_type: type of the site id set
-    :param bool logged: create logged table
+    :param bool logged: if True create logged table
+    :param bool pool_limit: if True limit pool to 1
     :return: list of SQL statement strings
     :raise: psycopg2.ProgrammingError (from pre_transform)
     """
@@ -451,7 +452,12 @@ def _transform(conn_str, model_version, site, target_schema, id_name, id_type, l
 
     # Execute creation of transformed tables in parallel.
     # Note that the target schema is embedded in the SQL statements.
-    stmts.parallel_execute(conn_str)
+    if pool_limit:
+        pool_size = 1
+    else:
+        pool_size = 24
+
+    stmts.parallel_execute(conn_str, pool_size)
     for stmt in stmts:
         # TODO: should we log all the individual errors at ERROR level?
         if stmt.err:
@@ -796,7 +802,7 @@ def _adjust_specialty_entity_ids(conn_str, schema):
     return True
 
 
-def run_transformation(conn_str, model_version, site, search_path, id_name, id_type, logged,
+def run_transformation(conn_str, model_version, site, search_path, id_name, id_type, logged, pool_limit,
                        limit=False, owner='loading_user', force=False):
     """Run all transformations, backing up existing tables to a backup schema.
 
@@ -816,6 +822,7 @@ def run_transformation(conn_str, model_version, site, search_path, id_name, id_t
     :param str id_name: name of the id ex: dcc or onco
     :param str id_type: type of the site id: BigInteger or String
     :param bool logged: if True, create logged tables
+    :param bool pool_limit: if True, limit pool size to 1
     :param bool limit: if True, limit permissions to owner
     :param str owner: role to give permissions to if limited
     :param bool force: if True, ignore benign errors
@@ -844,7 +851,7 @@ def run_transformation(conn_str, model_version, site, search_path, id_name, id_t
     create_schema(conn_str, tmp_schema, force)
 
     # Perform the transformation.
-    _transform(conn_str, model_version, site, tmp_schema, id_name, id_type, logged, force)
+    _transform(conn_str, model_version, site, tmp_schema, id_name, id_type, logged, pool_limit, force)
 
     # Set up new connection string for manipulating the target schema
     new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
