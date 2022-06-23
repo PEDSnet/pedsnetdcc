@@ -195,7 +195,7 @@ def check_fact_relationship(searchpath, pwprompt, output, poolsize, dburi):
 @click.option('--site_type', required=False, default='BIGINT',
               help='type of the id (ex: BIGINT')
 @click.option('--site_len', required=False, default='256',
-              help='the length for varchar'
+              help='the length for varchar')
 @click.argument('dburi')
 def create_id_maps(dburi, pwprompt, skipsites, addsites, name, type, site_type, site_len):
     """Create id map tables to map the relationship between site ids and the dcc ids
