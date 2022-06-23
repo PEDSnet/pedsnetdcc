@@ -54,12 +54,14 @@ def pedsnetdcc(logfmt, loglvl):
               help='the role that permissions should be granted to if permissions limited')
 @click.option('--stringid', is_flag=True, default=False,
               help='Use string type for ids.')
+@click.option('--logged', is_flag=True, default=False,
+              help='Create logged tables.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stringid, model_version):
+def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stringid, logged, model_version):
     """Run all post load operations
 
     Run check_fact_relationship
@@ -97,7 +99,7 @@ def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stri
         idtype = 'BigInteger'
 
     from pedsnetdcc.transform_runner import run_transformation
-    success = run_transformation(conn_str, model_version, site, searchpath, name, idtype,
+    success = run_transformation(conn_str, model_version, site, searchpath, name, idtype, logged,
                                  limit, owner, force)
 
     if not success:
@@ -188,10 +190,14 @@ def check_fact_relationship(searchpath, pwprompt, output, poolsize, dburi):
               help='sites to add delimited by ,')
 @click.option('--name', required=False, default='dcc',
               help='name of the id (ex: onco')
-@click.option('--type', required=False, default='INTEGER',
+@click.option('--type', required=False, default='BIGINT',
               help='type of the id (ex: BIGINT')
+@click.option('--site_type', required=False, default='BIGINT',
+              help='type of the id (ex: BIGINT')
+@click.option('--site_len', required=False, default='256',
+              help='the length for varchar'
 @click.argument('dburi')
-def create_id_maps(dburi, pwprompt, skipsites, addsites, name, type):
+def create_id_maps(dburi, pwprompt, skipsites, addsites, name, type, site_type, site_len):
     """Create id map tables to map the relationship between site ids and the dcc ids
 
     Mapping between external site ids and dcc ids are neccessary to ensure data stays consistent
@@ -213,7 +219,7 @@ def create_id_maps(dburi, pwprompt, skipsites, addsites, name, type):
 
     conn_str = make_conn_str(dburi, password=password)
     create_dcc_ids_tables(conn_str, name, type)
-    create_id_map_tables(conn_str, skipsites, addsites, name, type)
+    create_id_map_tables(conn_str, skipsites, addsites, name, type, site_type, site_len)
 
 
 @pedsnetdcc.command()
@@ -294,6 +300,8 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt, name, skipsites, addsites):
               help='the role that permissions should be granted to if permissions limited')
 @click.option('--stringid', is_flag=True, default=False,
               help='Use string type for ids.')
+@click.option('--logged', is_flag=True, default=False,
+              help='Create logged tables.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
@@ -301,7 +309,7 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt, name, skipsites, addsites):
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
-def transform(pwprompt, searchpath, site, name, limit, owner, stringid, force, model_version, undo, dburi):
+def transform(pwprompt, searchpath, site, name, limit, owner, stringid, logged, force, model_version, undo, dburi):
     """Transform PEDSnet data into the DCC format.
 
     Using the hard-coded set of transformations in this tool, transform data
@@ -335,7 +343,7 @@ def transform(pwprompt, searchpath, site, name, limit, owner, stringid, force, m
 
     if not undo:
         from pedsnetdcc.transform_runner import run_transformation
-        success = run_transformation(conn_str, model_version, site, searchpath, name, idtype,
+        success = run_transformation(conn_str, model_version, site, searchpath, name, idtype, logged,
                                      limit, owner, force)
     else:
         from pedsnetdcc.transform_runner import undo_transformation

@@ -17,7 +17,7 @@ DCC_IDS_TABLE_SQL = """{1}_ids.{1}_{0}_id"""
 
 ID_MAP_TABLE_SQL = """{0}{2}_id_maps.{1}_ids"""
 
-CREATE_ID_MAP_TABLE_SQL = """CREATE TABLE IF NOT EXISTS {0}.{1}_ids({2}_id {3} NOT NULL, site_id {3} NOT NULL)"""
+CREATE_ID_MAP_TABLE_SQL = """CREATE TABLE IF NOT EXISTS {0}.{1}_ids({2}_id {3} NOT NULL, site_id {4} NOT NULL)"""
 
 CREATE_DCC_ID_TABLE_SQL = """CREATE TABLE IF NOT EXISTS {0}.{1}(last_id {2} NOT NULL)"""
 INITIALIZE_DCC_ID_TABLE_SQL = """INSERT INTO {0}.{1}(last_id) values(1)"""
@@ -203,7 +203,7 @@ def create_dcc_ids_tables(conn_str, id_name, id_type):
     })
 
 
-def create_id_map_tables(conn_str, skipsites, addsites, id_name, id_type):
+def create_id_map_tables(conn_str, skipsites, addsites, id_name, id_type, site_type, site_len):
     """Create a table (per site) for holding the id mappings between sites and the dcc
 
      :param str conn_str: connection string for target database
@@ -211,10 +211,16 @@ def create_id_map_tables(conn_str, skipsites, addsites, id_name, id_type):
      :param str addsites:   `   sites to add
      :param str id_name:        name of the id ex. dcc or onco
      :param id_type:            type of id INTEGER or BIGINT
+     :param site_type:          type of site_id INTEGER, BIGINT, or VARCHAR
+     :param site_len:           if site_type VARCHAR the length
      """
 
     logger.info({'msg': 'starting id_map table creation'})
     starttime = time.time()
+
+    # Set site_type
+    if site_type == 'VARCHAR':
+        site_type = 'VARCHAR(' + site_len + ')'
 
     # Get Sites to skip
     skip_sites = skipsites.split(",")
@@ -236,7 +242,7 @@ def create_id_map_tables(conn_str, skipsites, addsites, id_name, id_type):
         schema = schema + '_id_maps'
         for table in ID_MAP_TABLES:
             statements.extend(
-                [Statement(CREATE_ID_MAP_TABLE_SQL.format(schema, table, id_name, id_type))])
+                [Statement(CREATE_ID_MAP_TABLE_SQL.format(schema, table, id_name, id_type, site_type))])
 
     statements.serial_execute(conn_str)
 
