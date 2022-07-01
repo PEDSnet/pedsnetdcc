@@ -455,7 +455,7 @@ def _transform(conn_str, model_version, site, target_schema, id_name, id_type, l
     if pool_limit:
         pool_size = 1
     else:
-        pool_size = 24
+        pool_size = 25
 
     stmts.parallel_execute(conn_str, pool_size)
     for stmt in stmts:
