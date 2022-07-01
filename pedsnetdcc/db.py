@@ -287,7 +287,7 @@ class StatementSet(collections.MutableSet):
         """Execute all statements in parallel using pool_size num workers.
 
         Initialize pool_size number of worker processes (or one worker per
-        statement up to 24, by default) running the `_worker_process` module
+        statement up to 25, by default) running the `_worker_process` module
         method with taskq, resq, and logq as task provisioning, result putting,
         and log record putting queues as arguments. Place all of the Statements
         in the set onto the task queue, start the `_logger_thread` module
@@ -311,7 +311,7 @@ class StatementSet(collections.MutableSet):
         """
 
         workers = []
-        max_workers = 24
+        max_workers = 25
 
         if not pool_size:
             if len(self) <= max_workers:
