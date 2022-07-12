@@ -20,6 +20,7 @@ GRANT_OBS_LIKE_TABLE_SQL = 'grant select on table {0}.observation_derivation_rec
 DROP_PK_CONSTRAINT_SQL = """alter table {0}.observation_derivation_recover drop constraint if exists xpk_observation_derivation_recover;
     alter table {0}.observation_derivation_recover drop constraint if exists observation_derivation_recover_pkey;"""
 DROP_NULL_SQL = 'alter table {0}.observation_derivation_recover alter column observation_id drop not null;'
+ADD_SITE_SQL = 'UPDATE {0}.observation_derivation_recover SET site = {1};'
 
 
 def _fill_concept_names(conn_str, schema):
@@ -319,6 +320,25 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
             raise
+
+        # Add site statement.
+        stmts.clear()
+        add_stmt = Statement(ADD_SITE_SQL.format(schema, site))
+        stmts.add(add_stmt)
+
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                stmt.execute(conn_str)
+                check_stmt_err(stmt, logger_msg.format('Run'))
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'add site failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
 
     # add observation_ids
     okay = _add_observation_ids(conn_str, site, search_path, model_version, id_name)
