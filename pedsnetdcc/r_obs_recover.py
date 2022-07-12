@@ -320,15 +320,6 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
                                       log_dict))
             raise
 
-    # clear "fake" ids added by R query
-    # okay = _clear_fake_ids(conn_str, schema)
-    # if not okay:
-    #    return False
-
-    okay = False
-    if not okay:
-        return False
-
     # add observation_ids
     okay = _add_observation_ids(conn_str, site, search_path, model_version, id_name)
     if not okay:
