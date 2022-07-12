@@ -20,13 +20,12 @@ GRANT_OBS_LIKE_TABLE_SQL = 'grant select on table {0}.observation_derivation_rec
 DROP_PK_CONSTRAINT_SQL = """alter table {0}.observation_derivation_recover drop constraint if exists xpk_observation_derivation_recover;
     alter table {0}.observation_derivation_recover drop constraint if exists observation_derivation_recover_pkey;"""
 DROP_NULL_SQL = 'alter table {0}.observation_derivation_recover alter column observation_id drop not null;'
-ADD_SITE_SQL = 'UPDATE {0}.observation_derivation_recover SET site = {1};'
+ADD_SITE_SQL = """UPDATE {0}.observation_derivation_recover SET site = '{1}';"""
 
 
 def _fill_concept_names(conn_str, schema):
     fill_concept_names_sql = """UPDATE {0}.observation_derivation_recover zs
         SET observation_concept_name=v.observation_concept_name,
-        observation_source_concept_name=v.observation_source_concept_name, 
         observation_type_concept_name=v.observation_type_concept_name, 
         qualifier_concept_name=v.qualifier_concept_name, 
         unit_concept_name=v.unit_concept_name, 
@@ -34,14 +33,12 @@ def _fill_concept_names(conn_str, schema):
         FROM ( SELECT
         z.observation_id AS observation_id,
         v1.concept_name AS observation_concept_name, 
-        v2.concept_name AS observation_source_concept_name, 
         v3.concept_name AS observation_type_concept_name, 
         v4.concept_name AS qualifier_concept_name,  
         v5.concept_name AS unit_concept_name,
         v6.concept_name AS value_as_concept_name
         FROM {0}.observation_derivation_recover AS z
         LEFT JOIN vocabulary.concept AS v1 ON z.observation_concept_id = v1.concept_id
-        LEFT JOIN vocabulary.concept AS v2 ON z.observation_source_concept_id = v2.concept_id 
         LEFT JOIN vocabulary.concept AS v3 ON z.observation_type_concept_id = v3.concept_id
         LEFT JOIN vocabulary.concept AS v4 ON z.qualifier_concept_id  = v4.concept_id
         LEFT JOIN vocabulary.concept AS v5 ON z.unit_concept_id  = v5.concept_id
