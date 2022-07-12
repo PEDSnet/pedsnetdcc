@@ -38,7 +38,7 @@ def _fill_concept_names(conn_str, schema):
         v4.concept_name AS qualifier_concept_name,  
         v5.concept_name AS unit_concept_name,
         v6.concept_name AS value_as_concept_name
-        FROM {0}.observation_derivation_covid AS z
+        FROM {0}.observation_derivation_recover AS z
         LEFT JOIN vocabulary.concept AS v1 ON z.observation_concept_id = v1.concept_id
         LEFT JOIN vocabulary.concept AS v2 ON z.observation_source_concept_id = v2.concept_id 
         LEFT JOIN vocabulary.concept AS v3 ON z.observation_type_concept_id = v3.concept_id
@@ -99,11 +99,11 @@ def _fill_age_in_months(conn_str, schema):
         the original timestamp from the resulting value, albeit with great
         difficulty.';
 
-    update {0}.observation_derivation_covid od
+    update {0}.observation_derivation_recover od
     set observation_age_in_months=subquery.observation_age_in_months
     from (select observation_id, 
         {0}.months_in_interval(p.birth_datetime, o.observation_datetime::timestamp without time zone) as observation_age_in_months
-        from {0}.observation_derivation_covid o
+        from {0}.observation_derivation_recover o
         join {0}.person p on p.person_id = o.person_id) AS subquery
     where od.observation_id=subquery.observation_id;"""
 
@@ -139,7 +139,7 @@ def _copy_to_obs_table(conn_str, schema):
             observation_source_concept_name, observation_type_concept_name, 
             qualifier_concept_name, unit_concept_name, value_as_concept_name, site, 
             observation_id, site_id, provider_id, visit_occurrence_id, person_id
-        from {0}.observation_derivation_covid) ON CONFLICT DO NOTHING"""
+        from {0}.observation_derivation_recover) ON CONFLICT DO NOTHING"""
 
     copy_to_msg = "copying {0} to observation"
 
@@ -385,7 +385,7 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
             base_name = ''.join(fk.split('_')[:1])
             ref_table = '_'.join(fk.split('_')[:fk_len])
             ref_col = fk
-        fk_name = "fk_obs_" + base_name + "_covid"
+        fk_name = "fk_obs_" + base_name + "_recover"
         fk_stmt = Statement(FK_OBS_LIKE_TABLE_SQL.format(schema,
                                                          fk_name, fk, ref_table,
                                                          ref_col))
@@ -432,7 +432,7 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
     for stmt in stmts:
         try:
             stmt.execute(conn_str)
-            check_stmt_err(stmt, 'Covid Observation Derivation')
+            check_stmt_err(stmt, 'Observation Derivation Recover')
         except:
             logger.error(combine_dicts({'msg': 'Fatal error',
                                         'sql': stmt.sql,
@@ -497,7 +497,7 @@ def _add_observation_ids(conn_str, site, search_path, model_version, id_name):
 
     new_id_count_sql = """SELECT COUNT(*)
         FROM {0}.observation_derivation_recover WHERE observation_id IS NULL"""
-    new_id_count_msg = "counting new IDs needed for observation_derivation_covid"
+    new_id_count_msg = "counting new IDs needed for observation_derivation_recover"
     lock_last_id_sql = """LOCK {last_id_table_name}"""
     lock_last_id_msg = "locking {table_name} last ID tracking table for update"
 
@@ -509,10 +509,10 @@ def _add_observation_ids(conn_str, site, search_path, model_version, id_name):
     create_seq_observation_msg = "creating observation_derivation_recover sequence"
     set_seq_number_sql = "alter sequence {0}.{1}_obs_derivation_recover_seq restart with {2};"
     set_seq_number_msg = "setting sequence number"
-    add_observation_ids_sql = """update {0}.obs_derivation_recover set observation_id = nextval('{0}.{1}_obs_derivation_recover_seq')
+    add_observation_ids_sql = """update {0}.observation_derivation_recover set observation_id = nextval('{0}.{1}_obs_derivation_recover_seq')
         where observation_id is null"""
     add_observation_ids_msg = "adding the observation ids to the observation_derivation_recover table"
-    pk_observation_id_sql = "alter table {0}.observation_derivation_covid add primary key (observation_id)"
+    pk_observation_id_sql = "alter table {0}.observation_derivation_recover add primary key (observation_id)"
     pk_observation_id_msg = "making observation_id the primary key"
 
     conn_info_dict = get_conn_info_dict(conn_str)
