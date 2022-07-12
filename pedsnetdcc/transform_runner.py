@@ -787,7 +787,7 @@ def _adjust_specialty_entity_ids(conn_str, schema):
             select site_id, provider_id as entity_id, 'PROVIDER' as entity_type
             from {0}.provider
         ) et
-        WHERE s.entity_id = et.site_id and s.domain_id = et.entity_type;
+        WHERE s.entity_id::text = et.site_id::text and s.domain_id = et.entity_type;
     """
     update_specialty_msg = "updating {0}.specialty entity_id"
 
