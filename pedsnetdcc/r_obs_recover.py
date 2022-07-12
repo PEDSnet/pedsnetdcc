@@ -371,8 +371,8 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
     stmts.clear()
     logger.info({'msg': 'adding foreign keys'})
     col_fk = ('observation_concept_id', 'person_id', 'provider_id',
-              'observation_source_concept_id', 'qualifier_concept_id',
-              'observation_type_concept_id', 'unit_concept_id', 'value_as_concept_id',
+              'qualifier_concept_id', 'observation_type_concept_id',
+              'unit_concept_id', 'value_as_concept_id',
               'visit_occurrence_id',)
 
     for fk in col_fk:
