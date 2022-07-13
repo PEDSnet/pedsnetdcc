@@ -21,8 +21,8 @@ DROP_PK_CONSTRAINT_SQL = """alter table {0}.observation_derivation_recover drop 
     alter table {0}.observation_derivation_recover drop constraint if exists observation_derivation_recover_pkey;"""
 DROP_NULL_SQL = 'alter table {0}.observation_derivation_recover alter column observation_id drop not null;'
 ADD_SITE_SQL = """UPDATE {0}.observation_derivation_recover SET site = '{1}';"""
-RENAME_SQL = """ALTER TABLE IF EXISTS {1}.observation_derivation_recover_misc
-    RENAME TO observation_derivation_recover;"""
+RENAME_SQL = """ALTER TABLE IF EXISTS {0}.observation_derivation_recover_misc
+    RENAME TO {0}.observation_derivation_recover;"""
 
 
 def _fill_concept_names(conn_str, schema):
