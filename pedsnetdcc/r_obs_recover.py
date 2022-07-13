@@ -21,6 +21,8 @@ DROP_PK_CONSTRAINT_SQL = """alter table {0}.observation_derivation_recover drop 
     alter table {0}.observation_derivation_recover drop constraint if exists observation_derivation_recover_pkey;"""
 DROP_NULL_SQL = 'alter table {0}.observation_derivation_recover alter column observation_id drop not null;'
 ADD_SITE_SQL = """UPDATE {0}.observation_derivation_recover SET site = '{1}';"""
+RENAME_SQL = """ALTER TABLE IF EXISTS {1}.observation_derivation_recover_misc
+    RENAME TO observation_derivation_recover;"""
 
 
 def _fill_concept_names(conn_str, schema):
@@ -280,8 +282,27 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
     logger.info(combine_dicts({'msg': 'finished R Script',
                                'elapsed': secs_since(start_time)}, log_dict))
 
-    # Drop primary key.
     stmts = StatementSet()
+    # Rename the table
+    rename_stmt = Statement(RENAME_SQL.format(schema))
+    stmts.add(rename_stmt)
+
+    # Check for any errors and raise exception if they are found.
+    for stmt in stmts:
+        try:
+            stmt.execute(conn_str)
+            check_stmt_err(stmt, logger_msg.format('Run'))
+        except:
+            logger.error(combine_dicts({'msg': 'Fatal error',
+                                        'sql': stmt.sql,
+                                        'err': str(stmt.err)}, log_dict))
+            logger.info(combine_dicts({'msg': 'rename failed',
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            raise
+
+    # Drop primary key.
+    stmts.clear()
     drop_pk_stmt = Statement(DROP_PK_CONSTRAINT_SQL.format(schema))
     stmts.add(drop_pk_stmt)
 
