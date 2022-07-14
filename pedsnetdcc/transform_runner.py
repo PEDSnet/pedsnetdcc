@@ -85,10 +85,10 @@ def _transform_select_sql(model_version, site, target_schema, id_name, id_type, 
         table_sql = str(table_sql_obj) % table_sql_obj.params
 
         if logged:
-            final_sql = 'set statement_timeout to 100000000; CREATE TABLE {0}.{1} AS {2}'.format(
+            final_sql = 'CREATE TABLE {0}.{1} AS {2}'.format(
                 target_schema, table_name, table_sql)
         else:
-            final_sql = 'set statement_timeout to 100000000; CREATE UNLOGGED TABLE {0}.{1} AS {2}'.format(
+            final_sql = 'CREATE UNLOGGED TABLE {0}.{1} AS {2}'.format(
                 target_schema, table_name, table_sql)
         msg = 'creating transformed copy of table {}'.format(table_name)
 
