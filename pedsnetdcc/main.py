@@ -100,7 +100,7 @@ def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stri
     else:
         idtype = 'BigInteger'
 
-    from pedsnetdcc.transform_runner import run_transformation
+    from pedsnetdcc.transform_runner import ation
     success = run_transformation(conn_str, model_version, site, searchpath, name, idtype, logged, pool1,
                                  limit, owner, force)
 
@@ -1723,7 +1723,7 @@ def copy_drug_era(pwprompt, searchpath, site, dburi):
 @click.option('--size', required=False, default='5000',
               help='size of the group of persons processed at a time')
 @click.argument('dburi')
-def run_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids, nopk, novac, size, dburi):
+def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids, nopk, novac, size, dburi):
     """Run Drug Era derivation.
 
     The steps are:
