@@ -21,8 +21,8 @@ DROP_PK_CONSTRAINT_SQL = """alter table {0}.observation_derivation_recover drop 
     alter table {0}.observation_derivation_recover drop constraint if exists observation_derivation_recover_pkey;"""
 DROP_NULL_SQL = 'alter table {0}.observation_derivation_recover alter column observation_id drop not null;'
 ADD_SITE_SQL = """UPDATE {0}.observation_derivation_recover SET site = '{1}';"""
-ADD_DCC_SITE_SQL = """UPDATE dcc_{1}.observation_derivation_recover o SET site=p.site 
-    FROM (select person_id, site from dcc_{1}.person)p WHERE o.person_id = p.person_id;"""
+ADD_DCC_SITE_SQL = """UPDATE dcc_{0}.observation_derivation_recover o SET site=p.site 
+    FROM (select person_id, site from dcc_{0}.person)p WHERE o.person_id = p.person_id;"""
 RENAME_SQL = """ALTER TABLE IF EXISTS {0}.observation_derivation_recover_misc
     RENAME TO observation_derivation_recover;"""
 
