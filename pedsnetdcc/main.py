@@ -100,7 +100,7 @@ def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stri
     else:
         idtype = 'BigInteger'
 
-    from pedsnetdcc.transform_runner import ation
+    from pedsnetdcc.transform_runner import run_transformation
     success = run_transformation(conn_str, model_version, site, searchpath, name, idtype, logged, pool1,
                                  limit, owner, force)
 
