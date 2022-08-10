@@ -101,7 +101,7 @@ _dms_var = 'PEDSNETDCC_DMS_URL'
 if _dms_var in os.environ:
     DATA_MODELS_SERVICE = os.environ[_dms_var]
 else:
-    DATA_MODELS_SERVICE = 'https://data-models-service.research.chop.edu/'
+    DATA_MODELS_SERVICE = 'http://data-models-service.research.chop.edu/'
 
 __all__ = (__version__, VOCAB_TABLES, DATA_MODELS_SERVICE,
            FACT_RELATIONSHIP_DOMAINS)
