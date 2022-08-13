@@ -21,8 +21,8 @@ DROP_PK_CONSTRAINT_SQL = """alter table {0}.observation_derivation_recover drop 
     alter table {0}.observation_derivation_recover drop constraint if exists observation_derivation_recover_pkey;"""
 DROP_NULL_SQL = 'alter table {0}.observation_derivation_recover alter column observation_id drop not null;'
 ADD_SITE_SQL = """UPDATE {0}.observation_derivation_recover SET site = '{1}';"""
-ADD_DCC_SITE_SQL = """UPDATE dcc_{0}.observation_derivation_recover o SET site=p.site 
-    FROM (select person_id, site from dcc_{0}.person)p WHERE o.person_id = p.person_id;"""
+ADD_DCC_SITE_SQL = """UPDATE {0}.observation_derivation_recover o SET site=p.site 
+    FROM (select person_id, site from {0}.person)p WHERE o.person_id = p.person_id;"""
 RENAME_SQL = """ALTER TABLE IF EXISTS {0}.observation_derivation_recover_misc
     RENAME TO observation_derivation_recover;"""
 
@@ -327,10 +327,7 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
         # Add site statement.
         stmts.clear()
         if site == 'dcc':
-            if id_name != 'dcc':
-                add_stmt = Statement(ADD_DCC_SITE_SQL.format(id_name))
-            else:
-                add_stmt = Statement(ADD_DCC_SITE_SQL.format('pedsnet'))
+            add_stmt = Statement(ADD_DCC_SITE_SQL.format(schema))
         else:
             add_stmt = Statement(ADD_SITE_SQL.format(schema, site))
         stmts.add(add_stmt)
