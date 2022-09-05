@@ -2595,6 +2595,47 @@ def run_r_dose(pwprompt, searchpath, site, model_version, copy, limit, owner, db
 
     sys.exit(0)
 
+@pedsnetdcc.command()
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--site', required=True,
+              help='PCORnet site name for the config file.')
+@click.option('--source_schema', required=True,
+              help='Schema where the source (adult + pediatric) tables are located')
+@click.option('--target_schema', required=True,
+              help='Schema where the subset tables (pediatric only) should be located')
+@click.argument('dburi')
+def r_pcornet_peds_slice(pwprompt, searchpath, site, source_schema, target_schema, dburi):
+    """Run R Script.
+
+    The steps are:
+
+      - Create the Argos file.
+      - Run the script.
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+    config_file = site + "_" + package + "_argos_temp.json"
+
+    from pedsnetdcc.r_pcornet_peds_slice import run_r_pcornet_peds_slice
+    success = run_r_pcornet_peds_slice(config_file, conn_str, site, password, source_schema, target_schema)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
+
 
 @pedsnetdcc.command()
 @click.option('--model-version', '-v', required=True,
