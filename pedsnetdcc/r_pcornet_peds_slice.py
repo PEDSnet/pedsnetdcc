@@ -95,7 +95,7 @@ def run_r_pcornet_peds_slice(config_file, conn_str, site, password, source_schem
         pass_match = re.search(r"password=(\S*)", conn_str)
         password = pass_match.group(1)
 
-    source_path = os.path.join(os.sep,'app', package)
+    source_path = os.path.join(os.sep,'app', 'pcornet_peds_slice')
     dest_path = os.path.join(source_path, site)
     # delete any old versions
     if os.path.isdir(dest_path):
