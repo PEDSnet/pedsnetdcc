@@ -2606,7 +2606,7 @@ def run_r_dose(pwprompt, searchpath, site, model_version, copy, limit, owner, db
 @click.option('--target_schema', required=True,
               help='Schema where the subset tables (pediatric only) should be located')
 @click.argument('dburi')
-def r_pcornet_peds_slice(pwprompt, searchpath, site, source_schema, target_schema, dburi):
+def run_r_pcornet_peds_slice(pwprompt, searchpath, site, source_schema, target_schema, dburi):
     """Run R Script.
 
     The steps are:
@@ -2626,7 +2626,7 @@ def r_pcornet_peds_slice(pwprompt, searchpath, site, source_schema, target_schem
         password = click.prompt('Database password', hide_input=True)
 
     conn_str = make_conn_str(dburi, searchpath, password)
-    config_file = site + "_" + package + "_argos_temp.json"
+    config_file = site + "_pcornet_peds_slice_argos_temp.json"
 
     from pedsnetdcc.r_pcornet_peds_slice import run_r_pcornet_peds_slice
     success = run_r_pcornet_peds_slice(config_file, conn_str, site, password, source_schema, target_schema)
