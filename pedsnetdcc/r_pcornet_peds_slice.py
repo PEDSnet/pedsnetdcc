@@ -103,7 +103,7 @@ def run_r_pcornet_peds_slice(config_file, conn_str, site, password, source_schem
     # copy base files to site specific
     shutil.copytree(source_path, dest_path)
     # create the Argos congig file
-    _create_argos_file(dest_path, config_file, schema, password, conn_info_dict)
+    _create_argos_file(dest_path, config_file, source_schema, target_schema, password, conn_info_dict)
     # modify site_info and run.R to add actual site
     _fix_site_info(dest_path, site, source_schema, target_schema)
     _fix_run(dest_path, site, source_schema, target_schema)
