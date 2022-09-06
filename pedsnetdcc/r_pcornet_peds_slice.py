@@ -94,7 +94,8 @@ def run_r_pcornet_peds_slice(config_file, conn_str, site, password, source_schem
         pass_match = re.search(r"password=(\S*)", conn_str)
         password = pass_match.group(1)
 
-    source_path = os.path.join(os.sep,'app', 'pcornet_peds_slice')
+    package = 'pcornet_peds_slice'
+    source_path = os.path.join(os.sep,'app', package)
     dest_path = os.path.join(source_path, site)
     # delete any old versions
     if os.path.isdir(dest_path):
@@ -107,7 +108,7 @@ def run_r_pcornet_peds_slice(config_file, conn_str, site, password, source_schem
     _fix_site_info(dest_path, site, source_schema, target_schema)
     _fix_run(dest_path, site, source_schema, target_schema)
 
-    query_path = os.path.join(os.sep,'app', 'pcornet_peds_slice', site, 'site', 'run.R')
+    query_path = os.path.join(os.sep,'app', package, site, 'site', 'run.R')
     # Run R script
     Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
 
