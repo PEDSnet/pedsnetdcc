@@ -71,7 +71,6 @@ def run_r_pcornet_peds_slice(config_file, conn_str, site, password, source_schem
     :param str config_file:   config file name
     :param str conn_str:      database connection string
     :param str site:    site to run script for
-    :param str package:    package to run
     :param str password:    user's password
     :param str source_schema: schema to use as source (adult + pediatric schema)
     :param str target_schema: schema to put results (pediatric schema)
@@ -108,7 +107,7 @@ def run_r_pcornet_peds_slice(config_file, conn_str, site, password, source_schem
     _fix_site_info(dest_path, site, source_schema, target_schema)
     _fix_run(dest_path, site, source_schema, target_schema)
 
-    query_path = os.path.join(os.sep,'app', package, site, 'site', 'run.R')
+    query_path = os.path.join(os.sep,'app', pcornet_peds_slice, site, 'site', 'run.R')
     # Run R script
     Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
 
