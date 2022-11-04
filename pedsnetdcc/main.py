@@ -2034,10 +2034,12 @@ def copy_to_dcc(pwprompt, searchpath, site, table, dburi):
               help='partition dcc vs site measurement table')
 @click.option('--site3', is_flag=True, default=False,
               help='partition site measurement table in 3')
+@click.option('--no_vital', is_flag=True, default=False,
+              help='do not include vitals in partition')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def partition_measurement(pwprompt, searchpath, dcc, site3, model_version, dburi):
+def partition_measurement(pwprompt, searchpath, dcc, site3, no_vital, model_version, dburi):
     """Partition measurement using measurement_anthro, measurement_labs, and measurement_vitals split tables
 
     The steps are:
@@ -2062,7 +2064,7 @@ def partition_measurement(pwprompt, searchpath, dcc, site3, model_version, dburi
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.partition_measurement import partition_measurement_table
-    success = partition_measurement_table(conn_str, model_version, searchpath, dcc, site3)
+    success = partition_measurement_table(conn_str, model_version, searchpath, dcc, site3, no_vital)
 
     if not success:
         sys.exit(1)
@@ -2078,10 +2080,12 @@ def partition_measurement(pwprompt, searchpath, dcc, site3, model_version, dburi
               help='unpartition dcc vs site measurement table')
 @click.option('--site3', is_flag=True, default=False,
               help='unpartition site measurement table in 3')
+@click.option('--no_vital', is_flag=True, default=False,
+              help='do not include vitals in partition')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def unpartition_measurement(pwprompt, searchpath, dcc, site3, model_version, dburi):
+def unpartition_measurement(pwprompt, searchpath, dcc, site3, no_vital, model_version, dburi):
     """Undo Partition measurement using measurement_anthro, measurement_labs, and measurement_vitals split tables
 
     The steps are:
@@ -2104,7 +2108,7 @@ def unpartition_measurement(pwprompt, searchpath, dcc, site3, model_version, dbu
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.partition_measurement import unpartition_measurement_table
-    success = unpartition_measurement_table(conn_str, model_version, searchpath, dcc, site3)
+    success = unpartition_measurement_table(conn_str, model_version, searchpath, dcc, site3, no_vital)
 
     if not success:
         sys.exit(1)

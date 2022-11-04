@@ -54,6 +54,48 @@ FUNCTION_INSERT_DCC_MEASUREMENT_SQL = """CREATE OR REPLACE FUNCTION trg_insert_d
     $$
     LANGUAGE plpgsql;"""
 
+FUNCTION_INSERT_DCC_MEASUREMENT_NO_VITAL_SQL = """CREATE OR REPLACE FUNCTION trg_insert_dcc_measurement()
+    RETURNS TRIGGER AS $$
+    DECLARE
+        old_measurement_id {0}.measurement.measurement_id%TYPE := NULL;
+        partition_table varchar(7);
+    BEGIN
+        SELECT measurement_id INTO old_measurement_id
+        FROM {0}.measurement
+        WHERE measurement_id = NEW.measurement_id;
+        IF found THEN
+            RAISE unique_violation
+            USING MESSAGE = 'Duplicate measurement_id: ' || old_measurement_id;
+        END IF;
+
+        -- Here we use measurement_concept_id to insert into appropriate partition
+        CASE 
+           WHEN NEW.measurement_concept_id IN (3013762, 3023540, 3038553, 2000000041, 2000000042, 2000000043, 
+                                   2000000044, 2000000045, 3001537, 3025315, 3036277)
+                                   THEN partition_table := 'anthro';
+           WHEN NEW.measurement_concept_id NOT IN (3013762, 3023540, 3038553, 2000000041, 2000000042, 
+                                       2000000043,2000000044, 2000000045, 3001537, 3025315, 
+                                       3036277, 21490852, 21492241, 3027018, 40762499, 3024171, 
+                                       3034703, 3019962, 3013940, 3012888, 3018586, 3035856, 
+                                       3009395, 3004249, 3020891)
+                                       THEN partition_table := 'labs';
+           ELSE
+              -- else required
+              partition_table := 'unknown';
+        END CASE;
+        EXECUTE 'insert into {0}.measurement_' || partition_table ||
+            ' values ( $1.* )' USING NEW;
+
+        -- Prevent insertion into master table
+        RETURN NULL;
+    EXCEPTION
+    WHEN undefined_table THEN
+        -- Prevent insertion into master table
+        RETURN NULL;
+    END;
+    $$
+    LANGUAGE plpgsql;"""
+
 FUNCTION_INSERT_SITE3_MEASUREMENT_SQL = """CREATE OR REPLACE FUNCTION trg_insert_site_measurement()
     RETURNS TRIGGER AS $$
     DECLARE
@@ -77,6 +119,48 @@ FUNCTION_INSERT_SITE3_MEASUREMENT_SQL = """CREATE OR REPLACE FUNCTION trg_insert
                                    3019962, 3013940, 3012888, 3018586, 3035856, 3009395, 
                                    3004249, 3020891)
                                    THEN partition_table := 'vitals';
+           WHEN NEW.measurement_concept_id NOT IN (3013762, 3023540, 3038553, 2000000041, 2000000042, 
+                                       2000000043,2000000044, 2000000045, 3001537, 3025315, 
+                                       3036277, 21490852, 21492241, 3027018, 40762499, 3024171, 
+                                       3034703, 3019962, 3013940, 3012888, 3018586, 3035856, 
+                                       3009395, 3004249, 3020891)
+                                       THEN partition_table := 'labs';
+           ELSE
+              -- else required
+              partition_table := 'unknown';
+        END CASE;
+        EXECUTE 'insert into {0}.measurement_' || partition_table ||
+            ' values ( $1.* )' USING NEW;
+
+        -- Prevent insertion into master table
+        RETURN NULL;
+    EXCEPTION
+    WHEN undefined_table THEN
+        -- Prevent insertion into master table
+        RETURN NULL;
+    END;
+    $$
+    LANGUAGE plpgsql;"""
+
+FUNCTION_INSERT_SITE3_MEASUREMENT_NO_VITAL_SQL = """CREATE OR REPLACE FUNCTION trg_insert_site_measurement()
+    RETURNS TRIGGER AS $$
+    DECLARE
+        old_measurement_id {0}.measurement.measurement_id%TYPE := NULL;
+        partition_table varchar(7);
+    BEGIN
+        SELECT measurement_id INTO old_measurement_id
+        FROM {0}.measurement
+        WHERE measurement_id = NEW.measurement_id;
+        IF found THEN
+            RAISE unique_violation
+            USING MESSAGE = 'Duplicate measurement_id: ' || old_measurement_id;
+        END IF;
+
+        -- Here we use measurement_concept_id to insert into appropriate partition
+        CASE 
+           WHEN NEW.measurement_concept_id IN (3013762, 3023540, 3038553, 2000000041, 2000000042, 2000000043, 
+                                   2000000044, 2000000045, 3001537, 3025315, 3036277)
+                                   THEN partition_table := 'anthro';
            WHEN NEW.measurement_concept_id NOT IN (3013762, 3023540, 3038553, 2000000041, 2000000042, 
                                        2000000043,2000000044, 2000000045, 3001537, 3025315, 
                                        3036277, 21490852, 21492241, 3027018, 40762499, 3024171, 
@@ -153,6 +237,54 @@ FUNCTION_INSERT_SITE_MEASUREMENT_SQL = """CREATE OR REPLACE FUNCTION trg_insert_
     $$
     LANGUAGE plpgsql;"""
 
+FUNCTION_INSERT_SITE_MEASUREMENT_NO_VITAL_SQL = """CREATE OR REPLACE FUNCTION trg_insert_site_measurement()
+    RETURNS TRIGGER AS $$
+    DECLARE
+        old_measurement_id {0}.measurement.measurement_id%TYPE := NULL;
+        partition_table varchar(7);
+    BEGIN
+        SELECT measurement_id INTO old_measurement_id
+        FROM {0}.measurement
+        WHERE measurement_id = NEW.measurement_id;
+        IF found THEN
+            RAISE unique_violation
+            USING MESSAGE = 'Duplicate measurement_id: ' || old_measurement_id;
+        END IF;
+
+        -- Here we use measurement_concept_id to insert into appropriate partition
+        CASE 
+           WHEN NEW.measurement_concept_id IN (3013762, 3023540, 2000000044, 2000000045, 3001537, 3025315, 3036277)
+                                   THEN partition_table := 'anthro';
+           WHEN NEW.measurement_concept_id NOT IN (3013762, 3023540, 3038553, 2000000041, 2000000042, 
+                                       2000000043,2000000044, 2000000045, 3001537, 3025315, 
+                                       3036277, 21490852, 21492241, 3027018, 40762499, 3024171, 
+                                       3034703, 3019962, 3013940, 3012888, 3018586, 3035856, 
+                                       3009395, 3004249, 3020891)
+                                       THEN partition_table := 'labs';
+            WHEN NEW.measurement_concept_id IN (3038553)
+                                        THEN partition_table := 'bmi';
+            WHEN NEW.measurement_concept_id IN (2000000043)
+                                        THEN partition_table := 'bmiz';
+            WHEN NEW.measurement_concept_id IN (2000000042)
+                                        THEN partition_table := 'ht_z';
+            WHEN NEW.measurement_concept_id IN (2000000041)
+                                        THEN partition_table := 'wt_z';                           
+           ELSE
+              -- else required
+              partition_table := 'unknown';
+        END CASE;
+        EXECUTE 'insert into {0}.measurement_' || partition_table ||
+            ' values ( $1.* )' USING NEW;
+
+        -- Prevent insertion into master table
+        RETURN NULL;
+    EXCEPTION
+    WHEN undefined_table THEN
+        -- Prevent insertion into master table
+        RETURN NULL;
+    END;
+    $$
+    LANGUAGE plpgsql;"""
 
 TRIGGER_DCC_MEASUREMENT_INSERT_SQL = """CREATE TRIGGER measurement_dcc_insert BEFORE INSERT
     ON {0}.measurement FOR EACH ROW
@@ -169,6 +301,7 @@ DROP_CHECK_CONSTRAINT_SQL = """ALTER TABLE {0}.measurement_{1}
     DROP CONSTRAINT concept_in_{1};"""
 ADD_INHERIT_SQL = 'ALTER TABLE {0}.measurement_{1} INHERIT {0}.measurement;'
 DROP_INHERIT_SQL = 'ALTER TABLE {0}.measurement_{1} NO INHERIT {0}.measurement;'
+
 
 def _copy_to_measure_table(conn_str, table, concepts):
     copy_to_sql = """INSERT INTO measurement_{0}(
@@ -232,7 +365,7 @@ def _delete_measure_from_anthro(conn_str, table, concepts):
     return True
 
 
-def partition_measurement_table(conn_str, model_version, search_path, dcc, site3):
+def partition_measurement_table(conn_str, model_version, search_path, dcc, site3, no_vital):
     """Partition measurement using tables based on site (dcc or one of the 6 sites):
     dcc: measurement_anthro, measurement_labs, and measurement_vitals
     site: measurement_anthro, measurement_labs, and measurement_vitals,
@@ -249,6 +382,7 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc, site3
     :param str search_path: PostgreSQL schema search path
     :param bool dcc:      is dcc versus site table
     :param bool site3:      is site but partition as dcc
+    :param bool no_vital:    don't include vitals in partition
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -285,7 +419,6 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc, site3
             else:
                 logger.info({'msg': 'error moving ' + measure + ' measurements'})
 
-
     # truncate the measurement table
     logger.info({'msg': 'truncating measurement table'})
     drop_measurement_stmt = Statement(TRUNCATE_MEASUREMENT_SQL.format(schema), "truncating measurement table")
@@ -295,11 +428,17 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc, site3
 
     # List of tables to use as partitions
     if dcc or site3:
-        measure_like_tables = {
-            'anthro': 'in',
-            'labs': 'not in',
-            'vitals': 'in'
-        }
+        if no_vital:
+            measure_like_tables = {
+                'anthro': 'in',
+                'labs': 'not in'
+            }
+        else:
+            measure_like_tables = {
+                'anthro': 'in',
+                'labs': 'not in',
+                'vitals': 'in'
+            }
         # measurement concept ids to include/exclude
         concept_id = {
             'anthro': (3013762, 3023540, 3038553, 2000000041, 2000000042, 2000000043,
@@ -312,15 +451,25 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc, site3
                        3012888, 3018586, 3035856, 3009395, 3004249, 3020891,),
         }
     else:
-        measure_like_tables = {
-            'anthro': 'in',
-            'labs': 'not in',
-            'vitals': 'in',
-            'bmi': 'in',
-            'bmiz': 'in',
-            'ht_z': 'in',
-            'wt_z': 'in'
-        }
+        if no_vital:
+            measure_like_tables = {
+                'anthro': 'in',
+                'labs': 'not in',
+                'bmi': 'in',
+                'bmiz': 'in',
+                'ht_z': 'in',
+                'wt_z': 'in'
+            }
+        else:
+            measure_like_tables = {
+                'anthro': 'in',
+                'labs': 'not in',
+                'vitals': 'in',
+                'bmi': 'in',
+                'bmiz': 'in',
+                'ht_z': 'in',
+                'wt_z': 'in'
+            }
         # measurement concept ids to include/exclude
         concept_id = {
             'anthro': (3013762, 3023540, 2000000044, 2000000045, 3001537, 3025315, 3036277,),
@@ -395,13 +544,22 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc, site3
     with psycopg2.connect(conn_str) as conn:
         with conn.cursor() as cursor:
             if dcc:
-                cursor.execute(FUNCTION_INSERT_DCC_MEASUREMENT_SQL.format(schema))
+                if no_vital:
+                    cursor.execute(FUNCTION_INSERT_DCC_MEASUREMENT_NO_VITAL_SQL.format(schema))
+                else:
+                    cursor.execute(FUNCTION_INSERT_DCC_MEASUREMENT_SQL.format(schema))
                 cursor.execute(TRIGGER_DCC_MEASUREMENT_INSERT_SQL.format(schema))
             elif site3:
-                cursor.execute(FUNCTION_INSERT_SITE3_MEASUREMENT_SQL.format(schema))
+                if no_vital:
+                    cursor.execute(FUNCTION_INSERT_SITE3_MEASUREMENT_NO_VITAL_SQL.format(schema))
+                else:
+                    cursor.execute(FUNCTION_INSERT_SITE3_MEASUREMENT_SQL.format(schema))
                 cursor.execute(TRIGGER_SITE_MEASUREMENT_INSERT_SQL.format(schema))
             else:
-                cursor.execute(FUNCTION_INSERT_SITE_MEASUREMENT_SQL.format(schema))
+                if no_vital:
+                    cursor.execute(FUNCTION_INSERT_SITE_MEASUREMENT_NO_VITAL_SQL.format(schema))
+                else:
+                    cursor.execute(FUNCTION_INSERT_SITE_MEASUREMENT_SQL.format(schema))
                 cursor.execute(TRIGGER_SITE_MEASUREMENT_INSERT_SQL.format(schema))
     conn.close()
     logger.info({'msg': 'measurement before insert trigger created'})
@@ -413,7 +571,8 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc, site3
     # If reached without error, then success!
     return True
 
-def unpartition_measurement_table(conn_str, model_version, search_path, dcc, site3):
+
+def unpartition_measurement_table(conn_str, model_version, search_path, dcc, site3, no_vital):
     """Partition measurement using tables based on site (dcc or one of the 6 sites):
     dcc: measurement_anthro, measurement_labs, and measurement_vitals
     site: measurement_anthro, measurement_labs, and measurement_vitals,
@@ -430,6 +589,7 @@ def unpartition_measurement_table(conn_str, model_version, search_path, dcc, sit
     :param str search_path: PostgreSQL schema search path
     :param bool dcc:      is dcc versus site table
     :param bool site3:      is site but partition as dcc
+    :param bool no_vital:    don't include vitals in partition
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -443,21 +603,37 @@ def unpartition_measurement_table(conn_str, model_version, search_path, dcc, sit
     schema = primary_schema(search_path)
 
     if dcc or site3:
-        measure_like_tables = {
-            'anthro': 'in',
-            'labs': 'not in',
-            'vitals': 'in'
-        }
+        if no_vital:
+            measure_like_tables = {
+                'anthro': 'in',
+                'labs': 'not in'
+            }
+        else:
+            measure_like_tables = {
+                'anthro': 'in',
+                'labs': 'not in',
+                'vitals': 'in'
+            }
     else:
-        measure_like_tables = {
-            'anthro': 'in',
-            'labs': 'not in',
-            'vitals': 'in',
-            'bmi': 'in',
-            'bmiz': 'in',
-            'ht_z': 'in',
-            'wt_z': 'in'
-        }
+        if no_vital:
+            measure_like_tables = {
+                'anthro': 'in',
+                'labs': 'not in',
+                'bmi': 'in',
+                'bmiz': 'in',
+                'ht_z': 'in',
+                'wt_z': 'in'
+            }
+        else:
+            measure_like_tables = {
+                'anthro': 'in',
+                'labs': 'not in',
+                'vitals': 'in',
+                'bmi': 'in',
+                'bmiz': 'in',
+                'ht_z': 'in',
+                'wt_z': 'in'
+            }
 
     # Drop trg_insert_measurement
     logger.info({'msg': 'dropping measurement before insert trigger'})
@@ -476,8 +652,7 @@ def unpartition_measurement_table(conn_str, model_version, search_path, dcc, sit
     stmts = StatementSet()
     logger.info({'msg': 'dropping check constraints'})
     for measure_like_table in measure_like_tables:
-        drop_constraint_stmt = Statement(DROP_CHECK_CONSTRAINT_SQL.format(schema,
-                                                                           measure_like_table))
+        drop_constraint_stmt = Statement(DROP_CHECK_CONSTRAINT_SQL.format(schema, measure_like_table))
         stmts.add(drop_constraint_stmt)
 
     # Execute the statements in parallel.
