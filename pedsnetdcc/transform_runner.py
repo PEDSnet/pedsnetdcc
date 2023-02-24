@@ -802,7 +802,7 @@ def _adjust_specialty_entity_ids(conn_str, schema):
     return True
 
 
-def run_transformation(conn_str, model_version, site, search_path, id_name, id_type, logged, pool_limit,
+def run_transformation(conn_str, model_version, site, search_path, id_name, id_type, logged, post_only, pool_limit,
                        limit=False, owner='loading_user', force=False):
     """Run all transformations, backing up existing tables to a backup schema.
 
@@ -822,6 +822,7 @@ def run_transformation(conn_str, model_version, site, search_path, id_name, id_t
     :param str id_name: name of the id ex: dcc or onco
     :param str id_type: type of the site id: BigInteger or String
     :param bool logged: if True, create logged tables
+    :param bool post_only: if True, do only post transform tasks
     :param bool pool_limit: if True, limit pool size to 1
     :param bool limit: if True, limit permissions to owner
     :param str owner: role to give permissions to if limited
@@ -848,10 +849,11 @@ def run_transformation(conn_str, model_version, site, search_path, id_name, id_t
 
     # Create the schema to hold the transformed tables.
     tmp_schema = schema + '_' + 'transformed'
-    create_schema(conn_str, tmp_schema, force)
+    if not post_only:
+        create_schema(conn_str, tmp_schema, force)
 
-    # Perform the transformation.
-    _transform(conn_str, model_version, site, tmp_schema, id_name, id_type, logged, pool_limit, force)
+        # Perform the transformation.
+        _transform(conn_str, model_version, site, tmp_schema, id_name, id_type, logged, pool_limit, force)
 
     # Set up new connection string for manipulating the target schema
     new_search_path = ','.join((tmp_schema, schema, 'vocabulary'))
