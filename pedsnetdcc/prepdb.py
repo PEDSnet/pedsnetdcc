@@ -94,7 +94,7 @@ def _make_database_name_alt(model_version, name):
     return name
 
 
-def _create_database_sql(database_name, owner):
+def _create_database_sql(database_name, owner = 'dcc_owner'):
     """Return a tuple of statements to create the database with the given name.
     :param database_name: Database name
     :type: str
