@@ -803,7 +803,8 @@ def _adjust_specialty_entity_ids(conn_str, schema):
 
 
 def run_transformation(conn_str, model_version, site, search_path, id_name, id_type, logged, post_only, pool_limit,
-                       limit=False, owner='loading_user', force=False):
+                       nopk=False, nonull=False, noidx=False, nodrop=False, nofk=False,
+                       limit=False, owner='loading_user',  force=False):
     """Run all transformations, backing up existing tables to a backup schema.
 
     * Create new schema FOO_transformed.
@@ -826,6 +827,11 @@ def run_transformation(conn_str, model_version, site, search_path, id_name, id_t
     :param bool pool_limit: if True, limit pool size to 1
     :param bool limit: if True, limit permissions to owner
     :param str owner: role to give permissions to if limited
+    :param bool nopk:         skip primary keys if already exist
+    :param bool nonull:       skip set not null if already done
+    :param bool noidx:        skip ndexes if already exist
+    :param bool nodrop:       skip drop unused indexes if already done
+    :param bool nofk:         skip foreign keys if already exist
     :param bool force: if True, ignore benign errors
     :return: True if no exception raised
     :rtype: bool
@@ -864,22 +870,27 @@ def run_transformation(conn_str, model_version, site, search_path, id_name, id_t
         set_logged(new_conn_str, model_version)
 
     # Add primary keys to the transformed tables
-    add_primary_keys(new_conn_str, model_version, force)
+    if not nopk:
+        add_primary_keys(new_conn_str, model_version, force)
 
     # Update the speciality.entity_id based on domain_id
     _adjust_specialty_entity_ids(new_conn_str, tmp_schema)
 
     # Add NOT NULL constraints to the transformed tables (no force option)
-    set_not_nulls(new_conn_str, model_version)
+    if not nonull:
+        set_not_nulls(new_conn_str, model_version)
 
     # Add indexes to the transformed tables
-    add_indexes(new_conn_str, model_version, force)
+    if not noidx:
+        add_indexes(new_conn_str, model_version, force)
 
     # Drop unneeded indexes from the transformed tables
-    drop_unneeded_indexes(new_conn_str, model_version, force)
+    if not nodrop:
+        drop_unneeded_indexes(new_conn_str, model_version, force)
 
     # Add constraints to the transformed tables
-    add_foreign_keys(new_conn_str, model_version, force)
+    if not nofk:
+        add_foreign_keys(new_conn_str, model_version, force)
 
     # Move the old tables to a backup schema and move the new ones into
     # the original schema; then drop the temporary schema.

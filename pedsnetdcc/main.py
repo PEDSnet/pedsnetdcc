@@ -60,12 +60,23 @@ def pedsnetdcc(logfmt, loglvl):
               help='Only do post transform tasks.')
 @click.option('--pool1', is_flag=True, default=False,
               help='Limit pool size to 1.')
+@click.option('--nopk', is_flag=True, default=False,
+              help='Skip primary keys if already exist.')
+@click.option('--nonull', is_flag=True, default=False,
+              help='Skip set not null if already done.')
+@click.option('--noidx', is_flag=True, default=False,
+              help='Skip indexes if already exist.')
+@click.option('--nodrop', is_flag=True, default=False,
+              help='Skip drop unused indexes if already done.')
+@click.option('--nofk', is_flag=True, default=False,
+              help='Skip foreign keys if already exist.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.argument('dburi')
-def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stringid, logged, post_only, pool1, model_version):
+def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stringid, logged, post_only, pool1,
+              nopk, nonull, noidx, nodrop, nofk, model_version):
     """Run all post load operations
 
     Run check_fact_relationship
@@ -104,7 +115,7 @@ def post_load(searchpath, pwprompt, dburi, site, name, force, limit, owner, stri
 
     from pedsnetdcc.transform_runner import run_transformation
     success = run_transformation(conn_str, model_version, site, searchpath, name, idtype, logged, post_only, pool1,
-                                 limit, owner, force)
+                                 nopk, nonull, noidx, nodrop, nofk, limit, owner, force)
 
     if not success:
         sys.exit(1)
@@ -310,6 +321,16 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt, name, skipsites, addsites):
               help='Limit pool size to 1')
 @click.option('--post_only', is_flag=True, default=False,
               help='Only do post transform tasks.')
+@click.option('--nopk', is_flag=True, default=False,
+              help='Skip primary keys if already exist.')
+@click.option('--nonull', is_flag=True, default=False,
+              help='Skip set not null if already done.')
+@click.option('--noidx', is_flag=True, default=False,
+              help='Skip indexes if already exist.')
+@click.option('--nodrop', is_flag=True, default=False,
+              help='Skip drop unused indexes if already done.')
+@click.option('--nofk', is_flag=True, default=False,
+              help='Skip foreign keys if already exist.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--model-version', '-v', required=True,
@@ -317,7 +338,8 @@ def copy_id_maps(dburi, old_db, new_db, pwprompt, name, skipsites, addsites):
 @click.option('--undo', is_flag=True, default=False,
               help='Replace transformed tables with backup tables.')
 @click.argument('dburi')
-def transform(pwprompt, searchpath, site, name, limit, owner, stringid, logged, post_only, pool1, force, model_version, undo, dburi):
+def transform(pwprompt, searchpath, site, name, limit, owner, stringid, logged, post_only, pool1,
+              nopk, nonull, noidx, nodrop, nofk, force, model_version, undo, dburi):
     """Transform PEDSnet data into the DCC format.
 
     Using the hard-coded set of transformations in this tool, transform data
@@ -352,7 +374,7 @@ def transform(pwprompt, searchpath, site, name, limit, owner, stringid, logged, 
     if not undo:
         from pedsnetdcc.transform_runner import run_transformation
         success = run_transformation(conn_str, model_version, site, searchpath, name, idtype, logged, post_only, pool1,
-                                     limit, owner, force)
+                                     nopk, nonull, noidx, nodrop, nofk, limit, owner, force)
     else:
         from pedsnetdcc.transform_runner import undo_transformation
         success = undo_transformation(conn_str, model_version, searchpath)
@@ -2815,7 +2837,6 @@ def run_recover_cohort(pwprompt, searchpath, site, model_version, dburi):
 
     The database should be specified using a DBURI:
 
-    \b
     postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
     """
 
