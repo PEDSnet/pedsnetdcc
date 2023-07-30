@@ -140,6 +140,63 @@ def _make_index_name(z_type, column_name):
                             3 * len('_') + len('ix'))
     return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
 
+def _fill_age_in_months(conn_str, schema, z_type):
+    fill_add_age_in_months_sql = """
+    create or replace function {0}.last_month_of_interval(timestamp, timestamp)
+         returns timestamp strict immutable language sql as $$
+           select $1 + interval '1 year' * extract(years from age($2, $1)) + interval '1 month' * extract(months from age($2, $1))
+    $$;
+    comment on function {0}.last_month_of_interval(timestamp, timestamp) is
+    'Return the timestamp of the last month of the interval between two timestamps';
+
+    create or replace function {0}.month_after_last_month_of_interval(timestamp, timestamp)
+         returns timestamp strict immutable language sql as $$
+           select $1 + interval '1 year' * extract(years from age($2, $1)) + interval '1 month' * (extract(months from age($2, $1)) + 1)
+    $$;
+    comment on function {0}.month_after_last_month_of_interval(timestamp, timestamp) is
+    'Return the timestamp of the month AFTER the last month of the interval between two timestamps';
+
+    create or replace function {0}.days_in_last_month_of_interval(timestamp, timestamp)
+         returns double precision strict immutable language sql as $$
+           select extract(days from {0}.month_after_last_month_of_interval($1, $2) - {0}.last_month_of_interval($1, $2))
+    $$;
+    comment on function {0}.days_in_last_month_of_interval(timestamp, timestamp) is
+    'Return the number of days in the last month of the interval between two timestamps';
+
+    create or replace function {0}.months_in_interval(timestamp, timestamp)
+     returns double precision strict immutable language sql as $$
+      select extract(years from age($2, $1)) * 12 + extract(months from age($2, $1)) + extract(days from age($2, $1))/{0}.days_in_last_month_of_interval($1, $2)
+    $$;
+    comment on function {0}.months_in_interval(timestamp, timestamp) is
+       'Return the number of months (double precision) between two timestamps.
+        The number of years/months/days is computed by PostgreSQL''s
+        extract/date_part function.  The fractional months value is
+        computed by dividing the extracted number of days by the total
+        number of days in the last month overlapping the interval; note
+        that this is not a calendar month but, say, the number of days
+        between Feb 2, 2001 and Mar 2, 2001.  You should be able to obtain
+        the original timestamp from the resulting value, albeit with great
+        difficulty.';
+
+    UPDATE {0}.measurement_{1} zs
+    set measurement_age_in_months=subquery.measurement_age_in_months
+    from (select measurement_id, 
+        {0}.months_in_interval(p.birth_datetime, m.measurement_datetime::timestamp without time zone) as measurement_age_in_months
+        from {0}.measurement_{1} m
+        join {0}.person p on p.person_id = m.person_id) AS subquery
+    where zs.measurement_id=subquery.measurement_id;"""
+
+    fill_add_age_in_months_msg = "adding age in months"
+
+    # Add age in months
+    add_age_in_months_stmt = Statement(fill_add_age_in_months_sql.format(schema,z_type), fill_add_age_in_months_msg)
+
+    # Execute the add concept names statement and ensure it didn't error
+    add_age_in_months_stmt.execute(conn_str)
+    check_stmt_err(add_age_in_months_stmt, 'add age in months')
+
+    # If reached without error, then success!
+    return True
 
 def _fill_concept_names(conn_str, schema, z_type):
     fill_concept_names_sql = """UPDATE {0}.measurement_{1} zs
@@ -231,7 +288,7 @@ def _copy_to_dcc_table(conn_str, schema, table, z_type):
     return True
 
 
-def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept, neg_ids,
+def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
                skip_calc, table, person_table, password, search_path, model_version, id_name):
     """Run the Z Score tool.
 
@@ -252,6 +309,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     :param bool ids: if True, add measurement_ids to output table
     :param bool indexes: if True, create indexes on output table
     :param bool concept: if True, add concept names to output table
+    :param bool age: if True, add age in months to output table
     :param bool neg_ids: if True, use negative ids
     :param bool skip_calc: if True, skip the actual calculation
     :param str table:    name of input/copy table (measurement/measurement_anthro)
@@ -384,6 +442,14 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
         if not okay:
             return False
         logger.info({'msg': 'concept names added'})
+
+    # Add age in months
+    if age:
+        logger.info({'msg': 'add age in months'})
+        okay = _fill_age_in_months(conn_str, schema, z_type)
+        if not okay:
+            return False
+        logger.info({'msg': 'age in months added'})
 
     # Copy to the measurement table
     if copy:

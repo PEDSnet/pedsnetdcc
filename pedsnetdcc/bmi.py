@@ -63,46 +63,104 @@ def _make_index_name(table_name, column_name):
     column_abbrev = ''.join([x[0] for x in column_name.split('_')])
     md5 = hashlib.md5(
         '{}.{}'.format(table_name, column_name).encode('utf-8')). \
-        hexdigest()
-    hashlen = NAME_LIMIT - (len(table_abbrev) + len(column_abbrev) +
-                            3 * len('_') + len('ix'))
-    return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
-
-
-def _fill_concept_names(conn_str):
-    fill_concept_names_sql = """UPDATE measurement_bmi bmi
+        hexdigest()UPDATE measurement_bmi bmi
         SET measurement_concept_name=v.measurement_concept_name,
-        measurement_source_concept_name=v.measurement_source_concept_name, 
-        measurement_type_concept_name=v.measurement_type_concept_name, 
-        operator_concept_name=v.operator_concept_name, 
-        priority_concept_name=v.priority_concept_name, 
-        range_high_operator_concept_name=v.range_high_operator_concept_name, 
-        range_low_operator_concept_name=v.range_low_operator_concept_name, 
-        unit_concept_name=v.unit_concept_name, 
+        measurement_source_concept_name=v.measurement_source_concept_name,
+        measurement_type_concept_name=v.measurement_type_concept_name,
+        operator_concept_name=v.operator_concept_name,
+        priority_concept_name=v.priority_concept_name,
+        range_high_operator_concept_name=v.range_high_operator_concept_name,
+        range_low_operator_concept_name=v.range_low_operator_concept_name,
+        unit_concept_name=v.unit_concept_name,
         value_as_concept_name=v.value_as_concept_name
         FROM ( SELECT
         b.measurement_id AS measurement_id,
-        v1.concept_name AS measurement_concept_name, 
-        v2.concept_name AS measurement_source_concept_name, 
-        v3.concept_name AS measurement_type_concept_name, 
-        v4.concept_name AS operator_concept_name,  
+        v1.concept_name AS measurement_concept_name,
+        v2.concept_name AS measurement_source_concept_name,
+        v3.concept_name AS measurement_type_concept_name,
+        v4.concept_name AS operator_concept_name,
         v5.concept_name AS priority_concept_name,
-        v6.concept_name AS range_high_operator_concept_name, 
-        v7.concept_name AS range_low_operator_concept_name, 
-        v8.concept_name AS unit_concept_name, 
-        v9.concept_name AS value_as_concept_name 
+        v6.concept_name AS range_high_operator_concept_name,
+        v7.concept_name AS range_low_operator_concept_name,
+        v8.concept_name AS unit_concept_name,
+        v9.concept_name AS value_as_concept_name
         FROM measurement_bmi AS b
         LEFT JOIN vocabulary.concept AS v1 ON b.measurement_concept_id = v1.concept_id
-        LEFT JOIN vocabulary.concept AS v2 ON b.measurement_source_concept_id = v2.concept_id 
+        LEFT JOIN vocabulary.concept AS v2 ON b.measurement_source_concept_id = v2.concept_id
         LEFT JOIN vocabulary.concept AS v3 ON b.measurement_type_concept_id = v3.concept_id
         LEFT JOIN vocabulary.concept AS v4 ON b.operator_concept_id  = v4.concept_id
         LEFT JOIN vocabulary.concept AS v5 ON b.priority_concept_id  = v5.concept_id
         LEFT JOIN vocabulary.concept AS v6 ON b.range_high_operator_concept_id = v6.concept_id
-        LEFT JOIN vocabulary.concept AS v7 ON b.range_low_operator_concept_id = v7.concept_id 
+        LEFT JOIN vocabulary.concept AS v7 ON b.range_low_operator_concept_id = v7.concept_id
         LEFT JOIN vocabulary.concept AS v8 ON b.unit_concept_id = v8.concept_id
         LEFT JOIN vocabulary.concept AS v9 ON b.value_as_concept_id  = v9.concept_id
         ) v
         WHERE bmi.measurement_id = v.measurement_id"""
+    hashlen = NAME_LIMIT - (len(table_abbrev) + len(column_abbrev) +
+                            3 * len('_') + len('ix'))
+    return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
+
+def _fill_age_in_months(conn_str, schema):
+    fill_add_age_in_months_sql = """
+    create or replace function {0}.last_month_of_interval(timestamp, timestamp)
+         returns timestamp strict immutable language sql as $$
+           select $1 + interval '1 year' * extract(years from age($2, $1)) + interval '1 month' * extract(months from age($2, $1))
+    $$;
+    comment on function {0}.last_month_of_interval(timestamp, timestamp) is
+    'Return the timestamp of the last month of the interval between two timestamps';
+
+    create or replace function {0}.month_after_last_month_of_interval(timestamp, timestamp)
+         returns timestamp strict immutable language sql as $$
+           select $1 + interval '1 year' * extract(years from age($2, $1)) + interval '1 month' * (extract(months from age($2, $1)) + 1)
+    $$;
+    comment on function {0}.month_after_last_month_of_interval(timestamp, timestamp) is
+    'Return the timestamp of the month AFTER the last month of the interval between two timestamps';
+
+    create or replace function {0}.days_in_last_month_of_interval(timestamp, timestamp)
+         returns double precision strict immutable language sql as $$
+           select extract(days from {0}.month_after_last_month_of_interval($1, $2) - {0}.last_month_of_interval($1, $2))
+    $$;
+    comment on function {0}.days_in_last_month_of_interval(timestamp, timestamp) is
+    'Return the number of days in the last month of the interval between two timestamps';
+
+    create or replace function {0}.months_in_interval(timestamp, timestamp)
+     returns double precision strict immutable language sql as $$
+      select extract(years from age($2, $1)) * 12 + extract(months from age($2, $1)) + extract(days from age($2, $1))/{0}.days_in_last_month_of_interval($1, $2)
+    $$;
+    comment on function {0}.months_in_interval(timestamp, timestamp) is
+       'Return the number of months (double precision) between two timestamps.
+        The number of years/months/days is computed by PostgreSQL''s
+        extract/date_part function.  The fractional months value is
+        computed by dividing the extracted number of days by the total
+        number of days in the last month overlapping the interval; note
+        that this is not a calendar month but, say, the number of days
+        between Feb 2, 2001 and Mar 2, 2001.  You should be able to obtain
+        the original timestamp from the resulting value, albeit with great
+        difficulty.';
+
+    update {0}.measurement_bmi bmi
+    set measurement_age_in_months=subquery.bmi_age_in_months
+    from (select measurement_id,
+        {0}.months_in_interval(p.birth_datetime, mb.measurement_datetime::timestamp without time zone) as measurement_age_in_months
+        from {0}.measurement_bmi mb
+        join {0}.person p on p.person_id = mb.person_id) AS subquery
+    where bmi.measurement_id=subquery.measurement_id;"""
+
+    fill_add_age_in_months_msg = "adding age in months"
+
+    # Add age in months
+    add_age_in_months_stmt = Statement(fill_add_age_in_months_sql.format(schema), fill_add_age_in_months_msg)
+
+    # Execute the add concept names statement and ensure it didn't error
+    add_age_in_months_stmt.execute(conn_str)
+    check_stmt_err(add_age_in_months_stmt, 'add age in months')
+
+    # If reached without error, then success!
+    return True
+
+
+def _fill_concept_names(conn_str):
+    fill_concept_names_sql = """
 
     fill_concept_names_msg = "adding concept names"
 
@@ -158,7 +216,7 @@ def _copy_to_dcc_table(conn_str, table):
     return True
 
 
-def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_ids, skip_calc,
+def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids, skip_calc,
                  table, password, search_path, model_version, id_name):
     """Run the BMI tool.
 
@@ -178,6 +236,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_i
     :param bool ids: if True, add measurement_ids to output table
     :param bool indexes: if True, create indexes on output table
     :param bool concept: if True, add concept names to output table
+    :param bool concept: if True, add age in months to output table
     :param bool neg_ids: if True, use negative ids
     :param bool skip_calc: if True, skip the actual calculation
     :param str table:    name of input/copy table (measurement/measurement_anthro)
@@ -298,6 +357,14 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, neg_i
             return False
         logger.info({'msg': 'concept names added'})
 
+    # Add age in months
+    if age:
+        logger.info({'msg': 'add age in months'})
+        okay = _fill_age_in_months(conn_str, schema)
+        if not okay:
+            return False
+        logger.info({'msg': 'age in months added'})
+
     # Copy to the measurement table
     if copy:
         logger.info({'msg': 'copy bmi measurements to dcc_pedsnet'})
@@ -360,7 +427,7 @@ def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id
         where measurement_id is null"""
     add_measurement_ids_msg = "adding the measurement ids to the measurement_bmi table"
     pk_measurement_id_sql = "alter table {0}.measurement_bmi add primary key (measurement_id)"
-    pk_measurement_id_msg = "making measurement_id the priomary key"
+    pk_measurement_id_msg = "making measurement_id the primary key"
 
     conn_info_dict = get_conn_info_dict(conn_str)
 
