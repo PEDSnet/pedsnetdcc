@@ -1622,7 +1622,7 @@ def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, n
         sys.exit(1)
 
     config_file = site + "_wtz_temp.conf"
-    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids,
+    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
                          skip_calc, table, person, password, searchpath, model_version, idname)
 
     if not success:
