@@ -48,54 +48,22 @@ def _create_config_file(config_path, config_file, schema, table, password, conn_
 
 def _make_index_name(table_name, column_name):
     """
-    Create an index name for a given table/column combination with
-    a NAME_LIMIT-character (Oracle) limit.  The table/column combination
-    `provider.gender_source_concept_name` results in the index name
-    `pro_gscn_ae1fd5b22b92397ca9_ix`.  We opt for a not particularly
-    human-readable name in order to avoid collisions, which are all too
-    possible with columns like provider.gender_source_concept_name and
-    person.gender_source_concept_name.
-    :param str table_name:
-    :param str column_name:
-    :rtype: str
-    """
+        Create an index name for a given table/column combination with
+        a NAME_LIMIT-character (Oracle) limit.  The table/column combination
+        `provider.gender_source_concept_name` results in the index name
+        `pro_gscn_ae1fd5b22b92397ca9_ix`.  We opt for a not particularly
+        human-readable name in order to avoid collisions, which are all too
+        possible with columns like provider.gender_source_concept_name and
+        person.gender_source_concept_name.
+        :param str table_name:
+        :param str column_name:
+        :rtype: str
+        """
     table_abbrev = "mea_" + table_name[:3]
     column_abbrev = ''.join([x[0] for x in column_name.split('_')])
     md5 = hashlib.md5(
         '{}.{}'.format(table_name, column_name).encode('utf-8')). \
-        hexdigest()UPDATE measurement_bmi bmi
-        SET measurement_concept_name=v.measurement_concept_name,
-        measurement_source_concept_name=v.measurement_source_concept_name,
-        measurement_type_concept_name=v.measurement_type_concept_name,
-        operator_concept_name=v.operator_concept_name,
-        priority_concept_name=v.priority_concept_name,
-        range_high_operator_concept_name=v.range_high_operator_concept_name,
-        range_low_operator_concept_name=v.range_low_operator_concept_name,
-        unit_concept_name=v.unit_concept_name,
-        value_as_concept_name=v.value_as_concept_name
-        FROM ( SELECT
-        b.measurement_id AS measurement_id,
-        v1.concept_name AS measurement_concept_name,
-        v2.concept_name AS measurement_source_concept_name,
-        v3.concept_name AS measurement_type_concept_name,
-        v4.concept_name AS operator_concept_name,
-        v5.concept_name AS priority_concept_name,
-        v6.concept_name AS range_high_operator_concept_name,
-        v7.concept_name AS range_low_operator_concept_name,
-        v8.concept_name AS unit_concept_name,
-        v9.concept_name AS value_as_concept_name
-        FROM measurement_bmi AS b
-        LEFT JOIN vocabulary.concept AS v1 ON b.measurement_concept_id = v1.concept_id
-        LEFT JOIN vocabulary.concept AS v2 ON b.measurement_source_concept_id = v2.concept_id
-        LEFT JOIN vocabulary.concept AS v3 ON b.measurement_type_concept_id = v3.concept_id
-        LEFT JOIN vocabulary.concept AS v4 ON b.operator_concept_id  = v4.concept_id
-        LEFT JOIN vocabulary.concept AS v5 ON b.priority_concept_id  = v5.concept_id
-        LEFT JOIN vocabulary.concept AS v6 ON b.range_high_operator_concept_id = v6.concept_id
-        LEFT JOIN vocabulary.concept AS v7 ON b.range_low_operator_concept_id = v7.concept_id
-        LEFT JOIN vocabulary.concept AS v8 ON b.unit_concept_id = v8.concept_id
-        LEFT JOIN vocabulary.concept AS v9 ON b.value_as_concept_id  = v9.concept_id
-        ) v
-        WHERE bmi.measurement_id = v.measurement_id"""
+        hexdigest()
     hashlen = NAME_LIMIT - (len(table_abbrev) + len(column_abbrev) +
                             3 * len('_') + len('ix'))
     return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
@@ -138,13 +106,13 @@ def _fill_age_in_months(conn_str, schema):
         the original timestamp from the resulting value, albeit with great
         difficulty.';
 
-    update {0}.measurement_bmi bmi
-    set measurement_age_in_months=subquery.bmi_age_in_months
-    from (select measurement_id,
-        {0}.months_in_interval(p.birth_datetime, mb.measurement_datetime::timestamp without time zone) as measurement_age_in_months
-        from {0}.measurement_bmi mb
-        join {0}.person p on p.person_id = mb.person_id) AS subquery
-    where bmi.measurement_id=subquery.measurement_id;"""
+    UPDATE {0}.measurement_bmi b
+    set measurement_age_in_months=subquery.measurement_age_in_months
+    from (select measurement_id, 
+        {0}.months_in_interval(p.birth_datetime, m.measurement_datetime::timestamp without time zone) as measurement_age_in_months
+        from {0}.measurement_bmi m
+        join {0}.person p on p.person_id = m.person_id) AS subquery
+    where b.measurement_id=subquery.measurement_id;"""
 
     fill_add_age_in_months_msg = "adding age in months"
 
@@ -158,10 +126,41 @@ def _fill_age_in_months(conn_str, schema):
     # If reached without error, then success!
     return True
 
-
 def _fill_concept_names(conn_str):
-    fill_concept_names_sql = """
-
+    fill_concept_names_sql = """UPDATE measurement_bmi bmi
+        SET measurement_concept_name=v.measurement_concept_name,
+        measurement_source_concept_name=v.measurement_source_concept_name,
+        measurement_type_concept_name=v.measurement_type_concept_name,
+        operator_concept_name=v.operator_concept_name,
+        priority_concept_name=v.priority_concept_name,
+        range_high_operator_concept_name=v.range_high_operator_concept_name,
+        range_low_operator_concept_name=v.range_low_operator_concept_name,
+        unit_concept_name=v.unit_concept_name,
+        value_as_concept_name=v.value_as_concept_name
+        FROM ( SELECT
+        b.measurement_id AS measurement_id,
+        v1.concept_name AS measurement_concept_name,
+        v2.concept_name AS measurement_source_concept_name,
+        v3.concept_name AS measurement_type_concept_name,
+        v4.concept_name AS operator_concept_name,
+        v5.concept_name AS priority_concept_name,
+        v6.concept_name AS range_high_operator_concept_name,
+        v7.concept_name AS range_low_operator_concept_name,
+        v8.concept_name AS unit_concept_name,
+        v9.concept_name AS value_as_concept_name
+        FROM measurement_bmi AS b
+        LEFT JOIN vocabulary.concept AS v1 ON b.measurement_concept_id = v1.concept_id
+        LEFT JOIN vocabulary.concept AS v2 ON b.measurement_source_concept_id = v2.concept_id
+        LEFT JOIN vocabulary.concept AS v3 ON b.measurement_type_concept_id = v3.concept_id
+        LEFT JOIN vocabulary.concept AS v4 ON b.operator_concept_id  = v4.concept_id
+        LEFT JOIN vocabulary.concept AS v5 ON b.priority_concept_id  = v5.concept_id
+        LEFT JOIN vocabulary.concept AS v6 ON b.range_high_operator_concept_id = v6.concept_id
+        LEFT JOIN vocabulary.concept AS v7 ON b.range_low_operator_concept_id = v7.concept_id
+        LEFT JOIN vocabulary.concept AS v8 ON b.unit_concept_id = v8.concept_id
+        LEFT JOIN vocabulary.concept AS v9 ON b.value_as_concept_id  = v9.concept_id
+        ) v
+        WHERE bmi.measurement_id = v.measurement_id"""
+        
     fill_concept_names_msg = "adding concept names"
 
     # Add concept names
@@ -173,7 +172,6 @@ def _fill_concept_names(conn_str):
 
     # If reached without error, then success!
     return True
-
 
 def _copy_to_dcc_table(conn_str, table):
     copy_to_sql = """INSERT INTO dcc_pedsnet.{0}(
@@ -236,7 +234,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
     :param bool ids: if True, add measurement_ids to output table
     :param bool indexes: if True, create indexes on output table
     :param bool concept: if True, add concept names to output table
-    :param bool concept: if True, add age in months to output table
+    :param bool age: if True, add age in months to output table
     :param bool neg_ids: if True, use negative ids
     :param bool skip_calc: if True, skip the actual calculation
     :param str table:    name of input/copy table (measurement/measurement_anthro)
@@ -357,13 +355,13 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
             return False
         logger.info({'msg': 'concept names added'})
 
-    # Add age in months
-    if age:
-        logger.info({'msg': 'add age in months'})
-        okay = _fill_age_in_months(conn_str, schema)
-        if not okay:
-            return False
-        logger.info({'msg': 'age in months added'})
+        # Add age in months
+        if age:
+            logger.info({'msg': 'add age in months'})
+            okay = _fill_age_in_months(conn_str, schema)
+            if not okay:
+                return False
+            logger.info({'msg': 'age in months added'})
 
     # Copy to the measurement table
     if copy:
