@@ -28,7 +28,7 @@ def _create_config_file(config_path, config_file, schema, table, password, conn_
         out_config.write('input_measurement_table = ' + table + os.linesep)
         out_config.write('output_chunk_size = 1000' + os.linesep)
         out_config.write('person_chunk_size = 1000' + os.linesep)
-        out_config.write('clone_bmi_measurement = 1' + os.linesep)
+        out_config.write('clone_bmi_measurements = 1' + os.linesep)
         out_config.write('verbose = 1' + os.linesep)
         out_config.write('<src_rdb>' + os.linesep)
         out_config.write('driver = Pg' + os.linesep)
