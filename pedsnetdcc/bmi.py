@@ -355,13 +355,13 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
             return False
         logger.info({'msg': 'concept names added'})
 
-        # Add age in months
-        if age:
-            logger.info({'msg': 'add age in months'})
-            okay = _fill_age_in_months(conn_str, schema)
-            if not okay:
-                return False
-            logger.info({'msg': 'age in months added'})
+    # Add age in months
+    if age:
+        logger.info({'msg': 'add age in months'})
+        okay = _fill_age_in_months(conn_str, schema)
+        if not okay:
+            return False
+        logger.info({'msg': 'age in months added'})
 
     # Copy to the measurement table
     if copy:
