@@ -1323,6 +1323,8 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
               help='DO NOT add indexes.')
 @click.option('--noconcept', is_flag=True, default=False,
               help='DO NOT add concept names.')
+@click.option('--noage', is_flag=True, default=False,
+              help='DO NOT add age in months.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
 @click.option('--skip_calc', is_flag=True, default=False,
@@ -1336,7 +1338,7 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 @click.option('--idname', required=False, default='dcc',
               help='name of the id (ex: onco')
 @click.argument('dburi')
-def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, skip_calc, table,
+def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, noage, neg_ids, skip_calc, table,
                  person, model_version, idname, dburi):
     """Run HEIGHT-Z derivation.
 
@@ -1377,8 +1379,12 @@ def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
     if noconcept:
         concept = False
 
+    age = True
+    if noage:
+        age = False
+
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids,
+    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
                          skip_calc, table, person, password, searchpath, model_version, idname)
 
     if not success:
@@ -1435,6 +1441,8 @@ def copy_height_z(pwprompt, searchpath, site, table, dburi):
               help='DO NOT add indexes.')
 @click.option('--noconcept', is_flag=True, default=False,
               help='DO NOT add concept names.')
+@click.option('--noage', is_flag=True, default=False,
+              help='DO NOT add age in months.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
 @click.option('--skip_calc', is_flag=True, default=False,
@@ -1448,7 +1456,7 @@ def copy_height_z(pwprompt, searchpath, site, table, dburi):
 @click.option('--idname', required=False, default='dcc',
               help='name of the id (ex: onco')
 @click.argument('dburi')
-def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, skip_calc, table,
+def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, noage, neg_ids, skip_calc, table,
                  person, model_version, idname, dburi):
     """Run Weight-Z derivation.
 
@@ -1489,8 +1497,12 @@ def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
     if noconcept:
         concept = False
 
+    age = True
+    if noage:
+        age = False
+
     from pedsnetdcc.z_score import run_z_calc
-    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids,
+    success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
                          skip_calc, table, person, password, searchpath, model_version, idname)
 
     if not success:
@@ -1547,6 +1559,8 @@ def copy_weight_z(pwprompt, searchpath, site, table, dburi):
               help='DO NOT add indexes.')
 @click.option('--noconcept', is_flag=True, default=False,
               help='DO NOT add concept names.')
+@click.option('--noage', is_flag=True, default=False,
+              help='DO NOT add age in months.')
 @click.option('--neg_ids', is_flag=True, default=False,
               help='Use negative ids.')
 @click.option('--skip_calc', is_flag=True, default=False,
@@ -1560,7 +1574,7 @@ def copy_weight_z(pwprompt, searchpath, site, table, dburi):
 @click.option('--idname', required=False, default='dcc',
               help='name of the id (ex: onco')
 @click.argument('dburi')
-def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, neg_ids, skip_calc, table,
+def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, noage, neg_ids, skip_calc, table,
                 person, model_version, idname, dburi):
     """Run height-z and weight-z.
 
@@ -1594,10 +1608,14 @@ def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, n
     if noconcept:
         concept = False
 
+    age = True
+    if noage:
+        age = False
+
     from pedsnetdcc.z_score import run_z_calc
 
     config_file = site + "_htz_temp.conf"
-    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, neg_ids,
+    success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
                          skip_calc, table, person, password, searchpath, model_version, idname)
 
     if not success:
