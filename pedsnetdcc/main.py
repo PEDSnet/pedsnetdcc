@@ -828,8 +828,17 @@ def merge_schema(pwprompt, schema, altname, skipsites, addsites, force, notable,
               help='Limit permissions to owner.')
 @click.option('--owner', required=False, default='loading_user',
               help='the role that permissions should be granted to if permissions limited')
+@click.option('--skip_split', is_flag=True, default=False,
+              help='Limit permissions to owner.')
+@click.option('--skip_index', is_flag=True, default=False,
+              help='Limit permissions to owner.')
+@click.option('--skip_fx', is_flag=True, default=False,
+              help='Limit permissions to owner.')
+@click.option('--skip_not null', is_flag=True, default=False,
+              help='Limit permissions to owner.')
 @click.argument('dburi')
-def split_measurement(pwprompt, searchpath, truncate, view, model_version, limit, owner, dburi):
+def split_measurement(pwprompt, searchpath, truncate, view, model_version, limit, owner,
+                      skip_split, skip_index, skip_fk, skip_not_null, dburi):
     """Split measurement table into anthro, labs, and vitals.
 
     The steps are:
@@ -857,7 +866,8 @@ def split_measurement(pwprompt, searchpath, truncate, view, model_version, limit
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.split_measurement import split_measurement_table
-    success = split_measurement_table(conn_str, truncate, view, model_version, searchpath, limit, owner)
+    success = split_measurement_table(conn_str, truncate, view, model_version, searchpath, limit, owner,
+                                      skip_split, skip_index, skip_fk, skip_not_null)
 
     if not success:
         sys.exit(1)
