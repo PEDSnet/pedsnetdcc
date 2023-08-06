@@ -829,13 +829,13 @@ def merge_schema(pwprompt, schema, altname, skipsites, addsites, force, notable,
 @click.option('--owner', required=False, default='loading_user',
               help='the role that permissions should be granted to if permissions limited')
 @click.option('--skip_split', is_flag=True, default=False,
-              help='Limit permissions to owner.')
+              help='Skip running split, already complete.')
 @click.option('--skip_index', is_flag=True, default=False,
-              help='Limit permissions to owner.')
-@click.option('--skip_fx', is_flag=True, default=False,
-              help='Limit permissions to owner.')
+              help='Skip creating indexes.')
+@click.option('--skip_fk', is_flag=True, default=False,
+              help='Skip creating FKs.')
 @click.option('--skip_not null', is_flag=True, default=False,
-              help='Limit permissions to owner.')
+              help='Skip setting columns not null.')
 @click.argument('dburi')
 def split_measurement(pwprompt, searchpath, truncate, view, model_version, limit, owner,
                       skip_split, skip_index, skip_fk, skip_not_null, dburi):
