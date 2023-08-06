@@ -834,7 +834,7 @@ def merge_schema(pwprompt, schema, altname, skipsites, addsites, force, notable,
               help='Skip creating indexes.')
 @click.option('--skip_fk', is_flag=True, default=False,
               help='Skip creating FKs.')
-@click.option('--skip_not null', is_flag=True, default=False,
+@click.option('--skip_not_null', is_flag=True, default=False,
               help='Skip setting columns not null.')
 @click.argument('dburi')
 def split_measurement(pwprompt, searchpath, truncate, view, model_version, limit, owner,
