@@ -2775,6 +2775,8 @@ def run_r_pcornet_adult_slice(pwprompt, searchpath, site, source_schema, target_
               help='Create concept index replacement tables.')
 @click.option('--drug_dose', is_flag=True, default=False,
               help='Copy drug dose tables.')
+@click.option('--measurement', is_flag=True, default=False,
+              help='Copy measurement tables.')
 @click.option('--covid_obs', is_flag=True, default=False,
               help='Copy COVID observation derivation table.')
 @click.option('--inc_hash', is_flag=True, default=False,
@@ -2801,7 +2803,7 @@ def run_r_pcornet_adult_slice(pwprompt, searchpath, site, source_schema, target_
               help='Name of the cohort table where the person_ids are located')
 @click.argument('dburi')
 def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_schema, target_schema, cohort_table,
-                     concept_create, drug_dose, covid_obs, inc_hash, split_measure, index_create,
+                     concept_create, drug_dose, measurement, covid_obs, inc_hash, split_measure, index_create,
                      fk_create, notable, nopk, limit, owner, nonull):
     """Create tables for subset based on a cohort/person_id table
 
@@ -2820,7 +2822,7 @@ def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_s
 
     from pedsnetdcc.subset_by_cohort import run_subset_by_cohort
     success = run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, cohort_table,
-                         concept_create, drug_dose, covid_obs, inc_hash, index_create, fk_create, notable,
+                         concept_create, drug_dose, measurement, covid_obs, inc_hash, index_create, fk_create, notable,
                          nopk, nonull, limit, owner, force)
 
     if not success:
