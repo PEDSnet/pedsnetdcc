@@ -219,41 +219,41 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
             logger.info({'msg': 'drug dose tables created'})
             stmts.clear()
 
-            # Add measurement tables
-            if measurement:
-                del table_list[:]
-                create_dict.clear()
-                stmts.clear()
-                for table_name in measurement_tables:
-                    table_list.append(table_name)
-                    create = 'create table ' + target_schema + '.' + table_name + ' as select t.*'
-                    create = create + ' from ' + source_schema + '.' + table_name + ' t'
-                    create = create + ' join ' + target_schema + '.' + cohort_table + ' c on c.person_id = t.person_id'
-                    create = create + ';'
-                    create_dict[table_name] = create
-                    grant_vacuum_tables.append(table_name)
+        # Add measurement tables
+        if measurement:
+            del table_list[:]
+            create_dict.clear()
+            stmts.clear()
+            for table_name in measurement_tables:
+                table_list.append(table_name)
+                create = 'create table ' + target_schema + '.' + table_name + ' as select t.*'
+                create = create + ' from ' + source_schema + '.' + table_name + ' t'
+                create = create + ' join ' + target_schema + '.' + cohort_table + ' c on c.person_id = t.person_id'
+                create = create + ';'
+                create_dict[table_name] = create
+                grant_vacuum_tables.append(table_name)
 
-                for table_name in sorted(table_list):
-                    create_stmt = Statement(create_dict[table_name])
-                    stmts.add(create_stmt)
+            for table_name in sorted(table_list):
+                create_stmt = Statement(create_dict[table_name])
+                stmts.add(create_stmt)
 
-                # Execute the statements in parallel.
-                stmts.parallel_execute(conn_str)
+            # Execute the statements in parallel.
+            stmts.parallel_execute(conn_str)
 
-                # Check for any errors and raise exception if they are found.
-                for stmt in stmts:
-                    try:
-                        check_stmt_err(stmt, 'create measurement tables')
-                    except:
-                        logger.error(combine_dicts({'msg': 'Fatal error',
-                                                    'sql': stmt.sql,
-                                                    'err': str(stmt.err)}, log_dict))
-                        logger.info(combine_dicts({'msg': 'create measurement tables failed',
-                                                   'elapsed': secs_since(start_time)},
-                                                  log_dict))
-                        raise
-                logger.info({'msg': 'measurement tables created'})
-                stmts.clear()
+            # Check for any errors and raise exception if they are found.
+            for stmt in stmts:
+                try:
+                    check_stmt_err(stmt, 'create measurement tables')
+                except:
+                    logger.error(combine_dicts({'msg': 'Fatal error',
+                                                'sql': stmt.sql,
+                                                'err': str(stmt.err)}, log_dict))
+                    logger.info(combine_dicts({'msg': 'create measurement tables failed',
+                                               'elapsed': secs_since(start_time)},
+                                              log_dict))
+                    raise
+            logger.info({'msg': 'measurement tables created'})
+            stmts.clear()
 
         # Add COVID observation table
         if covid_obs:
