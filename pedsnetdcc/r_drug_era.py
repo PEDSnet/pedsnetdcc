@@ -63,6 +63,19 @@ def _fix_size(file_path, size):
 
     return True
 
+def _fix_start(file_path, start):
+    try:
+        with open(os.path.join(file_path,'code','driver.R'), 'r') as driver_file:
+            file_data = driver_file.read()
+        file_data = file_data.replace('<START>', str(start))
+        with open(os.path.join(file_path,'code','driver.R'), 'w') as driver_file:
+            driver_file.write(file_data)
+    except:
+        # this query package may not have this file
+        return False
+
+    return True
+
 def _fix_run(file_path, site):
     try:
         with open(os.path.join(file_path,'site','run.R'), 'r') as site_file:
@@ -98,7 +111,7 @@ def _copy_to_dcc_table(conn_str, era_type, schema):
 
 
 def run_r_drug_era(conn_str, site, copy, neg_ids, search_path, password, model_version, id_name, notable=False,
-                   noids=False, nopk=False, novac=False, size='5000', test=False):
+                   noids=False, nopk=False, novac=False, size='5000', start='0', test=False):
 
     """Run the Condition or Drug Era derivation.
 
@@ -123,6 +136,7 @@ def run_r_drug_era(conn_str, site, copy, neg_ids, search_path, password, model_v
     :param bool noidx:        skip ndexes if already exist
     :param bool novac:        skip vaccuum if already done
     :param str size:          size for # of persons in each group
+    :param str start:         person id to start with
     :param bool test:         use test project
     :returns:                 True if the function succeeds
     :rtype:                   bool
@@ -227,6 +241,8 @@ def run_r_drug_era(conn_str, site, copy, neg_ids, search_path, password, model_v
         _fix_run(dest_path, site)
         size = int(size)
         _fix_size(dest_path, size)
+        start = int(start)
+        _fix_start(dest_path, start)
 
         query_path = os.path.join(os.sep, 'app', package, site, 'site', 'run.R')
         # Run R script

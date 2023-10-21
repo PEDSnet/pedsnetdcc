@@ -1800,8 +1800,11 @@ def copy_drug_era(pwprompt, searchpath, site, dburi):
               help='Skip vaccuum if already done.')
 @click.option('--size', required=False, default='5000',
               help='size of the group of persons processed at a time')
+@click.option('--start', required=False, default='0',
+              help='person id to start with.')
 @click.argument('dburi')
-def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids, nopk, novac, size, dburi):
+def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids,
+                   nopk, novac, size, start, dburi):
     """Run Drug Era derivation.
 
     The steps are:
@@ -1827,7 +1830,7 @@ def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idn
 
     from pedsnetdcc.r_drug_era import run_r_drug_era
     success = run_r_drug_era(conn_str, site, copy, neg_ids, searchpath, password, model_version, idname,
-                             notable, noids, nopk, novac, size)
+                             notable, noids, nopk, novac, size, start)
 
     if not success:
         sys.exit(1)
