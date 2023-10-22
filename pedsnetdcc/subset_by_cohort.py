@@ -1,5 +1,6 @@
 import logging
 import time
+import hashlib
 from pedsnetdcc.db import StatementSet, Statement
 from pedsnetdcc.dict_logging import secs_since
 from pedsnetdcc.transform_runner import add_indexes, drop_unneeded_indexes
@@ -12,6 +13,9 @@ from pedsnetdcc.concept_group_tables import create_index_replacement_tables
 from pedsnetdcc import VOCAB_TABLES
 ALTER_OWNER_SQL = 'alter table {0}.{1} owner to dcc_owner;'
 GRANT_TABLE_SQL = 'grant select on table {0}.{1} to {2}'
+IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on {1}.measurement_{2} ({3})'
+PK_MEASURE_LIKE_TABLE_SQL = '''ALTER TABLE IF EXISTS {0}.measurement_{1}
+    ADD CONSTRAINT measurement_{1}_pkey PRIMARY KEY (measurement_id);'''
 
 
 def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, cohort_table,
@@ -253,6 +257,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
                                               log_dict))
                     raise
             logger.info({'msg': 'measurement tables created'})
+
             stmts.clear()
 
         # Add COVID observation table
@@ -298,6 +303,11 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
     if not nopk:
         # Add primary keys to the subset tables
         add_primary_keys(new_conn_str, model_version, force)
+        # Add measurement like PK
+        if measurement:
+            for table_name in measurement_tables:
+                m_type = table_name[13:]
+                measure_pk(conn_str, target_schema, m_type)
 
     if not nonull:
         # Add NOT NULL constraints to the subset tables (no force option)
@@ -310,9 +320,16 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
         # Drop unneeded indexes from the transformed tables
         drop_unneeded_indexes(new_conn_str, model_version, force)
 
+        # Add measurement like indexes
+        if measurement:
+            for table_name in measurement_tables:
+                m_type = table_name[13:]
+                measure_index(conn_str, target_schema, m_type)
+
     if fk_create:
         # Add constraints to the subset tables
         add_foreign_keys(new_conn_str, model_version, force)
+
 
     # Create concept index replacement tables normally done during merge.
     if concept_create:
@@ -392,3 +409,98 @@ def run_index_replace(conn_str, model_version):
 
     # If reached without error, then success!
     return True
+
+def measure_pk(conn_str, schema, m_type):
+    logger = logging.getLogger(__name__)
+    log_dict = combine_dicts({'model_version': model_version, },
+                             get_conn_info_dict(conn_str))
+    logger.info(combine_dicts({'msg': 'starting subset by cohort'},
+                              log_dict))
+    start_time = time.time()
+    stmts = StatementSet()
+
+    logger.info({'msg': 'begin add measurement primary key'})
+    stmts.clear()
+
+    idx_stmt = Statement(PK_MEASURE_LIKE_TABLE_SQL.format(schema, m_type))
+    stmts.add(idx_stmt)
+
+    # Execute the statements in parallel.
+    stmts.parallel_execute(conn_str, 1)
+
+    # Check for any errors and raise exception if they are found.
+    for stmt in stmts:
+        try:
+            check_stmt_err(stmt, 'Run measurement like PK')
+        except:
+            logger.error(combine_dicts({'msg': 'Fatal error',
+                                        'sql': stmt.sql,
+                                        'err': str(stmt.err)}, log_dict))
+            logger.info(combine_dicts({'msg': 'adding PK failed',
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            raise
+    logger.info({'msg': 'add PK complete'})
+
+    return True;
+
+def measure_index(conn_str, schema, m_type):
+    logger = logging.getLogger(__name__)
+    log_dict = combine_dicts({'model_version': model_version, },
+                             get_conn_info_dict(conn_str))
+    logger.info(combine_dicts({'msg': 'starting measurement like indexes'},
+                              log_dict))
+    start_time = time.time()
+    stmts = StatementSet()
+
+    logger.info({'msg': 'begin add measurement like indexes'})
+    stmts.clear()
+    col_index = ('measurement_age_in_months', 'measurement_concept_id', 'measurement_date',
+                 'measurement_type_concept_id', 'person_id', 'site', 'visit_occurrence_id',
+                 'measurement_source_value', 'value_as_concept_id', 'value_as_number',)
+
+    for col in col_index:
+        idx_name = _make_index_name(m_type, col)
+        idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.format(idx_name, schema, m_type, col))
+        stmts.add(idx_stmt)
+
+    # Execute the statements in parallel.
+    stmts.parallel_execute(conn_str, 5)
+
+    # Check for any errors and raise exception if they are found.
+    for stmt in stmts:
+        try:
+            check_stmt_err(stmt, 'Run measurement like indexes')
+        except:
+            logger.error(combine_dicts({'msg': 'Fatal error',
+                                        'sql': stmt.sql,
+                                        'err': str(stmt.err)}, log_dict))
+            logger.info(combine_dicts({'msg': 'adding indexes failed',
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            raise
+    logger.info({'msg': 'add indexes complete'})
+
+    return True;
+
+def _make_index_name(table_name, column_name):
+    """
+        Create an index name for a given table/column combination with
+        a NAME_LIMIT-character (Oracle) limit.  The table/column combination
+        `provider.gender_source_concept_name` results in the index name
+        `pro_gscn_ae1fd5b22b92397ca9_ix`.  We opt for a not particularly
+        human-readable name in order to avoid collisions, which are all too
+        possible with columns like provider.gender_source_concept_name and
+        person.gender_source_concept_name.
+        :param str table_name:
+        :param str column_name:
+        :rtype: str
+        """
+    table_abbrev = "mea_" + table_name[:3]
+    column_abbrev = ''.join([x[0] for x in column_name.split('_')])
+    md5 = hashlib.md5(
+        '{}.{}'.format(table_name, column_name).encode('utf-8')). \
+        hexdigest()
+    hashlen = NAME_LIMIT - (len(table_abbrev) + len(column_abbrev) +
+                            3 * len('_') + len('ix'))
+    return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
