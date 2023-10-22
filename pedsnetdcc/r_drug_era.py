@@ -111,7 +111,7 @@ def _copy_to_dcc_table(conn_str, era_type, schema):
 
 
 def run_r_drug_era(conn_str, site, copy, neg_ids, search_path, password, model_version, id_name, notable=False,
-                   noids=False, nopk=False, novac=False, size='5000', start='0', test=False):
+                   noids=False, nopk=False, novac=False, size='5000', start='0', notrunc=False, test=False):
 
     """Run the Condition or Drug Era derivation.
 
@@ -137,6 +137,7 @@ def run_r_drug_era(conn_str, site, copy, neg_ids, search_path, password, model_v
     :param bool novac:        skip vaccuum if already done
     :param str size:          size for # of persons in each group
     :param str start:         person id to start with
+    :param bool notrunc:      don't truncate table
     :param bool test:         use test project
     :returns:                 True if the function succeeds
     :rtype:                   bool
@@ -206,22 +207,23 @@ def run_r_drug_era(conn_str, site, copy, neg_ids, search_path, password, model_v
                 raise
 
         # Truncate table
-        trunc_stmt = Statement(TRUNCATE_ERA_SQL.format(schema))
-        stmts.add(trunc_stmt)
+        if not notrunc:
+            trunc_stmt = Statement(TRUNCATE_ERA_SQL.format(schema))
+            stmts.add(trunc_stmt)
 
-        # Check for any errors and raise exception if they are found.
-        for stmt in stmts:
-            try:
-                stmt.execute(conn_str)
-                check_stmt_err(stmt, logger_msg.format('Run', era_type))
-            except:
-                logger.error(combine_dicts({'msg': 'Fatal error',
-                                            'sql': stmt.sql,
-                                            'err': str(stmt.err)}, log_dict))
-                logger.info(combine_dicts({'msg': 'truncate failed',
-                                           'elapsed': secs_since(start_time)},
-                                          log_dict))
-                raise
+            # Check for any errors and raise exception if they are found.
+            for stmt in stmts:
+                try:
+                    stmt.execute(conn_str)
+                    check_stmt_err(stmt, logger_msg.format('Run', era_type))
+                except:
+                    logger.error(combine_dicts({'msg': 'Fatal error',
+                                                'sql': stmt.sql,
+                                                'err': str(stmt.err)}, log_dict))
+                    logger.info(combine_dicts({'msg': 'truncate failed',
+                                               'elapsed': secs_since(start_time)},
+                                              log_dict))
+                    raise
 
         # Run the derivation query
         logger.info({'msg': 'run {0} era derivation R Script'.format(era_type)})

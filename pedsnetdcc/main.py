@@ -1802,9 +1802,11 @@ def copy_drug_era(pwprompt, searchpath, site, dburi):
               help='size of the group of persons processed at a time')
 @click.option('--start', required=False, default='0',
               help='person id to start with.')
+@click.option('--notrunc', is_flag=True, default=False,
+              help='Skip truncate to preserve table contents.')
 @click.argument('dburi')
 def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idname, notable, noids,
-                   nopk, novac, size, start, dburi):
+                   nopk, novac, size, start, notrunc, dburi):
     """Run Drug Era derivation.
 
     The steps are:
@@ -1830,7 +1832,7 @@ def run_r_drug_era(pwprompt, searchpath, site, copy, neg_ids, model_version, idn
 
     from pedsnetdcc.r_drug_era import run_r_drug_era
     success = run_r_drug_era(conn_str, site, copy, neg_ids, searchpath, password, model_version, idname,
-                             notable, noids, nopk, novac, size, start)
+                             notable, noids, nopk, novac, size, start, notrunc)
 
     if not success:
         sys.exit(1)
