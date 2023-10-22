@@ -307,7 +307,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
         if measurement:
             for table_name in measurement_tables:
                 m_type = table_name[13:]
-                measure_pk(conn_str, target_schema, m_type)
+                measure_pk(conn_str, model_version, target_schema, m_type)
 
     if not nonull:
         # Add NOT NULL constraints to the subset tables (no force option)
@@ -324,7 +324,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
         if measurement:
             for table_name in measurement_tables:
                 m_type = table_name[13:]
-                measure_index(conn_str, target_schema, m_type)
+                measure_index(conn_str, model_version, target_schema, m_type)
 
     if fk_create:
         # Add constraints to the subset tables
@@ -410,7 +410,7 @@ def run_index_replace(conn_str, model_version):
     # If reached without error, then success!
     return True
 
-def measure_pk(conn_str, schema, m_type):
+def measure_pk(conn_str, model_version, schema, m_type):
     logger = logging.getLogger(__name__)
     log_dict = combine_dicts({'model_version': model_version, },
                              get_conn_info_dict(conn_str))
@@ -444,7 +444,7 @@ def measure_pk(conn_str, schema, m_type):
 
     return True;
 
-def measure_index(conn_str, schema, m_type):
+def measure_index(conn_str, model_version, bschema, m_type):
     logger = logging.getLogger(__name__)
     log_dict = combine_dicts({'model_version': model_version, },
                              get_conn_info_dict(conn_str))
