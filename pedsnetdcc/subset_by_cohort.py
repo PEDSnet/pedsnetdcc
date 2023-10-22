@@ -11,6 +11,7 @@ from pedsnetdcc.utils import (get_conn_info_dict, combine_dicts, check_stmt_err,
 from pedsnetdcc.not_nulls import set_not_nulls
 from pedsnetdcc.concept_group_tables import create_index_replacement_tables
 from pedsnetdcc import VOCAB_TABLES
+NAME_LIMIT = 30
 ALTER_OWNER_SQL = 'alter table {0}.{1} owner to dcc_owner;'
 GRANT_TABLE_SQL = 'grant select on table {0}.{1} to {2}'
 IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on {1}.measurement_{2} ({3})'
