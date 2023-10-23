@@ -415,12 +415,12 @@ def measure_pk(conn_str, model_version, schema, m_type):
     logger = logging.getLogger(__name__)
     log_dict = combine_dicts({'model_version': model_version, },
                              get_conn_info_dict(conn_str))
-    logger.info(combine_dicts({'msg': 'starting subset by cohort'},
+    logger.info(combine_dicts({'msg': 'starting measurement like primary key'},
                               log_dict))
     start_time = time.time()
     stmts = StatementSet()
 
-    logger.info({'msg': 'begin add measurement primary key'})
+    logger.info({'msg': 'begin add measurement like primary key'})
     stmts.clear()
 
     idx_stmt = Statement(PK_MEASURE_LIKE_TABLE_SQL.format(schema, m_type))
