@@ -307,7 +307,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
         # Add measurement like PK
         if measurement:
             for table_name in measurement_tables:
-                m_type = table_name[13:]
+                m_type = table_name[12:]
                 measure_pk(new_conn_str, model_version, target_schema, m_type)
 
     if not nonull:
@@ -324,7 +324,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
         # Add measurement like indexes
         if measurement:
             for table_name in measurement_tables:
-                m_type = table_name[13:]
+                m_type = table_name[12:]
                 measure_index(new_conn_str, model_version, target_schema, m_type)
 
     if fk_create:
