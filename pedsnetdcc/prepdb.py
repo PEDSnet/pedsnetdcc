@@ -288,7 +288,7 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
 
     if not update:
         stmts.extend(
-            [Statement(x) for x in _create_database_sql(database_name)])
+            [Statement(x) for x in _create_database_sql(database_name, 'loading_user')])
 
     stmts.serial_execute(conn_str)
 
@@ -296,9 +296,9 @@ def prepare_database(model_version, conn_str, update=False, dcc_only=False):
     # Operate on the newly created database.
     stmts = StatementList()
     for site in _sites_and_dcc(dcc_only, True):
-        stmts.extend([Statement(x) for x in _site_sql(site)])
+        stmts.extend([Statement(x) for x in _site_sql(site, 'loading_user')])
 
-    stmts.extend([Statement(x) for x in _other_sql()])
+    stmts.extend([Statement(x) for x in _other_sql('dcc', False, 'loading_user')])
 
     # Create new_conn_str to target the new database
     new_conn_str = _conn_str_with_database(conn_str, database_name)
