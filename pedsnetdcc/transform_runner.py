@@ -60,9 +60,13 @@ def _transform_select_sql(model_version, site, target_schema, id_name, id_type, 
     metadata = stock_metadata(model_version)
     metadata.info['site'] = site
 
-    stmt_pairs = set()
+    stmt_pairs = set()x
     for table_name, table in metadata.tables.items():
         if table_name in VOCAB_TABLES:
+            continue
+            
+        # temp fix for cohort table multi-column primary key
+        if table_name == 'cohort':
             continue
 
         select_obj = sqlalchemy.select([table])
