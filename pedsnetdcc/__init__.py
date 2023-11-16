@@ -52,8 +52,8 @@ FACT_RELATIONSHIP_DOMAINS = {
 }
 
 SITE_ROOT = '/data/site_data'
-SITES = ('chop', 'colorado', 'lurie', 'nationwide', 'nemours', 'seattle', 'stanford',)
-EXTERNAL_SITES = ('boston', 'cchmc', 'stlouis', 'indiana', 'missouri',)
+SITES = ('cchmc', 'chop', 'colorado', 'lurie', 'nationwide', 'nemours', 'seattle', 'stanford',)
+EXTERNAL_SITES = ('boston', 'stlouis', 'indiana', 'missouri','national','texas',)
 SITES_AND_DCC = SITES + ('dcc',)
 SITES_AND_EXTERNAL = EXTERNAL_SITES + SITES
 SITES_EXTERNAL_ADD_DCC = SITES_AND_EXTERNAL + ('dcc',)
@@ -77,6 +77,7 @@ ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
     'drug_exposure',
     'hash_token',
     'location',
+    'location_fips',
     'location_history',
     'immunization',
     'measurement',

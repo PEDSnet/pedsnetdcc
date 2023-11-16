@@ -66,10 +66,6 @@ class IDMappingTransform(Transform):
             if table_name == 'drug_strength':
                 continue
 
-            # Cohort table has two primary keys, fix in future
-            if table_name == 'cohort':
-                continue
-
             # Get table object and start to build tpl_vars map, which will be
             # used throughout for formatting SQL statements.
             table = metadata.tables[table_name]

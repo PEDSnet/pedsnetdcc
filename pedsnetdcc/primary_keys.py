@@ -32,8 +32,7 @@ def _primary_keys_from_model_version(model_version):
 
     primary_keys = []
     for name, table in metadata.tables.items():
-        # temp fix for cohort table that has a multiple column PK
-        if name not in VOCAB_TABLES and name != 'cohort':
+        if name not in VOCAB_TABLES:
             for con in table.constraints:
                 if con and isinstance(con, sqlalchemy.PrimaryKeyConstraint):
                     primary_keys.append(con)

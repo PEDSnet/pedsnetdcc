@@ -65,10 +65,6 @@ def _transform_select_sql(model_version, site, target_schema, id_name, id_type, 
         if table_name in VOCAB_TABLES:
             continue
 
-        # temp fix for cohort table multi-column primary key
-        if table_name == 'cohort':
-            continue
-
         select_obj = sqlalchemy.select([table])
         join_obj = table
 
