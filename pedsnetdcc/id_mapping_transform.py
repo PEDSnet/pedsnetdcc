@@ -195,14 +195,16 @@ class IDMappingTransform(Transform):
             site_id_type = sqlalchemy.String(256)
 
         # Raise error if attempted on a multi-column primary key table.
-        if len(table.primary_key.columns) > 1:
+        # Make exception for Cohort table
+        if len(table.primary_key.columns) > 1 and table != 'cohort':
             raise ValueError('cannot map IDs for multi-column primary key'
                              ' on table {0}'.format(table_name))
 
-        # Skip primary key mapping if there is none (fact_relationship and pre
+        # Skip primary key mapping if there is none (fact_relationship
+        # also skip Cohort table as it currently has multi-column PK and pre
         # 2.3 death tables). Also, in some versions, the death table has a
         # primary key constraint on the person_id column.
-        if not (len(table.primary_key.columns) == 0 or (table_name == 'death'
+        if not (len(table.primary_key.columns) == 0 or table_name == 'cohort' or (table_name == 'death'
                 and 'person_id' in table.primary_key.columns)):
 
             # Get primary key name and mapping table name, defined by
