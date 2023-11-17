@@ -75,7 +75,9 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
         'visit_payer',
         'fact_relationship',
         'location_history',
-        'hash_token'
+        'hash_token',
+        'cohort',
+        'cohort_definition'
     }
     measurement_tables = {
         'measurement_bmi',
@@ -158,6 +160,10 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
                         create = create + ' join ' + target_schema + '.' + cohort_table + ' c on c.person_id = t.person_id'
                     else:
                         create = create + ' where FALSE'
+                if table_name == 'cohort' or table_name == 'cohort_definition':
+                    # for now just skip (will address later)
+                    create = create + ' where FALSE'
+                    
                 create = create + ';'
                 create_dict[table_name] = create
                 grant_vacuum_tables.append(table_name)
