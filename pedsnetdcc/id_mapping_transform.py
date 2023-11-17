@@ -196,7 +196,7 @@ class IDMappingTransform(Transform):
 
         # Raise error if attempted on a multi-column primary key table.
         # Make exception for Cohort table
-        if len(table.primary_key.columns) > 1 and table != 'cohort':
+        if len(table.primary_key.columns) > 1 and table_name != 'cohort':
             raise ValueError('cannot map IDs for multi-column primary key'
                              ' on table {0}'.format(table_name))
 
