@@ -386,19 +386,19 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
             alter_stmt = Statement(BMIZ_INCREASE_VALUE_AS_NUMBER.format(schema))
             stmts.add(alter_stmt)
 
-        # Check for any errors and raise exception if they are found.
-        for stmt in stmts:
-            try:
-                stmt.execute(conn_str)
-                check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
-            except:
-                logger.error(combine_dicts({'msg': 'Fatal error',
-                                            'sql': stmt.sql,
-                                            'err': str(stmt.err)}, log_dict))
-                logger.info(combine_dicts({'msg': 'alter table failed',
-                                           'elapsed': secs_since(start_time)},
-                                          log_dict))
-                raise
+            # Check for any errors and raise exception if they are found.
+            for stmt in stmts:
+                try:
+                    stmt.execute(conn_str)
+                    check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
+                except:
+                    logger.error(combine_dicts({'msg': 'Fatal error',
+                                                'sql': stmt.sql,
+                                                'err': str(stmt.err)}, log_dict))
+                    logger.info(combine_dicts({'msg': 'alter table failed',
+                                               'elapsed': secs_since(start_time)},
+                                              log_dict))
+                    raise
 
         # Add drop null statement
         stmts.clear()
@@ -428,19 +428,19 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
             delete_stmt = Statement(BMIZ_DELETE_OVERFLOW.format(schema))
             stmts.add(delete_stmt)
 
-        # Check for any errors and raise exception if they are found.
-        for stmt in stmts:
-            try:
-                stmt.execute(conn_str)
-                check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
-            except:
-                logger.error(combine_dicts({'msg': 'Fatal error',
-                                            'sql': stmt.sql,
-                                            'err': str(stmt.err)}, log_dict))
-                logger.info(combine_dicts({'msg': 'delete value_as_number numeric overflow row(s) failed',
-                                           'elapsed': secs_since(start_time)},
-                                          log_dict))
-                raise
+            # Check for any errors and raise exception if they are found.
+            for stmt in stmts:
+                try:
+                    stmt.execute(conn_str)
+                    check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
+                except:
+                    logger.error(combine_dicts({'msg': 'Fatal error',
+                                                'sql': stmt.sql,
+                                                'err': str(stmt.err)}, log_dict))
+                    logger.info(combine_dicts({'msg': 'delete value_as_number numeric overflow row(s) failed',
+                                               'elapsed': secs_since(start_time)},
+                                              log_dict))
+                    raise
 
         # return value_as_number column to default size
         if z_type == 'bmiz':
@@ -448,19 +448,19 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
             alter_stmt = Statement(BMIZ_DEFAULT_VALUE_AS_NUMBER.format(schema))
             stmts.add(alter_stmt)
 
-        # Check for any errors and raise exception if they are found.
-        for stmt in stmts:
-            try:
-                stmt.execute(conn_str)
-                check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
-            except:
-                logger.error(combine_dicts({'msg': 'Fatal error',
-                                            'sql': stmt.sql,
-                                            'err': str(stmt.err)}, log_dict))
-                logger.info(combine_dicts({'msg': 'alter table failed',
-                                           'elapsed': secs_since(start_time)},
-                                          log_dict))
-                raise
+            # Check for any errors and raise exception if they are found.
+            for stmt in stmts:
+                try:
+                    stmt.execute(conn_str)
+                    check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
+                except:
+                    logger.error(combine_dicts({'msg': 'Fatal error',
+                                                'sql': stmt.sql,
+                                                'err': str(stmt.err)}, log_dict))
+                    logger.info(combine_dicts({'msg': 'alter table failed',
+                                               'elapsed': secs_since(start_time)},
+                                              log_dict))
+                    raise
 
     # Add indexes to measurement result table (same as measurement)
     if indexes:
