@@ -566,9 +566,9 @@ def add_measurement_like_fks(conn_str, model_version, schema):
               'visit_occurrence_id',)
 
     measure_like_tables = {
-        'measurement_anthro',
-        'measurement_labs',
-        'measurement_vital'
+        'anthro',
+        'labs',
+        'vital'
     }
 
     for measure_like_table in measure_like_tables:
@@ -630,9 +630,9 @@ def add_measurement_not_nulls(conn_str, model_version, schema):
                     'person_id', 'value_source_value',)
 
     measure_like_tables = {
-        'measurement_anthro',
-        'measurement_labs',
-        'measurement_vital'
+        'anthro',
+        'labs',
+        'vitals'
     }
 
     for measure_like_table in measure_like_tables:
