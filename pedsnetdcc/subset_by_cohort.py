@@ -374,8 +374,8 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
     if not nonull:
         # Add NOT NULL constraints to the subset tables (no force option)
         set_not_nulls(new_conn_str, model_version)
-        if pre_split:
-            add_measurement_not_nulls(new_conn_str, model_version, target_schema)
+        if measurement or pre_split:
+            add_measurement_not_nulls(new_conn_str, model_version, target_schema, measurement_tables)
 
     if index_create:
         # Add indexes to the subset tables
@@ -396,7 +396,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
             # add measurement FKs first as full set may fail
             add_measurement_like_fks(new_conn_str, model_version, target_schema)
             add_measurement_org_lab_fk(new_conn_str, model_version, target_schema)
-            # skip_meas_org_meas is True for param 5
+            # skip_meas_org_meas is True for param 5 as FK already set to labs above
             add_foreign_keys(new_conn_str, model_version, force, False, True)
         else:
             add_foreign_keys(new_conn_str, model_version, force)
@@ -617,11 +617,12 @@ def add_measurement_like_fks(conn_str, model_version, schema):
             raise
     logger.info({'msg': 'foreign keys added'})
 
-def add_measurement_not_nulls(conn_str, model_version, schema):
+def add_measurement_not_nulls(conn_str, model_version, schema, measure_like_tables):
     """
     :param str conn_str: database connection string
     :param model_version:   PEDSnet model version, e.g. 2.3.0
     :param str schema: target schema
+    :param set[str] measure_like_tables: tables to process
     """
 
     logger = logging.getLogger(__name__)
@@ -639,15 +640,10 @@ def add_measurement_not_nulls(conn_str, model_version, schema):
                     'measurement_source_value', 'measurement_type_concept_id',
                     'person_id', 'value_source_value',)
 
-    measure_like_tables = {
-        'anthro',
-        'labs',
-        'vitals'
-    }
-
     for measure_like_table in measure_like_tables:
+        m_type = measure_like_table[12:]
         for col in col_not_null:
-            set_not_null_stmt = Statement(SET_COLUMN_NOT_NULL.format(schema, measure_like_table, col))
+            set_not_null_stmt = Statement(SET_COLUMN_NOT_NULL.format(schema, m_type, col))
             stmts.add(set_not_null_stmt)
 
     # Execute the statements in parallel.
@@ -677,7 +673,7 @@ def add_measurement_org_lab_fk(conn_str, model_version, schema):
         logger = logging.getLogger(__name__)
         log_dict = combine_dicts({'model_version': model_version, },
                                  get_conn_info_dict(conn_str))
-        logger.info(combine_dicts({'msg': 'starting set measurement columns not null'},
+        logger.info(combine_dicts({'msg': 'starting add measurement organism FK to measurement_labs'},
                                   log_dict))
         stmts = StatementSet()
 
