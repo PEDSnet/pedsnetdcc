@@ -15,7 +15,7 @@ from pedsnetdcc.utils import (stock_metadata, combine_dicts,
 logger = logging.getLogger(__name__)
 
 
-def _foreign_keys_from_model_version(model_version, vocabulary=False):
+def _foreign_keys_from_model_version(model_version, vocabulary=False, skip_meas_org_meas=False):
     """Return list of SQLAlchemy foreign key objects for the model version.
 
     :param str model_version: pedsnet model version
@@ -36,6 +36,9 @@ def _foreign_keys_from_model_version(model_version, vocabulary=False):
             if name not in VOCAB_TABLES:
                 for con in table.constraints:
                     if isinstance(con, sqlalchemy.ForeignKeyConstraint):
+                        if skip_meas_org_meas and name == 'measurement_organism' \
+                                and con.elements[0].column.table.name == 'measurement':
+                            continue
                         foreign_keys.append(con)
 
     return foreign_keys
@@ -79,7 +82,7 @@ def _check_stmt_err(stmt, force):
     raise stmt.err
 
 
-def add_foreign_keys(conn_str, model_version, force=False, vocabulary=False):
+def add_foreign_keys(conn_str, model_version, force=False, vocabulary=False, skip_meas_org_meas=False):
     """Create foreign keys in the database.
 
     Execute CREATE statements to add foreign keys (on the vocabulary or data
@@ -90,6 +93,7 @@ def add_foreign_keys(conn_str, model_version, force=False, vocabulary=False):
     :param bool force: ignore benign errors if true; see
     https://github.com/PEDSnet/pedsnetdcc/issues/10
     :param bool vocabulary:   whether to create foreign keys on vocab tables
+    :param bool skip_meas_org_meas:   whether to create foreign key for fpk_meas_org_meas
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -103,7 +107,7 @@ def add_foreign_keys(conn_str, model_version, force=False, vocabulary=False):
     start_time = time.time()
 
     # Get list of foreign keys for that need creation.
-    foreign_keys = _foreign_keys_from_model_version(model_version, vocabulary)
+    foreign_keys = _foreign_keys_from_model_version(model_version, vocabulary,skip_meas_org_meas)
 
     # Make a set of statements for parallel execution.
     stmts = StatementSet()

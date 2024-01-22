@@ -146,14 +146,17 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
                 continue
 
             table_list.append(table_name)
-            create = 'create table ' + target_schema + '.' + table_name + ' as select t.*'
-            #for column_name,column in table.c.items():
-            #    create +=  't.' + column_name + ', '
-            #create = create[:-2]
-            create = create + ' from ' + source_schema + '.' + table_name + ' t'
-            if table_name not in select_all:
-                create = create + ' join ' +  target_schema + '.' + cohort_table + ' c on c.person_id = t.person_id'
-            create = create + ';'
+            if table_name == 'measurement' and pre_split:
+                create = 'create table ' + target_schema + '.measurement (like ' + source_schema + '.measurement);'
+            else:
+                create = 'create table ' + target_schema + '.' + table_name + ' as select t.*'
+                #for column_name,column in table.c.items():
+                #    create +=  't.' + column_name + ', '
+                #create = create[:-2]
+                create = create + ' from ' + source_schema + '.' + table_name + ' t'
+                if table_name not in select_all:
+                    create = create + ' join ' +  target_schema + '.' + cohort_table + ' c on c.person_id = t.person_id'
+                create = create + ';'
             create_dict[table_name] = create
             grant_vacuum_tables.append(table_name)
 
@@ -389,10 +392,13 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
 
     if fk_create:
         # Add constraints to the subset tables
-        add_foreign_keys(new_conn_str, model_version, force)
         if pre_split:
-            change_measurement_org_fk(new_conn_str, model_version, target_schema)
+            # skip_meas_org_meas is True for param 5
+            add_foreign_keys(new_conn_str, model_version, force, False, True)
+            add_measurement_org_lab_fk(new_conn_str, model_version, target_schema)
             add_measurement_like_fks(new_conn_str, model_version, target_schema)
+        else:
+            add_foreign_keys(new_conn_str, model_version, force)
 
     # Create concept index replacement tables normally done during merge.
     if concept_create:
@@ -660,7 +666,7 @@ def add_measurement_not_nulls(conn_str, model_version, schema):
             raise
     logger.info({'msg': 'columns set not null'})
 
-def change_measurement_org_fk(conn_str, model_version, schema):
+def add_measurement_org_lab_fk(conn_str, model_version, schema):
         """
         :param str conn_str: database connection string
         :param model_version:   PEDSnet model version, e.g. 2.3.0
@@ -673,13 +679,6 @@ def change_measurement_org_fk(conn_str, model_version, schema):
         logger.info(combine_dicts({'msg': 'starting set measurement columns not null'},
                                   log_dict))
         stmts = StatementSet()
-        stmts.clear()
-        logger.info({'msg': 'dropping measurement organism fk to measurement'})
-        drop_fk_measurement_org = Statement(DROP_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE.format(schema),
-                                            "dropping fk to measurement")
-        drop_fk_measurement_org.execute(conn_str)
-        check_stmt_err(drop_fk_measurement_org, 'drop fk to measurement')
-        logger.info({'msg': 'measurement organism fk to measurement dropped'})
 
         # add measurement organism fk to measurement_labs
         stmts.clear()
