@@ -393,10 +393,11 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
     if fk_create:
         # Add constraints to the subset tables
         if pre_split:
+            # add measurement FKs first as full set may fail
+            add_measurement_like_fks(new_conn_str, model_version, target_schema)
+            add_measurement_org_lab_fk(new_conn_str, model_version, target_schema)
             # skip_meas_org_meas is True for param 5
             add_foreign_keys(new_conn_str, model_version, force, False, True)
-            add_measurement_org_lab_fk(new_conn_str, model_version, target_schema)
-            add_measurement_like_fks(new_conn_str, model_version, target_schema)
         else:
             add_foreign_keys(new_conn_str, model_version, force)
 
