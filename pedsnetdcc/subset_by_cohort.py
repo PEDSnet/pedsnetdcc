@@ -19,6 +19,12 @@ FK_MEASURE_LIKE_TABLE_SQL = 'alter table {0}.measurement_{1} add constraint {2} 
 PK_MEASURE_LIKE_TABLE_SQL = '''ALTER TABLE IF EXISTS {0}.measurement_{1}
     ADD CONSTRAINT measurement_{1}_pkey PRIMARY KEY (measurement_id);'''
 SET_COLUMN_NOT_NULL = 'alter table {0}.measurement_{1} alter column {2} set not null;'
+DROP_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE = 'alter table {0}.measurement_organism drop constraint IF EXISTS fpk_meas_org_meas'
+ADD_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE_LABS = """alter table {0}.measurement_organism 
+    add constraint fpk_meas_org_meas_lab
+    foreign key (measurement_id) 
+    references {0}.measurement_labs (measurement_id);"""
+TRUNCATE_MEASUREMENT_SQL = 'truncate table {0}.measurement;'
 
 def _make_index_name(table_name, column_name):
     """
@@ -385,6 +391,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
         # Add constraints to the subset tables
         add_foreign_keys(new_conn_str, model_version, force)
         if pre_split:
+            change_measurement_org_fk(new_conn_str, model_version, target_schema)
             add_measurement_like_fks(new_conn_str, model_version, target_schema)
 
     # Create concept index replacement tables normally done during merge.
@@ -603,7 +610,6 @@ def add_measurement_like_fks(conn_str, model_version, schema):
             raise
     logger.info({'msg': 'foreign keys added'})
 
-
 def add_measurement_not_nulls(conn_str, model_version, schema):
     """
     :param str conn_str: database connection string
@@ -653,3 +659,33 @@ def add_measurement_not_nulls(conn_str, model_version, schema):
                                       log_dict))
             raise
     logger.info({'msg': 'columns set not null'})
+
+def change_measurement_org_fk(conn_str, model_version, schema):
+        """
+        :param str conn_str: database connection string
+        :param model_version:   PEDSnet model version, e.g. 2.3.0
+        :param str schema: target schema
+        """
+
+        logger = logging.getLogger(__name__)
+        log_dict = combine_dicts({'model_version': model_version, },
+                                 get_conn_info_dict(conn_str))
+        logger.info(combine_dicts({'msg': 'starting set measurement columns not null'},
+                                  log_dict))
+        stmts = StatementSet()
+        stmts.clear()
+        logger.info({'msg': 'dropping measurement organism fk to measurement'})
+        drop_fk_measurement_org = Statement(DROP_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE.format(schema),
+                                            "dropping fk to measurement")
+        drop_fk_measurement_org.execute(conn_str)
+        check_stmt_err(drop_fk_measurement_org, 'drop fk to measurement')
+        logger.info({'msg': 'measurement organism fk to measurement dropped'})
+
+        # add measurement organism fk to measurement_labs
+        stmts.clear()
+        logger.info({'msg': 'adding measurement organism fk to measurement_labs'})
+        add_fk_measurement_org = Statement(ADD_FOREIGN_KEY_MEASURE_ORG_TO_MEASURE_LABS.format(schema),
+                                           "adding measurement organism fk to measurement_labs")
+        add_fk_measurement_org.execute(conn_str)
+        check_stmt_err(add_fk_measurement_org, 'add measurement organism fk to measurement_labs')
+        logger.info({'msg': 'measurement organism fk to measurement_labs added'})
