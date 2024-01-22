@@ -108,7 +108,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
         measurement_tables = {
             'measurement_anthro',
             'measurement_labs',
-            'measurement_vital',
+            'measurement_vitals',
             'measurement_bmi',
             'measurement_bmiz',
             'measurement_ht_z',
@@ -125,7 +125,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
         measurement_tables = {
             'measurement_anthro',
             'measurement_labs',
-            'measurement_vital'
+            'measurement_vitals'
         }
 
     create_dict = {}
