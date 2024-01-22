@@ -579,7 +579,7 @@ def add_measurement_like_fks(conn_str, model_version, schema):
     measure_like_tables = {
         'anthro',
         'labs',
-        'vital'
+        'vitals'
     }
 
     for measure_like_table in measure_like_tables:
