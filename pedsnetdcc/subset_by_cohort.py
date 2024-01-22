@@ -140,17 +140,14 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
                 continue
 
             table_list.append(table_name)
-            if table_name == 'measurement' and pre_split:
-                create = 'create table ' + target_schema + '.measurement (like ' + source_schema + '.measurement);'
-            else:
-                create = 'create table ' + target_schema + '.' + table_name + ' as select t.*'
-                #for column_name,column in table.c.items():
-                #    create +=  't.' + column_name + ', '
-                #create = create[:-2]
-                create = create + ' from ' + source_schema + '.' + table_name + ' t'
-                if table_name not in select_all:
-                    create = create + ' join ' +  target_schema + '.' + cohort_table + ' c on c.person_id = t.person_id'
-                create = create + ';'
+            create = 'create table ' + target_schema + '.' + table_name + ' as select t.*'
+            #for column_name,column in table.c.items():
+            #    create +=  't.' + column_name + ', '
+            #create = create[:-2]
+            create = create + ' from ' + source_schema + '.' + table_name + ' t'
+            if table_name not in select_all:
+                create = create + ' join ' +  target_schema + '.' + cohort_table + ' c on c.person_id = t.person_id'
+            create = create + ';'
             create_dict[table_name] = create
             grant_vacuum_tables.append(table_name)
 
