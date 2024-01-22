@@ -451,7 +451,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
     if limit:
         users = (owner,)
     else:
-        users = ('pre_prod_dcc', 'dqa_user', 'pcor_et_user', 'peds_staff', 'dcc_analytics')
+        users = ('pre_prod_dcc', 'pcor_et_user', 'peds_staff', 'dcc_analytics')
     for target_table in grant_vacuum_tables:
         # alter_stmt = Statement(ALTER_OWNER_SQL.format(target_schema, target_table))
         # stmts.add(alter_stmt)
