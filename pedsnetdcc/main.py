@@ -2781,7 +2781,7 @@ def run_r_pcornet_adult_slice(pwprompt, searchpath, site, source_schema, target_
 @click.option('--drug_dose', is_flag=True, default=False,
               help='Copy drug dose tables.')
 @click.option('--measurement', is_flag=True, default=False,
-              help='Copy measurement tables.')
+              help='Copy measurement derivation tables.')
 @click.option('--covid_obs', is_flag=True, default=False,
               help='Copy COVID observation derivation table.')
 @click.option('--inc_hash', is_flag=True, default=False,
@@ -2802,6 +2802,8 @@ def run_r_pcornet_adult_slice(pwprompt, searchpath, site, source_schema, target_
               help='Limit permissions to owner.')
 @click.option('--owner', required=False, default='loading_user',
               help='the role that permissions should be granted to if permissions limited')
+@click.option('--pre_split', is_flag=True, default=False,
+              help='Measurement table is already split.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--cohort_table', required=True,
@@ -2809,7 +2811,7 @@ def run_r_pcornet_adult_slice(pwprompt, searchpath, site, source_schema, target_
 @click.argument('dburi')
 def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_schema, target_schema, cohort_table,
                      concept_create, drug_dose, measurement, covid_obs, inc_hash, split_measure, index_create,
-                     fk_create, notable, nopk, limit, owner, nonull):
+                     fk_create, notable, nopk, limit, owner, nonull, pre_split):
     """Create tables for subset based on a cohort/person_id table
 
     The database should be specified using a DBURI:
@@ -2828,17 +2830,23 @@ def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_s
     from pedsnetdcc.subset_by_cohort import run_subset_by_cohort
     success = run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, cohort_table,
                          concept_create, drug_dose, measurement, covid_obs, inc_hash, index_create, fk_create, notable,
-                         nopk, nonull, limit, owner, force)
+                         nopk, nonull, limit, owner, pre_split, force)
 
     if not success:
         sys.exit(1)
 
-    if split_measure:
+    if split_measure and not pre_split:
         from pedsnetdcc.split_measurement import split_measurement_table
         success = split_measurement_table(conn_str, False, False, model_version, searchpath, limit, owner)
-        if success:
-            from pedsnetdcc.partition_measurement import partition_measurement_table
-            success = partition_measurement_table(conn_str, model_version, searchpath, False, True)
+        if not success:
+            sys.exit(1)
+
+    if split_measure or pre_split:
+        from pedsnetdcc.partition_measurement import partition_measurement_table
+        if measurement:
+            success = partition_measurement_table(conn_str, model_version, searchpath, False, False, False)
+        else:
+            success = partition_measurement_table(conn_str, model_version, searchpath, False, True, False)
 
     if not success:
         sys.exit(1)
