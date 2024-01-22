@@ -2804,6 +2804,8 @@ def run_r_pcornet_adult_slice(pwprompt, searchpath, site, source_schema, target_
               help='the role that permissions should be granted to if permissions limited')
 @click.option('--pre_split', is_flag=True, default=False,
               help='Measurement table is already split.')
+@click.option('--drug_tpn', is_flag=True, default=False,
+              help='Copy drug_exposure_tpn table.')
 @click.option('--force', is_flag=True, default=False,
               help='Ignore any "already exists" errors from the database.')
 @click.option('--cohort_table', required=True,
@@ -2811,7 +2813,7 @@ def run_r_pcornet_adult_slice(pwprompt, searchpath, site, source_schema, target_
 @click.argument('dburi')
 def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_schema, target_schema, cohort_table,
                      concept_create, drug_dose, measurement, covid_obs, inc_hash, split_measure, index_create,
-                     fk_create, notable, nopk, limit, owner, nonull, pre_split):
+                     fk_create, notable, nopk, limit, owner, nonull, pre_split, drug_tpn):
     """Create tables for subset based on a cohort/person_id table
 
     The database should be specified using a DBURI:
@@ -2830,7 +2832,7 @@ def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_s
     from pedsnetdcc.subset_by_cohort import run_subset_by_cohort
     success = run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, cohort_table,
                          concept_create, drug_dose, measurement, covid_obs, inc_hash, index_create, fk_create, notable,
-                         nopk, nonull, limit, owner, pre_split, force)
+                         nopk, nonull, limit, owner, pre_split, drug_tpn, force)
 
     if not success:
         sys.exit(1)

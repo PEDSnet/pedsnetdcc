@@ -51,7 +51,7 @@ def _make_index_name(table_name, column_name):
 def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, cohort_table,
                          concept_create=False, drug_dose=False, measurement=False, covid_obs=False, inc_hash=False,
                          index_create=False, fk_create=False, notable=False, nopk=False, nonull=False,
-                         limit=False, owner='loading_user', pre_split=False, force=False):
+                         limit=False, owner='loading_user', pre_split=False, drug_tpn=False, force=False):
     """Create SQL for `select` statement transformations.
 
     The `search_path` only needs to contain the source schema; the target
@@ -77,6 +77,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
     :param bool limit: if True, limit permissions to owner
     :param str owner:  owner of the to grant permissions to
     :param bool pre_split: if True, measurement table is already split
+    :param bool drug_tpn: if True, copy drug tpn table
     :param bool force: if True, ignore benign errors
     :returns:   True if the function succeeds
     :rtype: bool
@@ -244,6 +245,39 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
                 raise
         logger.info({'msg': 'special handling tables created'})
         stmts.clear()
+
+        # Add drug tpn table
+        if drug_tpn:
+            create_dict.clear()
+            stmts.clear()
+            table_name = 'drug_exposure_tpn'
+            create = 'create table ' + target_schema + '.' + table_name + ' as select t.*'
+            create = create + ' from ' + source_schema + '.' + table_name + ' t'
+            create = create + ' join ' + target_schema + '.' + cohort_table + ' c on c.person_id = t.person_id'
+            create = create + ';'
+            create_dict[table_name] = create
+            grant_vacuum_tables.append(table_name)
+
+            create_stmt = Statement(create_dict[table_name])
+            stmts.add(create_stmt)
+
+            # Execute the statements in parallel.
+            stmts.parallel_execute(conn_str)
+
+            # Check for any errors and raise exception if they are found.
+            for stmt in stmts:
+                try:
+                    check_stmt_err(stmt, 'create drug tpn table')
+                except:
+                    logger.error(combine_dicts({'msg': 'Fatal error',
+                                                'sql': stmt.sql,
+                                                'err': str(stmt.err)}, log_dict))
+                    logger.info(combine_dicts({'msg': 'create drug dose tables failed',
+                                               'elapsed': secs_since(start_time)},
+                                              log_dict))
+                    raise
+            logger.info({'msg': 'drug tpn table created'})
+            stmts.clear()
 
         # Add drug dose tables
         if drug_dose:
@@ -417,7 +451,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
     if limit:
         users = (owner,)
     else:
-        users = ('achilles_user', 'dqa_user', 'pcor_et_user', 'peds_staff', 'dcc_analytics')
+        users = ('pre_prod_dcc', 'dqa_user', 'pcor_et_user', 'peds_staff', 'dcc_analytics')
     for target_table in grant_vacuum_tables:
         # alter_stmt = Statement(ALTER_OWNER_SQL.format(target_schema, target_table))
         # stmts.add(alter_stmt)
