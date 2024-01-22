@@ -141,7 +141,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
 
             table_list.append(table_name)
             if table_name == 'measurement' and pre_split:
-                create = 'create table ' + target_schema + '.measurement (like ' + source_schema + '.measurement including indexes);'
+                create = 'create table ' + target_schema + '.measurement (like ' + source_schema + '.measurement);'
             else:
                 create = 'create table ' + target_schema + '.' + table_name + ' as select t.*'
                 #for column_name,column in table.c.items():
