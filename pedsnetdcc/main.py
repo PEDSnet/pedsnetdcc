@@ -2837,21 +2837,24 @@ def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_s
     if not success:
         sys.exit(1)
 
-    if split_measure and not pre_split:
-        from pedsnetdcc.split_measurement import split_measurement_table
-        success = split_measurement_table(conn_str, False, False, model_version, searchpath, limit, owner)
-        if not success:
-            sys.exit(1)
-
     if split_measure or pre_split:
+        from pedsnetdcc.subset_by_cohort import conn_str_with_search_path
+        new_search_path = ','.join((target_schema, 'vocabulary'))
+        new_conn_str = conn_str_with_search_path(conn_str, new_search_path)
+
+        if split_measure and not pre_split:
+            from pedsnetdcc.split_measurement import split_measurement_table
+            success = split_measurement_table(new_conn_str, False, False, model_version, searchpath, limit, owner)
+            if not success:
+                sys.exit(1)
+
         from pedsnetdcc.partition_measurement import partition_measurement_table
         if measurement:
-            success = partition_measurement_table(conn_str, model_version, searchpath, False, False, False)
+            success = partition_measurement_table(new_conn_str, model_version, searchpath, False, False, False)
         else:
-            success = partition_measurement_table(conn_str, model_version, searchpath, False, True, False)
-
-    if not success:
-        sys.exit(1)
+            success = partition_measurement_table(new_conn_str, model_version, searchpath, False, True, False)
+        if not success:
+            sys.exit(1)
 
     sys.exit(0)
 
