@@ -52,8 +52,8 @@ FACT_RELATIONSHIP_DOMAINS = {
 }
 
 SITE_ROOT = '/data/site_data'
-SITES = ('cchmc', 'chop', 'colorado', 'lurie', 'nationwide', 'nemours', 'seattle', 'stanford',)
-EXTERNAL_SITES = ('boston', 'stlouis', 'indiana', 'missouri','national','texas',)
+SITES = ('cchmc', 'chop', 'colorado', 'lurie', 'nationwide', 'nemours', 'seattle', 'stanford', 'national',' texas',)
+EXTERNAL_SITES = ('boston', 'stlouis', 'indiana', 'missouri',)
 SITES_AND_DCC = SITES + ('dcc',)
 SITES_AND_EXTERNAL = EXTERNAL_SITES + SITES
 SITES_EXTERNAL_ADD_DCC = SITES_AND_EXTERNAL + ('dcc',)
