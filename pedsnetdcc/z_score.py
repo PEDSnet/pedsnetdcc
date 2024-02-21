@@ -17,6 +17,7 @@ CREATE_MEASURE_LIKE_TABLE_SQL = 'create table {0}.measurement_{1} (like {0}.meas
 DROP_NULL_Z_TABLE_SQL = 'alter table {0}.measurement_{1} alter column measurement_id drop not null;'
 BMIZ_INCREASE_VALUE_AS_NUMBER = 'alter table {0}.measurement_bmiz alter column value_as_number type numeric(25, 5);'
 BMIZ_DELETE_OVERFLOW = 'delete from {0}.measurement_bmiz where round(abs(value_as_number)) > 10^15;'
+Z_DELETE_NAN = 'delete from {0}.measurement_{1} where value_as_number = \'NaN\';'
 BMIZ_DEFAULT_VALUE_AS_NUMBER = 'alter table {0}.measurement_bmiz alter column value_as_number type numeric(20, 5);'
 IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on {1}.measurement_{2} ({3})'
 
@@ -351,7 +352,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     stmts = StatementSet()
 
     if not skip_calc:
-        # create the congig file
+        # create the config file
         config_path = "/app"
 
         if z_type == 'ht_z':
@@ -461,6 +462,25 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
                                                'elapsed': secs_since(start_time)},
                                               log_dict))
                     raise
+
+        # get rid of NaN value_source values
+        stmts.clear()
+        delete_stmt = Statement(Z_DELETE_NAN.format(schema, z_type))
+        stmts.add(delete_stmt)
+
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                stmt.execute(conn_str)
+                check_stmt_err(stmt, logger_msg.format('Run', z_type_name))
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
+                                            'sql': stmt.sql,
+                                            'err': str(stmt.err)}, log_dict))
+                logger.info(combine_dicts({'msg': 'delete value_as_number NaN row(s) failed',
+                                           'elapsed': secs_since(start_time)},
+                                          log_dict))
+                raise
 
     # Add indexes to measurement result table (same as measurement)
     if indexes:
