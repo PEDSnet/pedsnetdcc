@@ -251,8 +251,8 @@ def _fill_concept_names(conn_str, schema, z_type):
     return True
 
 
-def _copy_to_dcc_table(conn_str, schema, table, z_type):
-    copy_to_sql = """INSERT INTO dcc_pedsnet.{0}(
+def _copy_to_measurement_table(conn_str, schema, table, z_type):
+    copy_to_sql = """INSERT INTO {0}.{1}(
         measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
         measurement_order_date, measurement_order_datetime, measurement_result_date, 
         measurement_result_datetime, measurement_source_concept_id, measurement_source_value, 
@@ -277,12 +277,12 @@ def _copy_to_dcc_table(conn_str, schema, table, z_type):
         measurement_type_concept_name, operator_concept_name, priority_concept_name, 
         range_high_operator_concept_name, range_low_operator_concept_name, unit_concept_name, 
         value_as_concept_name, site, site_id
-        from {1}.measurement_{2}) ON CONFLICT DO NOTHING"""
+        from {0}.measurement_{2}) ON CONFLICT DO NOTHING"""
 
-    copy_to_msg = "copying {0} to dcc_pedsnet"
+    copy_to_msg = "copying {0} to measurement"
 
     # Insert measurements into measurement table
-    copy_to_stmt = Statement(copy_to_sql.format(table, schema, z_type), copy_to_msg.format(table))
+    copy_to_stmt = Statement(copy_to_sql.format(schema, table, z_type), copy_to_msg.format(table))
 
     # Execute the insert measurements statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
@@ -536,11 +536,11 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
 
     # Copy to the measurement table
     if copy:
-        logger.info({'msg': 'copy measurements to dcc_pedsnet'})
-        okay = _copy_to_dcc_table(conn_str, schema, table, z_type)
+        logger.info({'msg': 'copy measurements to measurement'})
+        okay = _copy_to_measurement_table(conn_str, schema, table, z_type)
         if not okay:
             return False
-        logger.info({'msg': 'measurements copied to dcc_pedsnet'})
+        logger.info({'msg': 'measurements copied to measurement'})
 
     # Vacuum analyze tables for piney freshness.
     logger.info({'msg': 'begin vacuum'})
@@ -715,7 +715,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg
     return True
 
 
-def copy_z_dcc(z_type, conn_str, site, table, search_path):
+def copy_z_measurement(z_type, conn_str, site, table, search_path):
     """Run the Z Score tool.
 
     * Copy to the measurement table
@@ -749,11 +749,11 @@ def copy_z_dcc(z_type, conn_str, site, table, search_path):
     schema = primary_schema(search_path)
 
     # Copy to the measurement table
-    logger.info({'msg': 'copy measurements to dcc_pedsnet'})
-    okay = _copy_to_dcc_table(conn_str, schema, table, z_type)
+    logger.info({'msg': 'copy measurements to measurement'})
+    okay = _copy_to_measurement_table(conn_str, schema, table, z_type)
     if not okay:
         return False
-    logger.info({'msg': 'measurements copied to dcc_pedsnet'})
+    logger.info({'msg': 'measurements copied to measurement'})
 
     # Log end of function.
     logger.info(combine_dicts({'msg': logger_msg.format('Finished copying', z_type_name),

@@ -1106,8 +1106,8 @@ def copy_bmi(pwprompt, searchpath, site, table, dburi):
 
     conn_str = make_conn_str(dburi, searchpath, password)
 
-    from pedsnetdcc.bmi import copy_bmi_dcc
-    success = copy_bmi_dcc(conn_str, site, table)
+    from pedsnetdcc.bmi import copy_bmi_measurement
+    success = copy_bmi_measurement(conn_str, site, table)
 
     if not success:
         sys.exit(1)
@@ -1224,8 +1224,8 @@ def copy_bmiz(pwprompt, searchpath, site, table, dburi):
 
     conn_str = make_conn_str(dburi, searchpath, password)
 
-    from pedsnetdcc.z_score import copy_z_dcc
-    success = copy_z_dcc('bmiz', conn_str, site, table, searchpath)
+    from pedsnetdcc.z_score import copy_z_measurement
+    success = copy_z_measurement('bmiz', conn_str, site, table, searchpath)
 
     if not success:
         sys.exit(1)
@@ -1428,8 +1428,8 @@ def copy_height_z(pwprompt, searchpath, site, table, dburi):
 
     conn_str = make_conn_str(dburi, searchpath, password)
 
-    from pedsnetdcc.z_score import copy_z_dcc
-    success = copy_z_dcc('ht_z', conn_str, site, table, searchpath)
+    from pedsnetdcc.z_score import copy_z_measurement
+    success = copy_z_measurement('ht_z', conn_str, site, table, searchpath)
 
     if not success:
         sys.exit(1)
@@ -1546,8 +1546,8 @@ def copy_weight_z(pwprompt, searchpath, site, table, dburi):
 
     conn_str = make_conn_str(dburi, searchpath, password)
 
-    from pedsnetdcc.z_score import copy_z_dcc
-    success = copy_z_dcc('wt_z', conn_str, site, table, searchpath)
+    from pedsnetdcc.z_score import copy_z_measurement
+    success = copy_z_measurement('wt_z', conn_str, site, table, searchpath)
 
     if not success:
         sys.exit(1)
@@ -2056,7 +2056,7 @@ def run_drug_condition_era(pwprompt, searchpath, site, copy, neg_ids, no_ids, no
 @click.option('--table', required=True,
               help='Table to use for copy (measurement, measurement_anthro.')
 @click.argument('dburi')
-def copy_to_dcc(pwprompt, searchpath, site, table, dburi):
+def copy_to_measurement(pwprompt, searchpath, site, table, dburi):
     """Copy bmi, bmiz, ht_z, wt_z, drug_era and condition_era tables to dcc_pedsnet.
 
     The database should be specified using a DBURI:
@@ -2072,36 +2072,25 @@ def copy_to_dcc(pwprompt, searchpath, site, table, dburi):
 
     conn_str = make_conn_str(dburi, searchpath, password)
 
-    from pedsnetdcc.z_score import copy_z_dcc
+    from pedsnetdcc.z_score import copy_z_measurement
 
-    from pedsnetdcc.bmi import copy_bmi_dcc
-    success = copy_bmi_dcc(conn_str, site, table)
-
-    if not success:
-        sys.exit(1)
-
-    success = copy_z_dcc('bmiz', conn_str, site, table, searchpath)
+    from pedsnetdcc.bmi import copy_bmi_measurement
+    success = copy_bmi_measurement(conn_str, site, table, searchpath)
 
     if not success:
         sys.exit(1)
 
-    success = copy_z_dcc('ht_z', conn_str, site, table, searchpath)
+    success = copy_z_measurement('bmiz', conn_str, site, table, searchpath)
 
     if not success:
         sys.exit(1)
 
-    success = copy_z_dcc('wt_z', conn_str, site, table, searchpath)
+    success = copy_z_measurement('ht_z', conn_str, site, table, searchpath)
 
     if not success:
         sys.exit(1)
 
-    from pedsnetdcc.era import copy_era_dcc
-    success = copy_era_dcc("drug", conn_str, site, searchpath)
-
-    if not success:
-        sys.exit(1)
-
-    success = copy_era_dcc("condition", conn_str, site, searchpath)
+    success = copy_z_measurement('wt_z', conn_str, site, table, searchpath)
 
     if not success:
         sys.exit(1)

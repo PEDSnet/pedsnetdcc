@@ -173,8 +173,8 @@ def _fill_concept_names(conn_str):
     # If reached without error, then success!
     return True
 
-def _copy_to_dcc_table(conn_str, table):
-    copy_to_sql = """INSERT INTO dcc_pedsnet.{0}(
+def _copy_to_measurement_table(conn_str, schema, table):
+    copy_to_sql = """INSERT INTO {0}.{1}(
         measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
         measurement_order_date, measurement_order_datetime, measurement_result_date, 
         measurement_result_datetime, measurement_source_concept_id, measurement_source_value, 
@@ -199,12 +199,12 @@ def _copy_to_dcc_table(conn_str, table):
         measurement_type_concept_name, operator_concept_name, priority_concept_name, 
         range_high_operator_concept_name, range_low_operator_concept_name, unit_concept_name, 
         value_as_concept_name, site, site_id
-        from measurement_bmi) ON CONFLICT DO NOTHING"""
+        from {0}.measurement_bmi) ON CONFLICT DO NOTHING"""
 
-    copy_to_msg = "copying bmi to dcc_pedsnet"
+    copy_to_msg = "copying bmi to measurement"
 
-    # Insert BMI measurements into measurement_anthro table
-    copy_to_stmt = Statement(copy_to_sql.format(table), copy_to_msg)
+    # Insert BMI measurements into measurement table
+    copy_to_stmt = Statement(copy_to_sql.format(schema, table), copy_to_msg)
 
     # Execute the insert BMI measurements statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
@@ -365,11 +365,11 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
 
     # Copy to the measurement table
     if copy:
-        logger.info({'msg': 'copy bmi measurements to dcc_pedsnet'})
-        okay = _copy_to_dcc_table(conn_str, table)
+        logger.info({'msg': 'copy bmi measurements to measurement'})
+        okay = _copy_to_measurement_table(conn_str, schema, table)
         if not okay:
             return False
-        logger.info({'msg': 'bmi measurements copied to dcc_pedsnet'})
+        logger.info({'msg': 'bmi measurements copied to measurement'})
 
     # Vacuum analyze tables for piney freshness.
     logger.info({'msg': 'begin vacuum'})
@@ -544,7 +544,7 @@ def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id
     return True
 
 
-def copy_bmi_dcc(conn_str, site, table):
+def copy_bmi_measurement(conn_str, site, table, search_path):
     """Copy the bmi measurement table.
 
     * Copy to the measurement table
@@ -559,6 +559,7 @@ def copy_bmi_dcc(conn_str, site, table):
     """
 
     conn_info_dict = get_conn_info_dict(conn_str)
+    schema = primary_schema(search_path)
 
     # Log start of the function and set the starting time.
     log_dict = combine_dicts({'site': site, },
@@ -569,11 +570,11 @@ def copy_bmi_dcc(conn_str, site, table):
 
     # Copy to the measurement table
 
-    logger.info({'msg': 'copy bmi measurements to dcc_pedsnet'})
-    okay = _copy_to_dcc_table(conn_str, table)
+    logger.info({'msg': 'copy bmi measurements to measurement'})
+    okay = _copy_to_measurement_table(conn_str, schema, table)
     if not okay:
         return False
-    logger.info({'msg': 'bmi measurements copied to dcc_pedsnet'})
+    logger.info({'msg': 'bmi measurements copied to measurement'})
 
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished BMI copy',
