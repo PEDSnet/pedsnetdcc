@@ -2590,12 +2590,16 @@ def run_r_obs_covid(pwprompt, searchpath, site, model_version, idname, copy, lim
               help='name of the id (ex: onco')
 @click.option('--copy', is_flag=True, default=False,
               help='Copy results to output.')
+@click.option('--noidx', is_flag=True, default=False,
+              help='skip indexes.')
+@click.option('--nofk', is_flag=True, default=False,
+              help='skip FKs.')
 @click.option('--limit', is_flag=True, default=False,
               help='Limit permissions to owner.')
 @click.option('--owner', required=False, default='loading_user',
               help='the role that permissions should be granted to if permissions limited')
 @click.argument('dburi')
-def run_r_obs_recover(pwprompt, searchpath, site, model_version, idname, copy, limit, owner, dburi):
+def run_r_obs_recover(pwprompt, searchpath, site, model_version, idname, copy, noidx, nofk, limit, owner, dburi):
     """Run R Script.
 
     The steps are:
@@ -2618,7 +2622,7 @@ def run_r_obs_recover(pwprompt, searchpath, site, model_version, idname, copy, l
 
     from pedsnetdcc.r_obs_recover import run_r_obs_recover
     success = run_r_obs_recover(conn_str, site, password, searchpath, model_version, idname,
-                              copy, limit, owner)
+                              copy, noidx, nofk, limit, owner)
 
     if not success:
         sys.exit(1)
