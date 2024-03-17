@@ -226,7 +226,7 @@ def _make_index_name(column_name):
 
 
 def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_name, copy,
-                    limit=False, owner='loading_user'):
+                    noidx, nofk, limit=False, owner='loading_user'):
     """Run an R script.
 
     * Create argos file
@@ -239,6 +239,8 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
     :param str model_version: pedsnet model version, e.g. 2.3.0
     :param str id_name: name of the id (ex. dcc or onco)
     :param bool copy: if True, copy results to output directory
+    :param bool noidx: if True, skip indexes
+    :param bool nofk: if True, skip FKs
     :param bool limit: if True, limit permissions to owner
     :param str owner:  owner of the to grant permissions to
     :returns:                 True if the function succeeds
@@ -366,73 +368,75 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
     logger.info({'msg': 'age in months added'})
 
     # Add indexes (same as observation)
-    stmts.clear()
-    logger.info({'msg': 'adding indexes'})
-    col_index = ('observation_concept_id', 'observation_date', 'person_id',
+    if not noidx:
+        stmts.clear()
+        logger.info({'msg': 'adding indexes'})
+        col_index = ('observation_concept_id', 'observation_date', 'person_id',
                  'visit_occurrence_id', 'observation_age_in_months', 'site',)
 
-    for col in col_index:
-        idx_name = _make_index_name(col)
-        idx_stmt = Statement(IDX_OBS_LIKE_TABLE_SQL.format(idx_name, schema, col))
-        stmts.add(idx_stmt)
+        for col in col_index:
+            idx_name = _make_index_name(col)
+            idx_stmt = Statement(IDX_OBS_LIKE_TABLE_SQL.format(idx_name, schema, col))
+            stmts.add(idx_stmt)
 
-    # Execute the statements in parallel.
-    stmts.parallel_execute(conn_str)
+        # Execute the statements in parallel.
+        stmts.parallel_execute(conn_str)
 
-    # Check for any errors and raise exception if they are found.
-    for stmt in stmts:
-        try:
-            check_stmt_err(stmt, 'Observation Derivation Recover')
-        except:
-            logger.error(combine_dicts({'msg': 'Fatal error',
+        # Check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                check_stmt_err(stmt, 'Observation Derivation Recover')
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
                                         'sql': stmt.sql,
                                         'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'adding indexes failed',
+                logger.info(combine_dicts({'msg': 'adding indexes failed',
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
-            raise
-    logger.info({'msg': 'indexes added'})
+                raise
+        logger.info({'msg': 'indexes added'})
 
     # Add foreign keys (same as observation)
-    stmts.clear()
-    logger.info({'msg': 'adding foreign keys'})
-    col_fk = ('observation_concept_id', 'person_id', 'provider_id',
+    if not nofk:
+        stmts.clear()
+        logger.info({'msg': 'adding foreign keys'})
+        col_fk = ('observation_concept_id', 'person_id', 'provider_id',
               'qualifier_concept_id', 'observation_type_concept_id',
               'unit_concept_id', 'value_as_concept_id',
               'visit_occurrence_id',)
 
-    for fk in col_fk:
-        fk_len = fk.count('_')
-        if "concept_id" in fk:
-            base_name = '_'.join(fk.split('_')[:fk_len - 1])
-            ref_table = "vocabulary.concept"
-            ref_col = "concept_id"
-        else:
-            base_name = ''.join(fk.split('_')[:1])
-            ref_table = '_'.join(fk.split('_')[:fk_len])
-            ref_col = fk
-        fk_name = "fk_obs_" + base_name + "_recover"
-        fk_stmt = Statement(FK_OBS_LIKE_TABLE_SQL.format(schema,
+        for fk in col_fk:
+            fk_len = fk.count('_')
+            if "concept_id" in fk:
+                base_name = '_'.join(fk.split('_')[:fk_len - 1])
+                ref_table = "vocabulary.concept"
+                ref_col = "concept_id"
+            else:
+                base_name = ''.join(fk.split('_')[:1])
+                ref_table = '_'.join(fk.split('_')[:fk_len])
+                ref_col = fk
+            fk_name = "fk_obs_" + base_name + "_recover"
+            fk_stmt = Statement(FK_OBS_LIKE_TABLE_SQL.format(schema,
                                                          fk_name, fk, ref_table,
                                                          ref_col))
-        stmts.add(fk_stmt)
+            stmts.add(fk_stmt)
 
-    # Execute the statements in parallel.
-    stmts.parallel_execute(conn_str)
+        # Execute the statements in parallel.
+        stmts.parallel_execute(conn_str)
 
-    # Execute statements and check for any errors and raise exception if they are found.
-    for stmt in stmts:
-        try:
-            check_stmt_err(stmt, 'Observation Derivation Recover')
-        except:
-            logger.error(combine_dicts({'msg': 'Fatal error',
+        # Execute statements and check for any errors and raise exception if they are found.
+        for stmt in stmts:
+            try:
+                check_stmt_err(stmt, 'Observation Derivation Recover')
+            except:
+                logger.error(combine_dicts({'msg': 'Fatal error',
                                         'sql': stmt.sql,
                                         'err': str(stmt.err)}, log_dict))
-            logger.info(combine_dicts({'msg': 'adding foreign keys failed',
+                logger.info(combine_dicts({'msg': 'adding foreign keys failed',
                                        'elapsed': secs_since(start_time)},
                                       log_dict))
-            raise
-    logger.info({'msg': 'foreign keys added'})
+                raise
+        logger.info({'msg': 'foreign keys added'})
 
     # Copy to the observation table
     if copy:
