@@ -114,7 +114,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
             stmts.add(create_stmt)
 
         # Execute the statements in parallel.
-        stmts.parallel_execute(conn_str)
+        stmts.parallel_execute(conn_str, 5)
 
         # Check for any errors and raise exception if they are found.
         for stmt in stmts:
@@ -138,7 +138,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
             stmts.add(pk_stmt)
 
         # Execute the statements in parallel.
-        stmts.parallel_execute(conn_str)
+        stmts.parallel_execute(conn_str, 5)
 
         # Check for any errors and raise exception if they are found.
         for stmt in stmts:
@@ -169,7 +169,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
                 stmts.add(idx_stmt)
 
         # Execute the statements in parallel.
-        stmts.parallel_execute(conn_str)
+        stmts.parallel_execute(conn_str, 5)
 
         # Check for any errors and raise exception if they are found.
         for stmt in stmts:
@@ -213,7 +213,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
                 stmts.add(fk_stmt)
 
         # Execute the statements in parallel.
-        stmts.parallel_execute(conn_str)
+        stmts.parallel_execute(conn_str, 5)
 
         # Execute statements and check for any errors and raise exception if they are found.
         for stmt in stmts:
@@ -243,7 +243,7 @@ def split_measurement_table(conn_str, truncate, view, model_version, search_path
                 stmts.add(set_not_null_stmt)
 
         # Execute the statements in parallel.
-        stmts.parallel_execute(conn_str)
+        stmts.parallel_execute(conn_str, 5)
 
         # Execute statements and check for any errors and raise exception if they are found.
         for stmt in stmts:

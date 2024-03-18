@@ -316,7 +316,7 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
         stmts.add(Statement(bad_cond_1_sql, bad_cond_1_msg))
         stmts.add(Statement(bad_cond_2_sql, bad_cond_2_msg))
 
-    stmts.parallel_execute(conn_str, pool_size)
+    stmts.parallel_execute(conn_str, pool_size, 5)
 
     results = {
         'obs': {'total': None, 'bad': None, 'percent': None,

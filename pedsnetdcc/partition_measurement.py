@@ -497,7 +497,7 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc, site3
         stmts.add(create_constraint_stmt)
 
     # Execute the statements in parallel.
-    stmts.parallel_execute(conn_str)
+    stmts.parallel_execute(conn_str, 5)
 
     # Check for any errors and raise exception if they are found.
     for stmt in stmts:
@@ -521,7 +521,7 @@ def partition_measurement_table(conn_str, model_version, search_path, dcc, site3
         stmts.add(inherit_stmt)
 
     # Execute the statements in parallel.
-    stmts.parallel_execute(conn_str)
+    stmts.parallel_execute(conn_str, 5)
 
     # Check for any errors and raise exception if they are found.
     for stmt in stmts:
@@ -656,7 +656,7 @@ def unpartition_measurement_table(conn_str, model_version, search_path, dcc, sit
         stmts.add(drop_constraint_stmt)
 
     # Execute the statements in parallel.
-    stmts.parallel_execute(conn_str)
+    stmts.parallel_execute(conn_str, 5)
 
     # Check for any errors and raise exception if they are found.
     for stmt in stmts:
@@ -680,7 +680,7 @@ def unpartition_measurement_table(conn_str, model_version, search_path, dcc, sit
         stmts.add(inherit_stmt)
 
     # Execute the statements in parallel.
-    stmts.parallel_execute(conn_str)
+    stmts.parallel_execute(conn_str, 5)
 
     # Check for any errors and raise exception if they are found.
     for stmt in stmts:
