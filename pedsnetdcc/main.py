@@ -2931,9 +2931,11 @@ def run_recover_cohort(pwprompt, searchpath, site, model_version, dburi):
               help='name of the id (ex: onco')
 @click.option('--stringid', is_flag=True, default=False,
               help='Use string type for ids.')
+@click.option('--logged', is_flag=True, default=False,
+              help='Create logged tables.')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
-def generate_transform_statements(dburi, pwprompt, searchpath, model_version, name, stringid, site):
+def generate_transform_statements(dburi, pwprompt, searchpath, model_version, name, stringid, logged, site):
     from pedsnetdcc.transform_runner import _transform_select_sql
     from pedsnetdcc.schema import create_schema, primary_schema
     if pwprompt:
@@ -2947,7 +2949,7 @@ def generate_transform_statements(dburi, pwprompt, searchpath, model_version, na
         idtype = 'BigInteger'
 
     tmp_schema = schema + '_' + 'transformed'
-    for sql, msg in _transform_select_sql(model_version, site, tmp_schema, name, idtype):
+    for sql, msg in _transform_select_sql(model_version, site, tmp_schema, name, idtype, logged):
         print("msg: " + sql)
 
 
