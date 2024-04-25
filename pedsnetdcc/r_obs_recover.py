@@ -226,7 +226,7 @@ def _make_index_name(column_name):
 
 
 def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_name, copy,
-                    noidx, nofk, limit=False, owner='loading_user'):
+                    noidx, nofk, skip_query=False, limit=False, owner='loading_user'):
     """Run an R script.
 
     * Create argos file
@@ -241,6 +241,7 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
     :param bool copy: if True, copy results to output directory
     :param bool noidx: if True, skip indexes
     :param bool nofk: if True, skip FKs
+    :param bool skip_query: if True, skip the query
     :param bool limit: if True, limit permissions to owner
     :param str owner:  owner of the to grant permissions to
     :returns:                 True if the function succeeds
@@ -278,12 +279,13 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
     _fix_site_info(dest_path, site, schema)
     _fix_run(dest_path, site)
 
-    query_path = os.path.join(os.sep, 'app', package, site, 'site', 'run.R')
     # Run R script
-    Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
+    if not skip_query:
+        query_path = os.path.join(os.sep, 'app', package, site, 'site', 'run.R')
+        Rscript(query_path, '--verbose=1', _cwd='/app', _fg=True)
 
-    # Log end of function.
-    logger.info(combine_dicts({'msg': 'finished R Script',
+        # Log end of function.
+        logger.info(combine_dicts({'msg': 'finished R Script',
                                'elapsed': secs_since(start_time)}, log_dict))
 
     stmts = StatementSet()
