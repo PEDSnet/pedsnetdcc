@@ -24,7 +24,7 @@ def _create_argos_file(config_path, config_file, source_schema, target_schema, p
         out_config.write('"dbname": "' + conn_info_dict.get('dbname') + '",' + os.linesep)
         out_config.write('"user": "' + conn_info_dict.get('user') + '",' + os.linesep)
         out_config.write('"password": "' + password + '",' + os.linesep)
-        out_config.write('"bigint": "integer",' + os.linesep)
+        out_config.write('"bigint": "numeric",' + os.linesep)
         out_config.write('"options": "-c search_path=' + source_schema + ',' + target_schema + '"' + os.linesep)
         out_config.write('}' + os.linesep)
         out_config.write('}' + os.linesep)

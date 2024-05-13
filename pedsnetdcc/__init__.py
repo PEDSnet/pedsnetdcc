@@ -36,7 +36,8 @@ VOCAB_TABLES = (
     'domain',
     'drug_strength',
     'relationship',
-    'source_to_concept_map'
+    'source_to_concept_map',
+    'cohort_definition'
 )
 
 # TODO: Generate this map dynamically at runtime from the distinct
@@ -68,6 +69,7 @@ CONSISTENT_ID_MAP_TABLES = (
 
 ID_MAP_TABLES = CONSISTENT_ID_MAP_TABLES + (
     'adt_occurrence',
+    'cohort_definition',
     'condition_era',
     'condition_occurrence',
     'death',
