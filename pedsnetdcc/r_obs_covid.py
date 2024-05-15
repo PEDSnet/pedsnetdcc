@@ -320,6 +320,11 @@ def run_r_obs_covid(conn_str, site, password, search_path, model_version, id_nam
                                       log_dict))
             raise
 
+    # person_ids back to bigint
+    okay = _person_id_to_bigint(conn_str, schema)
+    if not okay:
+        return False
+
     # clear "fake" ids added by R query
     okay = _clear_fake_ids(conn_str, schema)
     if not okay:
@@ -456,6 +461,25 @@ def run_r_obs_covid(conn_str, site, password, search_path, model_version, id_nam
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished Covid Observation Derivation',
                                'elapsed': secs_since(start_time)}, log_dict))
+
+    # If reached without error, then success!
+    return True
+
+def _person_id_to_bigint(conn_str, schema):
+    # Change person_id type
+    person_id_sql = """alter table {0}.observation_derivation_covid
+        alter column person_id type bigint"""
+    person_id_msg = "changing person_id to bigint"
+
+    # Fix person_id type
+    logger.info({'msg': 'begin fix person_id type'})
+    person_id_stmt = Statement(person_id_sql.format(schema),
+                               person_id_msg)
+
+    # Execute change person_id type ids statement and ensure it didn't error
+    person_id_stmt.execute(conn_str)
+    check_stmt_err(person_id_stmt, 'change person_id type')
+    logger.info({'msg': '"person_id type changed'})
 
     # If reached without error, then success!
     return True
