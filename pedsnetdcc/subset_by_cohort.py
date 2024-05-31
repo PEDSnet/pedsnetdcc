@@ -76,7 +76,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
     :param bool nonull: if True, don't set column not null
     :param bool limit: if True, limit permissions to owner
     :param str owner:  owner of the to grant permissions to
-    :param bool pre_split: if True, measurement table is already split
+    :param bool x: if True, measurement table is already split
     :param bool drug_tpn: if True, copy drug tpn table
     :param bool force: if True, ignore benign errors
     :returns:   True if the function succeeds
@@ -107,8 +107,7 @@ def run_subset_by_cohort(conn_str, model_version, source_schema, target_schema, 
         'fact_relationship',
         'location_history',
         'hash_token',
-        'cohort',
-        'cohort_definition'
+        'cohort'
     }
 
     if measurement and pre_split:
