@@ -14,55 +14,55 @@ from sh import Rscript
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
 ADD_PRIMARY_KEYS_SQL = [None] * 25
-ADD_PRIMARY_KEYS_SQL[0] = """ALTER TABLE IF EXISTS seattle_pcornet.vital
+ADD_PRIMARY_KEYS_SQL[0] = """ALTER TABLE IF EXISTS {0}.vital
     ADD CONSTRAINT xpk_vitalid PRIMARY KEY (vitalid);"""
-ADD_PRIMARY_KEYS_SQL[1] = """ALTER TABLE IF EXISTS seattle_pcornet.condition
+ADD_PRIMARY_KEYS_SQL[1] = """ALTER TABLE IF EXISTS {0}.condition
     ADD CONSTRAINT xpk_condition PRIMARY KEY (conditionid);"""
-ADD_PRIMARY_KEYS_SQL[2] = """ALTER TABLE IF EXISTS seattle_pcornet.death
+ADD_PRIMARY_KEYS_SQL[2] = """ALTER TABLE IF EXISTS {0}.death
     ADD CONSTRAINT xpk_death PRIMARY KEY (patid, death_source);"""
-ADD_PRIMARY_KEYS_SQL[3] = """ALTER TABLE IF EXISTS seattle_pcornet.death_cause
+ADD_PRIMARY_KEYS_SQL[3] = """ALTER TABLE IF EXISTS {0}.death_cause
     ADD CONSTRAINT xpk_death_cause PRIMARY KEY (patid, death_cause, death_cause_code, death_cause_type, death_cause_source);"""
-ADD_PRIMARY_KEYS_SQL[4] = """ALTER TABLE IF EXISTS seattle_pcornet.demographic
+ADD_PRIMARY_KEYS_SQL[4] = """ALTER TABLE IF EXISTS {0}.demographic
     ADD CONSTRAINT xpk_demographic PRIMARY KEY (patid);"""
-ADD_PRIMARY_KEYS_SQL[5] = """ALTER TABLE IF EXISTS seattle_pcornet.diagnosis
+ADD_PRIMARY_KEYS_SQL[5] = """ALTER TABLE IF EXISTS {0}.diagnosis
     ADD CONSTRAINT xpk_diagnosis PRIMARY KEY (diagnosisid);"""
-ADD_PRIMARY_KEYS_SQL[6] = """ALTER TABLE IF EXISTS seattle_pcornet.dispensing
+ADD_PRIMARY_KEYS_SQL[6] = """ALTER TABLE IF EXISTS {0}.dispensing
     ADD CONSTRAINT xpk_dispensing PRIMARY KEY (dispensingid);"""
-ADD_PRIMARY_KEYS_SQL[7] = """ALTER TABLE IF EXISTS seattle_pcornet.encounter
+ADD_PRIMARY_KEYS_SQL[7] = """ALTER TABLE IF EXISTS {0}.encounter
     ADD CONSTRAINT xpk_encounter PRIMARY KEY (encounterid);"""
-ADD_PRIMARY_KEYS_SQL[8] = """ALTER TABLE IF EXISTS seattle_pcornet.enrollment
+ADD_PRIMARY_KEYS_SQL[8] = """ALTER TABLE IF EXISTS {0}.enrollment
     ADD CONSTRAINT xpk_enrollment PRIMARY KEY (patid, enr_start_date, enr_basis);"""
-ADD_PRIMARY_KEYS_SQL[9] = """ALTER TABLE IF EXISTS seattle_pcornet.harvest
+ADD_PRIMARY_KEYS_SQL[9] = """ALTER TABLE IF EXISTS {0}.harvest
     ADD CONSTRAINT xpk_harvest PRIMARY KEY (networkid, datamartid);"""
-ADD_PRIMARY_KEYS_SQL[10] = """ALTER TABLE IF EXISTS seattle_pcornet.immunization
+ADD_PRIMARY_KEYS_SQL[10] = """ALTER TABLE IF EXISTS {0}.immunization
     ADD CONSTRAINT xpk_immunization PRIMARY KEY (immunizationid);"""
-ADD_PRIMARY_KEYS_SQL[11] = """ALTER TABLE IF EXISTS seattle_pcornet.lab_history
+ADD_PRIMARY_KEYS_SQL[11] = """ALTER TABLE IF EXISTS {0}.lab_history
     ADD CONSTRAINT xpk_labhist PRIMARY KEY (labhistoryid);"""
-ADD_PRIMARY_KEYS_SQL[12] = """ALTER TABLE IF EXISTS seattle_pcornet.lab_result_cm
+ADD_PRIMARY_KEYS_SQL[12] = """ALTER TABLE IF EXISTS {0}.lab_result_cm
     ADD CONSTRAINT xpk_lab_result_cm PRIMARY KEY (lab_result_cm_id);"""
-ADD_PRIMARY_KEYS_SQL[13] = """ALTER TABLE IF EXISTS seattle_pcornet.lds_address_history
+ADD_PRIMARY_KEYS_SQL[13] = """ALTER TABLE IF EXISTS {0}.lds_address_history
     ADD CONSTRAINT xpk_ldsaddhist PRIMARY KEY (addressid);"""
-ADD_PRIMARY_KEYS_SQL[14] = """ALTER TABLE IF EXISTS seattle_pcornet.med_admin
+ADD_PRIMARY_KEYS_SQL[14] = """ALTER TABLE IF EXISTS {0}.med_admin
     ADD CONSTRAINT xpk_medadminid PRIMARY KEY (medadminid);"""
-ADD_PRIMARY_KEYS_SQL[15] = """ALTER TABLE IF EXISTS seattle_pcornet.obs_clin
+ADD_PRIMARY_KEYS_SQL[15] = """ALTER TABLE IF EXISTS {0}.obs_clin
     ADD CONSTRAINT xpk_obsclinid PRIMARY KEY (obsclinid);"""
-ADD_PRIMARY_KEYS_SQL[16] = """ALTER TABLE IF EXISTS seattle_pcornet.obs_gen
+ADD_PRIMARY_KEYS_SQL[16] = """ALTER TABLE IF EXISTS {0}.obs_gen
     ADD CONSTRAINT xpk_obsgenid PRIMARY KEY (obsgenid);"""
-ADD_PRIMARY_KEYS_SQL[17] = """ALTER TABLE IF EXISTS seattle_pcornet.pcornet_trial
+ADD_PRIMARY_KEYS_SQL[17] = """ALTER TABLE IF EXISTS {0}.pcornet_trial
     ADD CONSTRAINT xpk_pcornet_trial PRIMARY KEY (patid, trialid, participantid);"""
-ADD_PRIMARY_KEYS_SQL[18] = """ALTER TABLE IF EXISTS seattle_pcornet.prescribing
+ADD_PRIMARY_KEYS_SQL[18] = """ALTER TABLE IF EXISTS {0}.prescribing
     ADD CONSTRAINT xpk_prescribing PRIMARY KEY (prescribingid);"""
-ADD_PRIMARY_KEYS_SQL[19] = """ALTER TABLE IF EXISTS seattle_pcornet.private_address_geocode
+ADD_PRIMARY_KEYS_SQL[19] = """ALTER TABLE IF EXISTS {0}.private_address_geocode
     ADD CONSTRAINT xpk_private_address_geo PRIMARY KEY (geocodeid);"""
-ADD_PRIMARY_KEYS_SQL[20] = """ALTER TABLE IF EXISTS seattle_pcornet.private_address_history
+ADD_PRIMARY_KEYS_SQL[20] = """ALTER TABLE IF EXISTS {0}.private_address_history
     ADD CONSTRAINT xpk_private_address_hist PRIMARY KEY (addressid);"""
-ADD_PRIMARY_KEYS_SQL[21] = """ALTER TABLE IF EXISTS seattle_pcornet.private_demographic
+ADD_PRIMARY_KEYS_SQL[21] = """ALTER TABLE IF EXISTS {0}.private_demographic
     ADD CONSTRAINT xpk_private_demographic PRIMARY KEY (patid);"""
-ADD_PRIMARY_KEYS_SQL[22] = """ALTER TABLE IF EXISTS seattle_pcornet.pro_cm
+ADD_PRIMARY_KEYS_SQL[22] = """ALTER TABLE IF EXISTS {0}.pro_cm
     ADD CONSTRAINT xpk_pro_cm PRIMARY KEY (pro_cm_id);"""
-ADD_PRIMARY_KEYS_SQL[23] = """ALTER TABLE IF EXISTS seattle_pcornet.procedures
+ADD_PRIMARY_KEYS_SQL[23] = """ALTER TABLE IF EXISTS {0}.procedures
     ADD CONSTRAINT xpk_procedures PRIMARY KEY (proceduresid);"""
-ADD_PRIMARY_KEYS_SQL[24] = """ALTER TABLE IF EXISTS seattle_pcornet.provider
+ADD_PRIMARY_KEYS_SQL[24] = """ALTER TABLE IF EXISTS {0}.provider
     ADD CONSTRAINT xpk_providerid PRIMARY KEY (providerid);"""
 ADD_FOREIGN_KEYS_SQL = [None] * 43
 ADD_FOREIGN_KEYS_SQL[0] = """ALTER TABLE {0}.private_demographic ADD CONSTRAINT fk_priv_demographic_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
@@ -82,7 +82,7 @@ ADD_FOREIGN_KEYS_SQL[12] = """ALTER TABLE {0}.obs_gen ADD CONSTRAINT fk_obsgen_p
 ADD_FOREIGN_KEYS_SQL[13] = """ALTER TABLE {0}.pcornet_trial ADD CONSTRAINT fk_pcornet_trial_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
 ADD_FOREIGN_KEYS_SQL[14] = """ALTER TABLE {0}.enrollment ADD CONSTRAINT fk_enrollment_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
 ADD_FOREIGN_KEYS_SQL[15] = """ALTER TABLE {0}.death ADD CONSTRAINT fk_death_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
-ADD_FOREIGN_KEYS_SQL[16 ] = """ALTER TABLE {0}.death_cause ADD CONSTRAINT fk_death_cause_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
+ADD_FOREIGN_KEYS_SQL[16] = """ALTER TABLE {0}.death_cause ADD CONSTRAINT fk_death_cause_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
 ADD_FOREIGN_KEYS_SQL[17] = """ALTER TABLE {0}.condition ADD CONSTRAINT fk_condition_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
 ADD_FOREIGN_KEYS_SQL[18] = """ALTER TABLE {0}.diagnosis ADD CONSTRAINT fk_diagnosis_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
 ADD_FOREIGN_KEYS_SQL[19] = """ALTER TABLE {0}.dispensing ADD CONSTRAINT fk_dispensing_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
