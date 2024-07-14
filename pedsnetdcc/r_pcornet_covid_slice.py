@@ -13,6 +13,50 @@ from sh import Rscript
 
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
+ADD_FOREIGN_KEYS_SQL = """ALTER TABLE {0}.encounter ADD CONSTRAINT fk_encounter_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.procedures ADD CONSTRAINT fk_procedures_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.procedures ADD CONSTRAINT fk_procedures_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.procedures ADD CONSTRAINT fk_procedures_providerid FOREIGN KEY(providerid) REFERENCES {0}.provider (providerid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.pro_cm ADD CONSTRAINT fk_pro_cm_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.pro_cm ADD CONSTRAINT fk_pro_cm_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.obs_clin ADD CONSTRAINT fk_obsclin_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.obs_clin ADD CONSTRAINT fk_obsclin_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.obs_clin ADD CONSTRAINT fk_obsclin_providerid FOREIGN KEY(obsclin_providerid) REFERENCES {0}.provider (providerid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.obs_gen ADD CONSTRAINT fk_obsgen_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.obs_gen ADD CONSTRAINT fk_obsgen_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.obs_gen ADD CONSTRAINT fk_obsgen_providerid FOREIGN KEY(obsgen_providerid) REFERENCES {0}.provider (providerid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.pcornet_trial ADD CONSTRAINT fk_pcornet_trial_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.enrollment ADD CONSTRAINT fk_enrollment_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.death ADD CONSTRAINT fk_death_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.death_cause ADD CONSTRAINT fk_death_cause_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.condition ADD CONSTRAINT fk_condition_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.diagnosis ADD CONSTRAINT fk_diagnosis_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.dispensing ADD CONSTRAINT fk_dispensing_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.med_admin ADD CONSTRAINT fk_medadmin_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.prescribing ADD CONSTRAINT fk_prescribing_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.prescribing ADD CONSTRAINT fk_prescribing_providerid FOREIGN KEY(rx_providerid) REFERENCES {0}.provider (providerid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.dispensing ADD CONSTRAINT fk_dispensing_prescribingid FOREIGN KEY(prescribingid) REFERENCES {0}.prescribing (prescribingid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.diagnosis ADD CONSTRAINT fk_diagnosis_providerid FOREIGN KEY(providerid) REFERENCES {0}.provider (providerid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.med_admin ADD CONSTRAINT fk_medadmin_providerid FOREIGN KEY(medadmin_providerid) REFERENCES {0}.provider (providerid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.condition ADD CONSTRAINT fk_condition_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.diagnosis ADD CONSTRAINT fk_diagnosis_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.prescribing ADD CONSTRAINT fk_prescribing_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.med_admin ADD CONSTRAINT fk_medadmin_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.lab_result_cm ADD CONSTRAINT fk_lab_result_cm_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.vital ADD CONSTRAINT fk_vital_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.lab_result_cm ADD CONSTRAINT fk_lab_result_cm_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.vital ADD CONSTRAINT fk_vital_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.encounter ADD CONSTRAINT fk_encounter_providerid FOREIGN KEY(providerid) REFERENCES {0}.provider (providerid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.hash_token ADD CONSTRAINT fk_hash_token_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_procedureid FOREIGN KEY(proceduresid) REFERENCES {0}.procedures (proceduresid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_providerid FOREIGN KEY(vx_providerid) REFERENCES {0}.provider (providerid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.lds_address_history ADD CONSTRAINT fk_lds_addhist_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.private_address_geocode ADD CONSTRAINT fk_gecode_addressid FOREIGN KEY(addressid) REFERENCES {0}.lds_address_history (addressid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.private_address_history ADD CONSTRAINT fk_add_history_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+ALTER TABLE {0}.private_demographic ADD CONSTRAINT fk_priv_demographic_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;
+"""
 
 def _create_argos_file(config_path, config_file, source_schema, target_schema, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
@@ -115,6 +159,30 @@ def run_r_pcornet_covid_slice(config_file, conn_str, site, password, source_sche
     # Log end of function.
     logger.info(combine_dicts({'msg': 'finished R Script',
                                'elapsed': secs_since(start_time)}, log_dict))
+
+    stmts = StatementSet()
+
+    # Add Foreign keys.
+    logger.info({'msg': 'begin adding FKs'})
+    stmts.clear()
+    add_fk_stmt = Statement(ADD_FOREIGN_KEYS_SQL.format(target_schema))
+    stmts.add(add_fk_stmt)
+
+    # Check for any errors and raise exception if they are found.
+    for stmt in stmts:
+        try:
+            stmt.execute(conn_str)
+            check_stmt_err(stmt, logger_msg.format('Run'))
+        except:
+            logger.error(combine_dicts({'msg': 'Fatal error',
+                                        'sql': stmt.sql,
+                                        'err': str(stmt.err)}, log_dict))
+            logger.info(combine_dicts({'msg': 'add FKs failed',
+                                       'elapsed': secs_since(start_time)},
+                                      log_dict))
+            raise
+
+    logger.info({'msg': 'finished adding FKs'})
 
     # If reached without error, then success!
     return True
