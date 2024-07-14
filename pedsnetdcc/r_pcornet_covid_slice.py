@@ -228,10 +228,12 @@ def run_r_pcornet_covid_slice(config_file, conn_str, site, password, source_sche
         add_pk_stmt = Statement(pk.format(target_schema))
         stmts.add(add_pk_stmt)
 
+    # Execute the statements in parallel.
+     stmts.parallel_execute(conn_str, 5)
+
     # Check for any errors and raise exception if they are found.
     for stmt in stmts:
         try:
-            stmt.execute(conn_str)
             check_stmt_err(stmt, 'add PKs')
         except:
             logger.error(combine_dicts({'msg': 'Fatal error',
@@ -254,10 +256,12 @@ def run_r_pcornet_covid_slice(config_file, conn_str, site, password, source_sche
         add_fk_stmt = Statement(fk.format(target_schema))
         stmts.add(add_fk_stmt)
 
+    # Execute the statements in parallel.
+    stmts.parallel_execute(conn_str, 5)
+
     # Check for any errors and raise exception if they are found.
     for stmt in stmts:
         try:
-            stmt.execute(conn_str)
             check_stmt_err(stmt, 'add FKs')
         except:
             logger.error(combine_dicts({'msg': 'Fatal error',
