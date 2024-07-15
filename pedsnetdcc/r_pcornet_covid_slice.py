@@ -229,7 +229,7 @@ def run_r_pcornet_covid_slice(config_file, conn_str, site, password, source_sche
         stmts.add(add_pk_stmt)
 
     # Execute the statements in parallel.
-     stmts.parallel_execute(conn_str, 5)
+    stmts.parallel_execute(conn_str, 5)
 
     # Check for any errors and raise exception if they are found.
     for stmt in stmts:
