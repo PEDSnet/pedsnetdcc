@@ -13,6 +13,12 @@ from sh import Rscript
 
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
+COPY_ALL_PROVIDERS = """INSERT INTO {0}.provider(
+	provider_npi, provider_npi_flag, provider_sex, provider_specialty_primary, providerid, raw_provider_specialty_primary, site)
+SELECT provider_npi, provider_npi_flag, provider_sex, provider_specialty_primary, providerid, raw_provider_specialty_primary, site
+FROM {1}.provider p1
+WHERE NOT EXISTS (SELECT 1 FROM {0}.provider p2
+	WHERE p1.providerid = p2.providerid);"""
 ADD_PRIMARY_KEYS_SQL = [None] * 25
 ADD_PRIMARY_KEYS_SQL[0] = """ALTER TABLE IF EXISTS {0}.vital
     ADD CONSTRAINT xpk_vitalid PRIMARY KEY (vitalid);"""
@@ -64,7 +70,7 @@ ADD_PRIMARY_KEYS_SQL[23] = """ALTER TABLE IF EXISTS {0}.procedures
     ADD CONSTRAINT xpk_procedures PRIMARY KEY (proceduresid);"""
 ADD_PRIMARY_KEYS_SQL[24] = """ALTER TABLE IF EXISTS {0}.provider
     ADD CONSTRAINT xpk_providerid PRIMARY KEY (providerid);"""
-ADD_FOREIGN_KEYS_SQL = [None] * 43
+ADD_FOREIGN_KEYS_SQL = [None] * 42
 ADD_FOREIGN_KEYS_SQL[0] = """ALTER TABLE {0}.private_demographic ADD CONSTRAINT fk_priv_demographic_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
 ADD_FOREIGN_KEYS_SQL[1] = """ALTER TABLE {0}.encounter ADD CONSTRAINT fk_encounter_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
 ADD_FOREIGN_KEYS_SQL[2] = """ALTER TABLE {0}.procedures ADD CONSTRAINT fk_procedures_encounterid FOREIGN KEY(encounterid) 
@@ -106,14 +112,13 @@ ADD_FOREIGN_KEYS_SQL[31] = """ALTER TABLE {0}.vital ADD CONSTRAINT fk_vital_pati
 ADD_FOREIGN_KEYS_SQL[32] = """ALTER TABLE {0}.lab_result_cm ADD CONSTRAINT fk_lab_result_cm_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
 ADD_FOREIGN_KEYS_SQL[33] = """ALTER TABLE {0}.vital ADD CONSTRAINT fk_vital_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;"""
 ADD_FOREIGN_KEYS_SQL[34] = """ALTER TABLE {0}.encounter ADD CONSTRAINT fk_encounter_providerid FOREIGN KEY(providerid) REFERENCES {0}.provider (providerid) DEFERRABLE INITIALLY DEFERRED;"""
-ADD_FOREIGN_KEYS_SQL[35] = """ALTER TABLE {0}.hash_token ADD CONSTRAINT fk_hash_token_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
-ADD_FOREIGN_KEYS_SQL[36] = """ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;"""
-ADD_FOREIGN_KEYS_SQL[37] = """ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
-ADD_FOREIGN_KEYS_SQL[38] = """ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_procedureid FOREIGN KEY(proceduresid) REFERENCES {0}.procedures (proceduresid) DEFERRABLE INITIALLY DEFERRED;"""
-ADD_FOREIGN_KEYS_SQL[39] = """ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_providerid FOREIGN KEY(vx_providerid) REFERENCES {0}.provider (providerid) DEFERRABLE INITIALLY DEFERRED;"""
-ADD_FOREIGN_KEYS_SQL[40] = """ALTER TABLE {0}.lds_address_history ADD CONSTRAINT fk_lds_addhist_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
-ADD_FOREIGN_KEYS_SQL[41] = """ALTER TABLE {0}.private_address_geocode ADD CONSTRAINT fk_gecode_addressid FOREIGN KEY(addressid) REFERENCES {0}.lds_address_history (addressid) DEFERRABLE INITIALLY DEFERRED;"""
-ADD_FOREIGN_KEYS_SQL[42] = """ALTER TABLE {0}.private_address_history ADD CONSTRAINT fk_add_history_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
+ADD_FOREIGN_KEYS_SQL[35] = """ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_encounterid FOREIGN KEY(encounterid) REFERENCES {0}.encounter (encounterid) DEFERRABLE INITIALLY DEFERRED;"""
+ADD_FOREIGN_KEYS_SQL[36] = """ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
+ADD_FOREIGN_KEYS_SQL[37] = """ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_procedureid FOREIGN KEY(proceduresid) REFERENCES {0}.procedures (proceduresid) DEFERRABLE INITIALLY DEFERRED;"""
+ADD_FOREIGN_KEYS_SQL[38] = """ALTER TABLE {0}.immunization ADD CONSTRAINT fk_immun_providerid FOREIGN KEY(vx_providerid) REFERENCES {0}.provider (providerid) DEFERRABLE INITIALLY DEFERRED;"""
+ADD_FOREIGN_KEYS_SQL[39] = """ALTER TABLE {0}.lds_address_history ADD CONSTRAINT fk_lds_addhist_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
+ADD_FOREIGN_KEYS_SQL[40] = """ALTER TABLE {0}.private_address_geocode ADD CONSTRAINT fk_gecode_addressid FOREIGN KEY(addressid) REFERENCES {0}.lds_address_history (addressid) DEFERRABLE INITIALLY DEFERRED;"""
+ADD_FOREIGN_KEYS_SQL[41] = """ALTER TABLE {0}.private_address_history ADD CONSTRAINT fk_add_history_patid FOREIGN KEY(patid) REFERENCES {0}.demographic (patid) DEFERRABLE INITIALLY DEFERRED;"""
 
 def _create_argos_file(config_path, config_file, source_schema, target_schema, password, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
@@ -218,6 +223,20 @@ def run_r_pcornet_covid_slice(config_file, conn_str, site, password, source_sche
                                'elapsed': secs_since(start_time)}, log_dict))
 
     stmts = StatementSet()
+    stmts.clear()
+
+    # Copy all providers, many skipped due to naming
+    logger.info(combine_dicts({'msg': 'Copy providers',
+                               'elapsed': secs_since(start_time)}, log_dict))
+
+    copy_provider_stmt = Statement(COPY_ALL_PROVIDERS.format(target_schema, source_schema))
+
+    # Execute copy providers statement and ensure it didn't error
+    copy_provider_stmt.execute(conn_str)
+    check_stmt_err(copy_provider_stmt, 'copy providers')
+
+    logger.info(combine_dicts({'msg': 'Finished copying providers',
+                               'elapsed': secs_since(start_time)}, log_dict))
 
     # Add Primary keys.
     logger.info(combine_dicts({'msg': 'Start adding PKs',
