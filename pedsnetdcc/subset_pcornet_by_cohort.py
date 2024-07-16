@@ -220,14 +220,14 @@ def run_subset_pcornet_by_cohort(conn_str, model_version, source_schema, target_
     create_dict = {}
     grant_vacuum_tables = []
 
-    # Initial pass for tables that all rows are selected or are based on petid in cohort table
+    # Initial pass for tables that all rows are selected or are based on patid in cohort table
     if not notable:
         for table in select_patid:
             table_list.append(table)
             create = 'create table ' + target_schema + '.' + table + ' as select t.*'
             create = create + ' from ' + source_schema + '.' + table + ' t'
             if table not in select_all:
-                create = create + ' join ' +  target_schema + '.' + cohort_table + ' c on c.petid = t.patid'
+                create = create + ' join ' +  target_schema + '.' + cohort_table + ' c on c.patid = t.patid'
             create = create + ';'
             create_dict[table] = create
             grant_vacuum_tables.append(table)
