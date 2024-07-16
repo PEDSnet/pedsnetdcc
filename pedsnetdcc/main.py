@@ -2677,6 +2677,7 @@ def run_r_dose(pwprompt, searchpath, site, model_version, copy, limit, owner, db
 
     sys.exit(0)
 
+
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
               help='Prompt for database password.')
@@ -2895,6 +2896,60 @@ def subset_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_s
 
     sys.exit(0)
 
+@pedsnetdcc.command()
+@click.option('--model-version', '-v', required=True,
+              help='PEDSnet model version (e.g. 2.3.0).')
+@click.option('--source_schema', required=True,
+              help='Schema where the source tables are located')
+@click.option('--target_schema', required=True,
+              help='Schema where the subset tables should be located')
+@click.option('--pwprompt', '-p', is_flag=True, default=False,
+              help='Prompt for database password.')
+@click.option('--searchpath', '-s', help='Schema search path in database.')
+@click.option('--inc_hash', is_flag=True, default=False,
+              help='Include hash_token table.')
+@click.option('--index_create', is_flag=True, default=False,
+              help='Create indexes on tables.')
+@click.option('--fk_create', is_flag=True, default=False,
+              help='Create FKs on tables.')
+@click.option('--notable', is_flag=True, default=False,
+              help='Skip fill table when exists.')
+@click.option('--nopk', is_flag=True, default=False,
+              help='Skip primary keys.')
+@click.option('--limit', is_flag=True, default=False,
+              help='Limit permissions to owner.')
+@click.option('--owner', required=False, default='loading_user',
+              help='the role that permissions should be granted to if permissions limited')
+@click.option('--force', is_flag=True, default=False,
+              help='Ignore any "already exists" errors from the database.')
+@click.option('--cohort_table', required=True,
+              help='Name of the cohort table where the person_ids are located')
+@click.argument('dburi')
+def subset_pcornet_by_cohort(searchpath, pwprompt, dburi, model_version, force, source_schema, target_schema, cohort_table,
+                     inc_hash, index_create, fk_create, notable, nopk, limit, owner):
+    """Create tables for subset based on a cohort/person_id table
+
+    The database should be specified using a DBURI:
+
+    \b
+    postgresql://[user[:password]@][netloc][:port][/dbname][?param1=value1&..]
+    """
+
+    password = None
+
+    if pwprompt:
+        password = click.prompt('Database password', hide_input=True)
+
+    conn_str = make_conn_str(dburi, searchpath, password)
+
+    from pedsnetdcc.subset_pcornet_by_cohort import run_subset_pcornet_by_cohort
+    success = run_subset_pcornet_by_cohort(conn_str, model_version, source_schema, target_schema, cohort_table,
+                         inc_hash, index_create, fk_create, notable, nopk, limit, owner, force)
+
+    if not success:
+        sys.exit(1)
+
+    sys.exit(0)
 
 @pedsnetdcc.command()
 @click.option('--model-version', '-v', required=True,
@@ -2926,7 +2981,6 @@ def create_index_replace(searchpath, pwprompt, dburi, model_version):
         sys.exit(1)
 
     sys.exit(0)
-
 
 @pedsnetdcc.command()
 @click.option('--pwprompt', '-p', is_flag=True, default=False,
