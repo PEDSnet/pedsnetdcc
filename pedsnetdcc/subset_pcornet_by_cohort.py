@@ -197,7 +197,7 @@ def run_subset_pcornet_by_cohort(conn_str, model_version, source_schema, target_
         'prescribing',
         'pcornet_trial',
         'provider',
-        'harvest'
+        'harvest',
         'death',
         'death_cause',
         'med_admin',
