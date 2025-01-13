@@ -18,7 +18,7 @@ DROP_NULL_BMI_TABLE_SQL = 'alter table measurement_bmi alter column measurement_
 IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_bmi ({1})'
 
 
-def _create_config_file(config_path, config_file, schema, table, password, conn_info_dict):
+def _create_config_file(config_path, config_file, schema, table, password, max_time, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('ht_measurement_concept_ids = 3023540,3036277' + os.linesep)
         out_config.write('wt_measurement_concept_ids = 3013762,3025315' + os.linesep)
@@ -35,6 +35,7 @@ def _create_config_file(config_path, config_file, schema, table, password, conn_
         out_config.write('host = ' + conn_info_dict.get('host') + os.linesep)
         out_config.write('database = ' + conn_info_dict.get('dbname') + os.linesep)
         out_config.write('schema = ' + schema + os.linesep)
+        out_config.write('meas_match_limit_sec = ' + max_time + os.linesep)
         out_config.write('username = ' + conn_info_dict.get('user') + os.linesep)
         out_config.write('password = ' + password + os.linesep)
         out_config.write('domain = stage' + os.linesep)
@@ -215,7 +216,7 @@ def _copy_to_measurement_table(conn_str, schema, table):
 
 
 def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids, skip_calc,
-                 table, password, search_path, model_version, id_name):
+                 table, password, search_path, model_version, id_name, max_time):
     """Run the BMI tool.
 
     * Create config file
@@ -242,6 +243,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
     :param str id_name: name of the id (ex. dcc or onco)
+    :param str max_time: The maximum time, in days, between a height and weight measurement.
     :returns:                 True if the function succeeds
     :rtype:                   bool
     :raises DatabaseError:    if any of the statement executions cause errors
@@ -261,12 +263,18 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
         pass_match = re.search(r"password=(\S*)", conn_str)
         password = pass_match.group(1)
 
-    stmts = StatementSet()
+    if max_time == '60':
+        max_time = '5184000'
+    else:
+        if max_time.isnumeric():
+            max_time = str(((max_time * 24) * 60 * 60))
+        else:
+            max_time = '5184000'
 
     if not skip_calc:
-        # create the congig file
+        # create the config file
         config_path = "/app"
-        _create_config_file(config_path, config_file, schema, table, password, conn_info_dict)
+        _create_config_file(config_path, config_file, schema, table, password, max_time, conn_info_dict)
 
         # create measurement_bmi table
 

@@ -907,9 +907,11 @@ def split_measurement(pwprompt, searchpath, truncate, view, model_version, limit
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--idname', required=False, default='dcc',
               help='name of the id (ex: onco')
+@click.option('--max_time', required=False, default='60',
+              help='maximum days between a height and weight')
 @click.argument('dburi')
 def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_age, neg_ids, skip_calc, no_ids,
-                    no_concept, table, person, model_version, idname, dburi):
+                    no_concept, table, person, model_version, idname, max_time, dburi):
     """Run all derivations.
 
     The steps are:
@@ -954,7 +956,7 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
     config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
     success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids, skip_calc,
-                           table, password, searchpath, model_version, idname)
+                           table, password, searchpath, model_version, idname, max_time)
 
     if not success:
         sys.exit(1)
@@ -1025,9 +1027,11 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--idname', required=False, default='dcc',
               help='name of the id (ex: onco')
+@click.option('--max_time', required=False, default='60',
+              help='maximum days between a height and weight')
 @click.argument('dburi')
 def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_age, neg_ids, skip_calc,
-            table, model_version, idname, dburi):
+            table, model_version, idname, max_time, dburi):
     """Run BMI derivation.
 
     The steps are:
@@ -1073,7 +1077,7 @@ def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_a
 
     from pedsnetdcc.bmi import run_bmi_calc
     success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                           skip_calc, table, password, searchpath, model_version, idname)
+                           skip_calc, table, password, searchpath, model_version, idname, max_time)
 
     if not success:
         sys.exit(1)
@@ -1261,9 +1265,11 @@ def copy_bmiz(pwprompt, searchpath, site, table, dburi):
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--idname', required=False, default='dcc',
               help='name of the id (ex: onco')
+@click.option('--max_time', required=False, default='60',
+              help='maximum days between a height and weight')
 @click.argument('dburi')
 def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_age, neg_ids, skip_calc,
-                 table, person, model_version, idname, dburi):
+                 table, person, model_version, idname, max_time, dburi):
     """Run BMI and BMI-Z derivations.
 
     The steps are:
@@ -1303,7 +1309,7 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
     config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
     success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                           skip_calc, table, password, searchpath, model_version, idname)
+                           skip_calc, table, password, searchpath, model_version, idname, max_time)
 
     if not success:
         sys.exit(1)
