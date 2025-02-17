@@ -72,6 +72,7 @@ class IDMappingTransform(Transform):
 
             # Get table object and start to build tpl_vars map, which will be
             # used throughout for formatting SQL statements.
+
             table = metadata.tables[table_name]
             tpl_vars = {'table_name': table_name}
 
@@ -110,10 +111,15 @@ class IDMappingTransform(Transform):
             # Get primary key, mapping table, and last id tracking table names.
             # The mapping table and last id tracking table names are defined
             # by convention.
-            tpl_vars['pkey_name'] = list(table.primary_key.columns.keys())[0]
-            tpl_vars['map_table_name'] = map_table_name_tmpl.format(**tpl_vars)
-            tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.\
-                format(**tpl_vars)
+
+            if table_name == 'drug_iv_pilot':
+                tpl_vars['pkey_name'] = 'drug_exposure_id'
+                tpl_vars['map_table_name'] = 'drug_exposure_ids'
+                tpl_vars['last_id_table_name'] = "{id_name}_drug_exposure_id"
+            else:
+                tpl_vars['pkey_name'] = list(table.primary_key.columns.keys())[0]
+                tpl_vars['map_table_name'] = map_table_name_tmpl.format(**tpl_vars)
+                tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.format(**tpl_vars)
 
             # Build the statement to count how many new ID mappings are needed.
             new_id_count_stmt = Statement(new_id_count_sql.format(**tpl_vars),
