@@ -375,7 +375,7 @@ class IDMappingTransform(Transform):
             new_select.append_column(table.c['fact_id_2'].label('site_id_2'))
 
             # Put the new select object in the original var for further use.
-            select = new_select
+            select = new_select.replace('anon1.', '')
 
         return select, join
 
