@@ -115,7 +115,7 @@ class IDMappingTransform(Transform):
             if table_name == 'drug_iv_pilot':
                 tpl_vars['pkey_name'] = 'drug_exposure_id'
                 tpl_vars['map_table_name'] = 'drug_exposure_ids'
-                tpl_vars['last_id_table_name'] = id_name + 'drug_exposure_id'
+                tpl_vars['last_id_table_name'] = id_name + '_drug_exposure_id'
             else:
                 tpl_vars['pkey_name'] = list(table.primary_key.columns.keys())[0]
                 tpl_vars['map_table_name'] = map_table_name_tmpl.format(**tpl_vars)
