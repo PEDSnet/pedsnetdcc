@@ -268,7 +268,10 @@ class IDMappingTransform(Transform):
             # Get foreign key name and mapping table name, defined by
             # convention.
             fkey_name = fkey.column_keys[0]
-            map_table_name = map_table_name_tmpl.\
+            if ref_table_name == 'drug_iv_pilot':
+                map_table_name = 'drug_exposure_ids'
+            else:
+                map_table_name = map_table_name_tmpl.\
                 format(table_name=ref_table_name)
 
             # Construct table object for mapping table, if necessary.
