@@ -218,8 +218,12 @@ class IDMappingTransform(Transform):
 
             # Get primary key name and mapping table name, defined by
             # convention.
-            pkey_name = list(table.primary_key.columns.keys())[0]
-            map_table_name = map_table_name_tmpl.format(table_name=table_name)
+            if table_name == 'drug_iv_pilot':
+                pkey_name = 'drug_exposure_id'
+                map_table_name = 'drug_exposure_ids'
+            else:
+                pkey_name = list(table.primary_key.columns.keys())[0]
+                map_table_name = map_table_name_tmpl.format(table_name=table_name)
 
             # Construct table object for mapping table, if necessary.
             if map_table_name not in metadata.tables:
