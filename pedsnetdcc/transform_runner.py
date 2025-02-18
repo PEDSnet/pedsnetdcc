@@ -82,7 +82,9 @@ def _transform_select_sql(model_version, site, target_schema, id_name, id_type, 
         table_sql_obj = final_select_obj.compile(
             dialect=sqlalchemy.dialects.postgresql.dialect())
 
-        table_sql = str(table_sql_obj) % table_sql_obj.params
+        table_sql_init = str(table_sql_obj) % table_sql_obj.params
+
+        table_sql = table_sql_init.replace('anon_1.', '')
 
         if logged:
             final_sql = 'CREATE TABLE {0}.{1} AS {2}'.format(
@@ -147,6 +149,8 @@ def _transform_target_select_sql(model_version, site, target_schema, id_name, id
             dialect=sqlalchemy.dialects.postgresql.dialect())
 
         table_sql = str(table_sql_obj) % table_sql_obj.params
+
+
 
         final_sql = 'CREATE UNLOGGED TABLE {0}.{1} AS {2}'.format(
             target_schema, table_name, table_sql)
