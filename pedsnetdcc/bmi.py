@@ -273,6 +273,8 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
         else:
             max_time = '5184000'
 
+    stmts = StatementSet()
+
     if not skip_calc:
         # create the config file
         config_path = "/app"
