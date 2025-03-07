@@ -13,12 +13,13 @@ from sh import derive_bmi
 
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
-CREATE_MEASURE_LIKE_TABLE_SQL = 'create table measurement_bmi (like measurement)'
-DROP_NULL_BMI_TABLE_SQL = 'alter table measurement_bmi alter column measurement_id drop not null;'
-IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on measurement_bmi ({1})'
+CREATE_MEASURE_LIKE_TABLE_SQL = 'create table {0} (like measurement)'
+DROP_NULL_BMI_TABLE_SQL = 'alter table {0} alter column measurement_id drop not null;'
+IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on {1} ({2})'
+IDX_NONAME_MEASURE_LIKE_TABLE_SQL = 'create index on {0} ({1})'
 
 
-def _create_config_file(config_path, config_file, schema, table, password, max_time, conn_info_dict):
+def _create_config_file(config_path, config_file, schema, table, out_table, password, max_time, conn_info_dict):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('ht_measurement_concept_ids = 3023540,3036277' + os.linesep)
         out_config.write('wt_measurement_concept_ids = 3013762,3025315' + os.linesep)
@@ -42,7 +43,7 @@ def _create_config_file(config_path, config_file, schema, table, password, max_t
         out_config.write('type = dcc' + os.linesep)
         out_config.write('post_connect_sql = set search_path to ' + schema + ',vocabulary;' + os.linesep)
         out_config.write('</src_rdb>' + os.linesep)
-        out_config.write('output_measurement_table = measurement_bmi'+ os.linesep)
+        out_config.write('output_measurement_table = ' + out_table + os.linesep)
         out_config.write('person_finder_sql = select distinct person_id from ' + table + ' ')
         out_config.write('where measurement_concept_id in (3013762, 3023540, 3036277, 3025315)' + os.linesep)
 
@@ -60,16 +61,16 @@ def _make_index_name(table_name, column_name):
         :param str column_name:
         :rtype: str
         """
-    table_abbrev = "mea_" + table_name[:3]
+    table_abbrev = 'mea' + table_name[:3]
     column_abbrev = ''.join([x[0] for x in column_name.split('_')])
     md5 = hashlib.md5(
         '{}.{}'.format(table_name, column_name).encode('utf-8')). \
         hexdigest()
-    hashlen = NAME_LIMIT - (len(table_abbrev) + len(column_abbrev) +
+    hashlen = NAME_LIMIT - (len(table_abbrev) + 4 + len(column_abbrev) +
                             3 * len('_') + len('ix'))
     return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
 
-def _fill_age_in_months(conn_str, schema):
+def _fill_age_in_months(conn_str, schema, out_table):
     fill_add_age_in_months_sql = """
     create or replace function {0}.last_month_of_interval(timestamp, timestamp)
          returns timestamp strict immutable language sql as $$
@@ -107,18 +108,18 @@ def _fill_age_in_months(conn_str, schema):
         the original timestamp from the resulting value, albeit with great
         difficulty.';
 
-    UPDATE {0}.measurement_bmi b
+    UPDATE {0}.{1} b
     set measurement_age_in_months=subquery.measurement_age_in_months
     from (select measurement_id, 
         {0}.months_in_interval(p.birth_datetime, m.measurement_datetime::timestamp without time zone) as measurement_age_in_months
-        from {0}.measurement_bmi m
+        from {0}.{1} m
         join {0}.person p on p.person_id = m.person_id) AS subquery
     where b.measurement_id=subquery.measurement_id;"""
 
     fill_add_age_in_months_msg = "adding age in months"
 
     # Add age in months
-    add_age_in_months_stmt = Statement(fill_add_age_in_months_sql.format(schema), fill_add_age_in_months_msg)
+    add_age_in_months_stmt = Statement(fill_add_age_in_months_sql.format(schema, out_table), fill_add_age_in_months_msg)
 
     # Execute the add concept names statement and ensure it didn't error
     add_age_in_months_stmt.execute(conn_str)
@@ -127,8 +128,8 @@ def _fill_age_in_months(conn_str, schema):
     # If reached without error, then success!
     return True
 
-def _fill_concept_names(conn_str):
-    fill_concept_names_sql = """UPDATE measurement_bmi bmi
+def _fill_concept_names(conn_str, out_table):
+    fill_concept_names_sql = """UPDATE {0} bmi
         SET measurement_concept_name=v.measurement_concept_name,
         measurement_source_concept_name=v.measurement_source_concept_name,
         measurement_type_concept_name=v.measurement_type_concept_name,
@@ -165,7 +166,7 @@ def _fill_concept_names(conn_str):
     fill_concept_names_msg = "adding concept names"
 
     # Add concept names
-    add_measurement_ids_stmt = Statement(fill_concept_names_sql, fill_concept_names_msg)
+    add_measurement_ids_stmt = Statement(fill_concept_names_sql.format(out_table), fill_concept_names_msg)
 
     # Execute the add concept names statement and ensure it didn't error
     add_measurement_ids_stmt.execute(conn_str)
@@ -174,7 +175,7 @@ def _fill_concept_names(conn_str):
     # If reached without error, then success!
     return True
 
-def _copy_to_measurement_table(conn_str, schema, table):
+def _copy_to_measurement_table(conn_str, schema, table, out_table):
     copy_to_sql = """INSERT INTO {0}.{1}(
         measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
         measurement_order_date, measurement_order_datetime, measurement_result_date, 
@@ -200,12 +201,12 @@ def _copy_to_measurement_table(conn_str, schema, table):
         measurement_type_concept_name, operator_concept_name, priority_concept_name, 
         range_high_operator_concept_name, range_low_operator_concept_name, unit_concept_name, 
         value_as_concept_name, site, site_id
-        from {0}.measurement_bmi) ON CONFLICT DO NOTHING"""
+        from {0}.{2}) ON CONFLICT DO NOTHING"""
 
     copy_to_msg = "copying bmi to measurement"
 
     # Insert BMI measurements into measurement table
-    copy_to_stmt = Statement(copy_to_sql.format(schema, table), copy_to_msg)
+    copy_to_stmt = Statement(copy_to_sql.format(schema, table, out_table), copy_to_msg)
 
     # Execute the insert BMI measurements statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
@@ -216,7 +217,7 @@ def _copy_to_measurement_table(conn_str, schema, table):
 
 
 def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids, skip_calc,
-                 table, password, search_path, model_version, id_name, max_time):
+                 table, out_table, password, search_path, model_version, id_name, max_time):
     """Run the BMI tool.
 
     * Create config file
@@ -239,6 +240,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
     :param bool neg_ids: if True, use negative ids
     :param bool skip_calc: if True, skip the actual calculation
     :param str table:    name of input/copy table (measurement/measurement_anthro)
+    :param str out_table:    name of output table (measurement_bmi is default)
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
@@ -274,12 +276,12 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
     if not skip_calc:
         # create the config file
         config_path = "/app"
-        _create_config_file(config_path, config_file, schema, table, password, max_time, conn_info_dict)
+        _create_config_file(config_path, config_file, schema, table, out_table, password, max_time, conn_info_dict)
 
         # create measurement_bmi table
 
         # Add a creation statement.
-        create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL)
+        create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.format(out_table))
         stmts.add(create_stmt)
 
         # Check for any errors and raise exception if they are found.
@@ -298,7 +300,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
 
         # Add drop null statement.
         stmts.clear()
-        drop_stmt = Statement(DROP_NULL_BMI_TABLE_SQL)
+        drop_stmt = Statement(DROP_NULL_BMI_TABLE_SQL.format(out_table))
         stmts.add(drop_stmt)
 
         # Check for any errors and raise exception if they are found.
@@ -318,7 +320,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
         # Run BMI tool
         derive_bmi(config_file[:-5], '--verbose=1', _cwd='/app', _fg=True)
 
-    # Add indexes to measurement_bmi (same as measurement)
+    # Add indexes to measurement_bmi/out_table (same as measurement)
     if indexes:
         logger.info({'msg': 'begin add indexes'})
         stmts.clear()
@@ -327,9 +329,13 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
                      'measurement_source_value', 'value_as_concept_id', 'value_as_number',)
 
         for col in col_index:
-            idx_name = _make_index_name('bmi', col)
-            idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.
-                                     format(idx_name, col))
+            if out_table == 'measurement_bmi':
+                idx_name = _make_index_name('bmi', col)
+                idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.
+                                     format(idx_name, out_table, col))
+            else:
+                idx_stmt = Statement(IDX_NONAME_MEASURE_LIKE_TABLE_SQL.
+                                     format(out_table, col))
             stmts.add(idx_stmt)
 
         # Execute the statements in parallel.
@@ -351,14 +357,14 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
 
     # add measurement_ids
     if ids:
-        okay = _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id_name)
+        okay = _add_measurement_ids(conn_str, site, neg_ids, out_table, search_path, model_version, id_name)
         if not okay:
             return False
 
     # Add the concept_names
     if concept:
         logger.info({'msg': 'add concept names'})
-        okay = _fill_concept_names(conn_str)
+        okay = _fill_concept_names(conn_str, out_table)
         if not okay:
             return False
         logger.info({'msg': 'concept names added'})
@@ -366,7 +372,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
     # Add age in months
     if age:
         logger.info({'msg': 'add age in months'})
-        okay = _fill_age_in_months(conn_str, schema)
+        okay = _fill_age_in_months(conn_str, schema, out_table)
         if not okay:
             return False
         logger.info({'msg': 'age in months added'})
@@ -374,14 +380,14 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
     # Copy to the measurement table
     if copy:
         logger.info({'msg': 'copy bmi measurements to measurement'})
-        okay = _copy_to_measurement_table(conn_str, schema, table)
+        okay = _copy_to_measurement_table(conn_str, schema, table, out_table)
         if not okay:
             return False
         logger.info({'msg': 'bmi measurements copied to measurement'})
 
     # Vacuum analyze tables for piney freshness.
     logger.info({'msg': 'begin vacuum'})
-    vacuum(conn_str, model_version, analyze=True, tables=['measurement_bmi'])
+    vacuum(conn_str, model_version, analyze=True, tables=[out_table])
     logger.info({'msg': 'vacuum finished'})
 
     # Log end of function.
@@ -392,7 +398,7 @@ def run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, 
     return True
 
 
-def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id_name):
+def _add_measurement_ids(conn_str, site, neg_ids, out_table, search_path, model_version, id_name):
     """Add measurement ids for the bmi table
 
     * Find how many ids needed
@@ -404,7 +410,8 @@ def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id
 
     :param str conn_str:      database connection string
     :param str site:    site to run BMI for
-    :param bool if True use negative ids
+    :param bool neg_ids: if True use negative ids
+    :param str out_table:    table to output BMI to
     :param str search_path: PostgreSQL schema search path
     :param str model_version: pedsnet model version, e.g. 2.3.0
     :param str id_name: name of the id (ex. dcc or onco)
@@ -414,8 +421,8 @@ def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id
     """
 
     new_id_count_sql = """SELECT COUNT(*)
-        FROM measurement_bmi WHERE measurement_id IS NULL"""
-    new_id_count_msg = "counting new IDs needed for measurement_bmi"
+        FROM {0} WHERE measurement_id IS NULL"""
+    new_id_count_msg = "counting new IDs needed for {0}"
     lock_last_id_sql = """LOCK {last_id_table_name}"""
     lock_last_id_msg = "locking {table_name} last ID tracking table for update"
 
@@ -429,10 +436,10 @@ def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id
     create_seq_measurement_msg = "creating measurement id sequence"
     set_seq_number_sql = "alter sequence {0}.{1}_bmi_measurement_id_seq restart with {2};"
     set_seq_number_msg = "setting sequence number"
-    add_measurement_ids_sql = """update {0}.measurement_bmi set measurement_id = nextval('{0}.{1}_bmi_measurement_id_seq')
+    add_measurement_ids_sql = """update {0}.{1} set measurement_id = nextval('{0}.{2}_bmi_measurement_id_seq')
         where measurement_id is null"""
-    add_measurement_ids_msg = "adding the measurement ids to the measurement_bmi table"
-    pk_measurement_id_sql = "alter table {0}.measurement_bmi add primary key (measurement_id)"
+    add_measurement_ids_msg = "adding the measurement ids to the {0} table"
+    pk_measurement_id_sql = "alter table {0}.{1} add primary key (measurement_id)"
     pk_measurement_id_msg = "making measurement_id the primary key"
 
     conn_info_dict = get_conn_info_dict(conn_str)
@@ -460,7 +467,7 @@ def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id
     tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.format(**tpl_vars)
 
     # Build the statement to count how many new ID mappings are needed.
-    new_id_count_stmt = Statement(new_id_count_sql, new_id_count_msg)
+    new_id_count_stmt = Statement(new_id_count_sql.format(out_table), new_id_count_msg.format(out_table))
 
     # Execute the new ID mapping count statement and ensure it didn't
     # error and did return a result.
@@ -526,8 +533,8 @@ def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id
 
     # Add the measurement ids
     logger.info({'msg': 'begin add measurement ids'})
-    add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema, site),
-                                         add_measurement_ids_msg)
+    add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema, out_table, site),
+                                         add_measurement_ids_msg.format(out_table))
 
     # Execute the add the measurement ids statement and ensure it didn't error
     add_measurement_ids_stmt.execute(conn_str)
@@ -536,7 +543,7 @@ def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id
 
     # Make measurement Id the primary key
     logger.info({'msg': 'begin add primary key'})
-    pk_measurement_id_stmt = Statement(pk_measurement_id_sql.format(schema),
+    pk_measurement_id_stmt = Statement(pk_measurement_id_sql.format(schema, out_table),
                                          pk_measurement_id_msg)
 
     # Execute the Make measurement Id the primary key statement and ensure it didn't error
@@ -552,7 +559,7 @@ def _add_measurement_ids(conn_str, site, neg_ids, search_path, model_version, id
     return True
 
 
-def copy_bmi_measurement(conn_str, site, table, search_path):
+def copy_bmi_measurement(conn_str, site, table, out_table, search_path):
     """Copy the bmi measurement table.
 
     * Copy to the measurement table
@@ -560,6 +567,7 @@ def copy_bmi_measurement(conn_str, site, table, search_path):
     :param str conn_str:      database connection string
     :param str site:    site to run BMI for
     :param str table:    name of input/copy table (measurement/measurement_anthro)
+    :param str out_table:    name of output table
     :param str search_path: PostgreSQL schema search path
     :returns:                 True if the function succeeds
     :rtype:                   bool
@@ -579,7 +587,7 @@ def copy_bmi_measurement(conn_str, site, table, search_path):
     # Copy to the measurement table
 
     logger.info({'msg': 'copy bmi measurements to measurement'})
-    okay = _copy_to_measurement_table(conn_str, schema, table)
+    okay = _copy_to_measurement_table(conn_str, schema, table, out_table)
     if not okay:
         return False
     logger.info({'msg': 'bmi measurements copied to measurement'})

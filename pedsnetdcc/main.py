@@ -901,6 +901,14 @@ def split_measurement(pwprompt, searchpath, truncate, view, model_version, limit
               help='Do not add concept names for drug/condtion eras.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
+@click.option('--out_table_bmi', required=False, default='measurement_bmi',
+              help='Table to use for output for bmi.')
+@click.option('--out_table_bmiz', required=False, default='measurement_bmiz',
+              help='Table to use for output for bmiz.')
+@click.option('--out_table_wt_z', required=False, default='measurement_wt_z',
+              help='Table to use for output for wt_z.')
+@click.option('--out_table_ht_z', required=False, default='measurement_ht_z',
+              help='Table to use for output for ht_z.')
 @click.option('--person', required=False, default='person',
               help='name of the person table')
 @click.option('--model-version', '-v', required=True,
@@ -911,7 +919,8 @@ def split_measurement(pwprompt, searchpath, truncate, view, model_version, limit
               help='maximum days between a height and weight')
 @click.argument('dburi')
 def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_age, neg_ids, skip_calc, no_ids,
-                    no_concept, table, person, model_version, idname, max_time, dburi):
+                    no_concept, table, out_table_bmi, out_table_bmiz, out_table_ht_z, out_table_wt_z,
+                    person, model_version, idname, max_time, dburi):
     """Run all derivations.
 
     The steps are:
@@ -956,7 +965,7 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
     config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
     success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids, skip_calc,
-                           table, password, searchpath, model_version, idname, max_time)
+                           table, out_table_bmi, password, searchpath, model_version, idname, max_time)
 
     if not success:
         sys.exit(1)
@@ -964,21 +973,21 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
     config_file = site + "_bmiz_temp.conf"
     from pedsnetdcc.z_score import run_z_calc
     success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                         skip_calc, table, person, password, searchpath, model_version, idname)
+                         skip_calc, table, out_table_bmiz, person, password, searchpath, model_version, idname)
 
     if not success:
         sys.exit(1)
 
     config_file = site + "_htz_temp.conf"
     success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                         skip_calc, table, person, password, searchpath, model_version, idname)
+                         skip_calc, table, out_table_ht_z, person, password, searchpath, model_version, idname)
 
     if not success:
         sys.exit(1)
 
     config_file = site + "_wtz_temp.conf"
     success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                         skip_calc, table, person, password, searchpath, model_version, idname)
+                         skip_calc, table, out_table_wt_z, person, password, searchpath, model_version, idname)
 
     if not success:
         sys.exit(1)
@@ -1023,6 +1032,8 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
               help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
+@click.option('--out_table', required=False, default='measurement_bmi',
+              help='Table to use for output')
 @click.option('--model-version', '-v', required=True,
               help='PEDSnet model version (e.g. 2.3.0).')
 @click.option('--idname', required=False, default='dcc',
@@ -1031,7 +1042,7 @@ def run_derivations(pwprompt, searchpath, site, copy, noids, noindexes, noconcep
               help='maximum days between a height and weight')
 @click.argument('dburi')
 def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_age, neg_ids, skip_calc,
-            table, model_version, idname, max_time, dburi):
+            table, out_table, model_version, idname, max_time, dburi):
     """Run BMI derivation.
 
     The steps are:
@@ -1077,7 +1088,7 @@ def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_a
 
     from pedsnetdcc.bmi import run_bmi_calc
     success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                           skip_calc, table, password, searchpath, model_version, idname, max_time)
+                           skip_calc, table, out_table, password, searchpath, model_version, idname, max_time)
 
     if not success:
         sys.exit(1)
@@ -1092,9 +1103,11 @@ def run_bmi(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_a
 @click.option('--site', required=True,
               help='PEDSnet site name')
 @click.option('--table', required=True,
-              help='Table to use for copy (measurement, measurement_anthro.')
+              help='Table to copy to (measurement, measurement_anthro.')
+@click.option('--out_table', required=False, default='measurement_bmi',
+              help='Table to copy from')
 @click.argument('dburi')
-def copy_bmi(pwprompt, searchpath, site, table, dburi):
+def copy_bmi(pwprompt, searchpath, site, table, out_table, dburi):
     """Copy BMI table to dcc_pedsnet.
 
     The database should be specified using a DBURI:
@@ -1111,7 +1124,7 @@ def copy_bmi(pwprompt, searchpath, site, table, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.bmi import copy_bmi_measurement
-    success = copy_bmi_measurement(conn_str, site, table)
+    success = copy_bmi_measurement(conn_str, site, table, out_table, searchpath)
 
     if not success:
         sys.exit(1)
@@ -1141,6 +1154,8 @@ def copy_bmi(pwprompt, searchpath, site, table, dburi):
               help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
+@click.option('--out_table', required=False, default='measurement_bmiz',
+              help='Table to use for output')
 @click.option('--person', required=False, default='person',
               help='name of the person table')
 @click.option('--model-version', '-v', required=True,
@@ -1149,7 +1164,7 @@ def copy_bmi(pwprompt, searchpath, site, table, dburi):
               help='name of the id (ex: onco')
 @click.argument('dburi')
 def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_age, neg_ids, skip_calc, table,
-             person, model_version, idname, dburi):
+             out_table, person, model_version, idname, dburi):
     """Run BMI-Z derivation.
 
     The steps are:
@@ -1195,7 +1210,7 @@ def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_
 
     from pedsnetdcc.z_score import run_z_calc
     success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                         skip_calc, table, person, password, searchpath, model_version, idname)
+                         skip_calc, table, out_table, person, password, searchpath, model_version, idname)
 
     if not success:
         sys.exit(1)
@@ -1210,9 +1225,11 @@ def run_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_
 @click.option('--site', required=True,
               help='PEDSnet site name')
 @click.option('--table', required=True,
-              help='Table to use for copy (measurement, measurement_anthro.')
+              help='Table to copy to (measurement, measurement_anthro.')
+@click.option('--out_table', required=False, default='measurement_bmiz',
+              help='Table to copy from')
 @click.argument('dburi')
-def copy_bmiz(pwprompt, searchpath, site, table, dburi):
+def copy_bmiz(pwprompt, searchpath, site, table, out_table, dburi):
     """Copy BMIZ table to dcc_pedsnet.
 
     The database should be specified using a DBURI:
@@ -1229,7 +1246,7 @@ def copy_bmiz(pwprompt, searchpath, site, table, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.z_score import copy_z_measurement
-    success = copy_z_measurement('bmiz', conn_str, site, table, searchpath)
+    success = copy_z_measurement('bmiz', conn_str, site, table, out_table, searchpath)
 
     if not success:
         sys.exit(1)
@@ -1259,6 +1276,10 @@ def copy_bmiz(pwprompt, searchpath, site, table, dburi):
               help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
+@click.option('--out_table_bmi', required=False, default='measurement_bmi',
+              help='Table to use for output for bmi')
+@click.option('--out_table_bmiz', required=False, default='measurement_bmiz',
+              help='Table to use for output for bmiz')
 @click.option('--person', required=False, default='person',
               help='name of the person table')
 @click.option('--model-version', '-v', required=True,
@@ -1269,7 +1290,7 @@ def copy_bmiz(pwprompt, searchpath, site, table, dburi):
               help='maximum days between a height and weight')
 @click.argument('dburi')
 def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_age, neg_ids, skip_calc,
-                 table, person, model_version, idname, max_time, dburi):
+                 table, out_table_bmi, out_table_bmiz, person, model_version, idname, max_time, dburi):
     """Run BMI and BMI-Z derivations.
 
     The steps are:
@@ -1309,7 +1330,7 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
     config_file = site + "_bmi_temp.conf"
     from pedsnetdcc.bmi import run_bmi_calc
     success = run_bmi_calc(config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                           skip_calc, table, password, searchpath, model_version, idname, max_time)
+                           skip_calc, table, out_table_bmi, password, searchpath, model_version, idname, max_time)
 
     if not success:
         sys.exit(1)
@@ -1317,7 +1338,7 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
     config_file = site + "_bmiz_temp.conf"
     from pedsnetdcc.z_score import run_z_calc
     success = run_z_calc('bmiz', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                         skip_calc, table, person, password, searchpath, model_version, idname)
+                         skip_calc, table, out_table_bmiz, person, password, searchpath, model_version, idname)
 
     if not success:
         sys.exit(1)
@@ -1347,6 +1368,8 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
               help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
+@click.option('--out_table', required=False, default='measurement_ht_z',
+              help='Table to use for output')
 @click.option('--person', required=False, default='person',
               help='name of the person table')
 @click.option('--model-version', '-v', required=True,
@@ -1355,7 +1378,7 @@ def run_bmi_bmiz(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
               help='name of the id (ex: onco')
 @click.argument('dburi')
 def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_age, neg_ids, skip_calc, table,
-                 person, model_version, idname, dburi):
+                 out_table, person, model_version, idname, dburi):
     """Run HEIGHT-Z derivation.
 
     The steps are:
@@ -1401,7 +1424,7 @@ def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 
     from pedsnetdcc.z_score import run_z_calc
     success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                         skip_calc, table, person, password, searchpath, model_version, idname)
+                         skip_calc, table, out_table, person, password, searchpath, model_version, idname)
 
     if not success:
         sys.exit(1)
@@ -1416,9 +1439,11 @@ def run_height_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 @click.option('--site', required=True,
               help='PEDSnet site name')
 @click.option('--table', required=True,
-              help='Table to use for copy (measurement, measurement_anthro.')
+              help='Table to copy to (measurement, measurement_anthro.')
+@click.option('--out_table', required=False, default='measurement_ht_z',
+              help='Table to copy from')
 @click.argument('dburi')
-def copy_height_z(pwprompt, searchpath, site, table, dburi):
+def copy_height_z(pwprompt, searchpath, site, table, out_table, dburi):
     """Copy Height_Z table to dcc_pedsnet.
 
     The database should be specified using a DBURI:
@@ -1435,7 +1460,7 @@ def copy_height_z(pwprompt, searchpath, site, table, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.z_score import copy_z_measurement
-    success = copy_z_measurement('ht_z', conn_str, site, table, searchpath)
+    success = copy_z_measurement('ht_z', conn_str, site, table, out_table, searchpath)
 
     if not success:
         sys.exit(1)
@@ -1465,6 +1490,8 @@ def copy_height_z(pwprompt, searchpath, site, table, dburi):
               help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
+@click.option('--out_table', required=False, default='measurement_wt_z',
+              help='Table to use for output')
 @click.option('--person', required=False, default='person',
               help='name of the person table')
 @click.option('--model-version', '-v', required=True,
@@ -1473,7 +1500,7 @@ def copy_height_z(pwprompt, searchpath, site, table, dburi):
               help='name of the id (ex: onco')
 @click.argument('dburi')
 def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_age, neg_ids, skip_calc, table,
-                 person, model_version, idname, dburi):
+                 out_table, person, model_version, idname, dburi):
     """Run Weight-Z derivation.
 
     The steps are:
@@ -1519,7 +1546,7 @@ def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 
     from pedsnetdcc.z_score import run_z_calc
     success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                         skip_calc, table, person, password, searchpath, model_version, idname)
+                         skip_calc, table, out_table, person, password, searchpath, model_version, idname)
 
     if not success:
         sys.exit(1)
@@ -1534,9 +1561,11 @@ def run_weight_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, 
 @click.option('--site', required=True,
               help='PEDSnet site name')
 @click.option('--table', required=True,
-              help='Table to use for copy (measurement, measurement_anthro.')
+              help='Table to copy to (measurement, measurement_anthro.')
+@click.option('--out_table', required=False, default='measurement_wt_z',
+              help='Table to copy from')
 @click.argument('dburi')
-def copy_weight_z(pwprompt, searchpath, site, table, dburi):
+def copy_weight_z(pwprompt, searchpath, site, table, out_table, dburi):
     """Copy Weight_Z table to dcc_pedsnet.
 
     The database should be specified using a DBURI:
@@ -1553,7 +1582,7 @@ def copy_weight_z(pwprompt, searchpath, site, table, dburi):
     conn_str = make_conn_str(dburi, searchpath, password)
 
     from pedsnetdcc.z_score import copy_z_measurement
-    success = copy_z_measurement('wt_z', conn_str, site, table, searchpath)
+    success = copy_z_measurement('wt_z', conn_str, site, table, out_table, searchpath)
 
     if not success:
         sys.exit(1)
@@ -1583,6 +1612,10 @@ def copy_weight_z(pwprompt, searchpath, site, table, dburi):
               help='Skip actual calculation.')
 @click.option('--table', required=True,
               help='Table to use for input as well as copy (measurement, measurement_anthro.')
+@click.option('--out_table_ht_z', required=False, default='measurement_ht_z',
+              help='Table to use for output for ht_z')
+@click.option('--out_table_wt_z', required=False, default='measurement_wt_z',
+              help='Table to use for output for wt_z')
 @click.option('--person', required=False, default='person',
               help='name of the person table')
 @click.option('--model-version', '-v', required=True,
@@ -1591,7 +1624,7 @@ def copy_weight_z(pwprompt, searchpath, site, table, dburi):
               help='name of the id (ex: onco')
 @click.argument('dburi')
 def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, add_age, neg_ids, skip_calc, table,
-                person, model_version, idname, dburi):
+                out_table_ht_z, out_table_wt_z, person, model_version, idname, dburi):
     """Run height-z and weight-z.
 
     The steps are:
@@ -1632,14 +1665,14 @@ def run_ht_wt_z(pwprompt, searchpath, site, copy, noids, noindexes, noconcept, a
 
     config_file = site + "_htz_temp.conf"
     success = run_z_calc('ht_z', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                         skip_calc, table, person, password, searchpath, model_version, idname)
+                         skip_calc, table, out_table_ht_z, person, password, searchpath, model_version, idname)
 
     if not success:
         sys.exit(1)
 
     config_file = site + "_wtz_temp.conf"
     success = run_z_calc('wt_z', config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-                         skip_calc, table, person, password, searchpath, model_version, idname)
+                         skip_calc, table, out_table_wt_z, person, password, searchpath, model_version, idname)
 
     if not success:
         sys.exit(1)
@@ -2060,9 +2093,18 @@ def run_drug_condition_era(pwprompt, searchpath, site, copy, neg_ids, no_ids, no
 @click.option('--site', required=True,
               help='PEDSnet site name')
 @click.option('--table', required=True,
-              help='Table to use for copy (measurement, measurement_anthro.')
+              help='Table to copy to (measurement, measurement_anthro.')
+@click.option('--out_table_bmi', required=False, default='measurement_bmi',
+              help='Table to copy from for bmi')
+@click.option('--out_table_bmiz', required=False, default='measurement_bmiz',
+              help='Table to copy from for bmiz')
+@click.option('--out_table_ht_z', required=False, default='measurement_ht_z',
+              help='Table to copy from for ht_z')
+@click.option('--out_table_wt_z', required=False, default='measurement_wt_z',
+              help='Table to copy from for wt_z')
 @click.argument('dburi')
-def copy_to_measurement(pwprompt, searchpath, site, table, dburi):
+def copy_to_measurement(pwprompt, searchpath, site, table, out_table_bmi, out_table_bmiz,
+                        out_table_ht_z, out_table_wt_z,dburi):
     """Copy bmi, bmiz, ht_z, wt_z, drug_era and condition_era tables to dcc_pedsnet.
 
     The database should be specified using a DBURI:
@@ -2081,22 +2123,22 @@ def copy_to_measurement(pwprompt, searchpath, site, table, dburi):
     from pedsnetdcc.z_score import copy_z_measurement
 
     from pedsnetdcc.bmi import copy_bmi_measurement
-    success = copy_bmi_measurement(conn_str, site, table, searchpath)
+    success = copy_bmi_measurement(conn_str, site, table, out_table_bmi, searchpath)
 
     if not success:
         sys.exit(1)
 
-    success = copy_z_measurement('bmiz', conn_str, site, table, searchpath)
+    success = copy_z_measurement('bmiz', conn_str, site, table, out_table_bmiz, searchpath)
 
     if not success:
         sys.exit(1)
 
-    success = copy_z_measurement('ht_z', conn_str, site, table, searchpath)
+    success = copy_z_measurement('ht_z', conn_str, site, table, out_table_ht_z, searchpath)
 
     if not success:
         sys.exit(1)
 
-    success = copy_z_measurement('wt_z', conn_str, site, table, searchpath)
+    success = copy_z_measurement('wt_z', conn_str, site, table, out_table_wt_z, searchpath)
 
     if not success:
         sys.exit(1)

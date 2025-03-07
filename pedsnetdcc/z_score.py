@@ -13,16 +13,17 @@ from sh import derive_z
 
 logger = logging.getLogger(__name__)
 NAME_LIMIT = 30
-CREATE_MEASURE_LIKE_TABLE_SQL = 'create table {0}.measurement_{1} (like {0}.measurement)'
-DROP_NULL_Z_TABLE_SQL = 'alter table {0}.measurement_{1} alter column measurement_id drop not null;'
-BMIZ_INCREASE_VALUE_AS_NUMBER = 'alter table {0}.measurement_bmiz alter column value_as_number type numeric(25, 5);'
-BMIZ_DELETE_OVERFLOW = 'delete from {0}.measurement_bmiz where round(abs(value_as_number)) > 10^15;'
-Z_DELETE_NAN = 'delete from {0}.measurement_{1} where value_as_number = \'NaN\';'
-BMIZ_DEFAULT_VALUE_AS_NUMBER = 'alter table {0}.measurement_bmiz alter column value_as_number type numeric(20, 5);'
-IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on {1}.measurement_{2} ({3})'
+CREATE_MEASURE_LIKE_TABLE_SQL = 'create table {0}.{1} (like {0}.measurement)'
+DROP_NULL_Z_TABLE_SQL = 'alter table {0}.{1} alter column measurement_id drop not null;'
+BMIZ_INCREASE_VALUE_AS_NUMBER = 'alter table {0}.{1} alter column value_as_number type numeric(25, 5);'
+BMIZ_DELETE_OVERFLOW = 'delete from {0}.{1} where round(abs(value_as_number)) > 10^15;'
+Z_DELETE_NAN = 'delete from {0}.{1} where value_as_number = \'NaN\';'
+BMIZ_DEFAULT_VALUE_AS_NUMBER = 'alter table {0}.{1} alter column value_as_number type numeric(20, 5);'
+IDX_MEASURE_LIKE_TABLE_SQL = 'create index {0} on {1}.{2} ({3})'
+IDX_NONAME_MEASURE_LIKE_TABLE_SQL = 'create index on {0}.{1} ({2})'
 
 
-def _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict, person_table):
+def _create_bmiz_config_file(config_path, config_file, schema, out_table, password, conn_info_dict, person_table):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3038553' + os.linesep)
@@ -52,10 +53,10 @@ def _create_bmiz_config_file(config_path, config_file, schema, password, conn_in
         out_config.write('post_connect_sql = set search_path to ' + schema + ', vocabulary;' + os.linesep)
         out_config.write('</src_rdb>' + os.linesep)
         out_config.write('input_measurement_table = measurement_bmi' + os.linesep)
-        out_config.write('output_measurement_table = measurement_bmiz' + os.linesep)
+        out_config.write('output_measurement_table = ' + out_table + os.linesep)
 
 
-def _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table):
+def _create_height_z_config_file(config_path, config_file, schema, table, out_table, password, conn_info_dict, person_table):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3023540' + os.linesep)
@@ -85,10 +86,10 @@ def _create_height_z_config_file(config_path, config_file, schema, table, passwo
         out_config.write('post_connect_sql = set search_path to ' + schema + ', vocabulary;' + os.linesep)
         out_config.write('</src_rdb>' + os.linesep)
         out_config.write('input_measurement_table = ' + table + os.linesep)
-        out_config.write('output_measurement_table = measurement_ht_z' + os.linesep)
+        out_config.write('output_measurement_table = ' + out_table + os.linesep)
 
 
-def _create_weight_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table):
+def _create_weight_z_config_file(config_path, config_file, schema, table, out_table, password, conn_info_dict, person_table):
     with open(os.path.join(config_path, config_file), 'wb') as out_config:
         out_config.write('<concept_id_map>' + os.linesep)
         out_config.write('measurement_concept_id = 3013762' + os.linesep)
@@ -118,7 +119,7 @@ def _create_weight_z_config_file(config_path, config_file, schema, table, passwo
         out_config.write('post_connect_sql = set search_path to ' + schema + ', vocabulary;' + os.linesep)
         out_config.write('</src_rdb>' + os.linesep)
         out_config.write('input_measurement_table = ' + table + os.linesep)
-        out_config.write('output_measurement_table = measurement_wt_z' + os.linesep)
+        out_config.write('output_measurement_table = ' + out_table + os.linesep)
 
 
 def _make_index_name(z_type, column_name):
@@ -144,7 +145,7 @@ def _make_index_name(z_type, column_name):
                             3 * len('_') + len('ix'))
     return '_'.join([table_abbrev, column_abbrev, md5[:hashlen], 'ix'])
 
-def _fill_age_in_months(conn_str, schema, z_type):
+def _fill_age_in_months(conn_str, schema, out_table):
     fill_add_age_in_months_sql = """
     create or replace function {0}.last_month_of_interval(timestamp, timestamp)
          returns timestamp strict immutable language sql as $$
@@ -182,18 +183,18 @@ def _fill_age_in_months(conn_str, schema, z_type):
         the original timestamp from the resulting value, albeit with great
         difficulty.';
 
-    UPDATE {0}.measurement_{1} zs
+    UPDATE {0}.{1} zs
     set measurement_age_in_months=subquery.measurement_age_in_months
     from (select measurement_id, 
         {0}.months_in_interval(p.birth_datetime, m.measurement_datetime::timestamp without time zone) as measurement_age_in_months
-        from {0}.measurement_{1} m
+        from {0}.{1} m
         join {0}.person p on p.person_id = m.person_id) AS subquery
     where zs.measurement_id=subquery.measurement_id;"""
 
     fill_add_age_in_months_msg = "adding age in months"
 
     # Add age in months
-    add_age_in_months_stmt = Statement(fill_add_age_in_months_sql.format(schema,z_type), fill_add_age_in_months_msg)
+    add_age_in_months_stmt = Statement(fill_add_age_in_months_sql.format(schema,out_table), fill_add_age_in_months_msg)
 
     # Execute the add concept names statement and ensure it didn't error
     add_age_in_months_stmt.execute(conn_str)
@@ -202,8 +203,8 @@ def _fill_age_in_months(conn_str, schema, z_type):
     # If reached without error, then success!
     return True
 
-def _fill_concept_names(conn_str, schema, z_type):
-    fill_concept_names_sql = """UPDATE {0}.measurement_{1} zs
+def _fill_concept_names(conn_str, schema, out_table):
+    fill_concept_names_sql = """UPDATE {0}.{1} zs
         SET measurement_concept_name=v.measurement_concept_name,
         measurement_source_concept_name=v.measurement_source_concept_name, 
         measurement_type_concept_name=v.measurement_type_concept_name, 
@@ -224,7 +225,7 @@ def _fill_concept_names(conn_str, schema, z_type):
         v7.concept_name AS range_low_operator_concept_name, 
         v8.concept_name AS unit_concept_name, 
         v9.concept_name AS value_as_concept_name 
-        FROM {0}.measurement_{1} AS z
+        FROM {0}.{1} AS z
         LEFT JOIN vocabulary.concept AS v1 ON z.measurement_concept_id = v1.concept_id
         LEFT JOIN vocabulary.concept AS v2 ON z.measurement_source_concept_id = v2.concept_id 
         LEFT JOIN vocabulary.concept AS v3 ON z.measurement_type_concept_id = v3.concept_id
@@ -240,7 +241,7 @@ def _fill_concept_names(conn_str, schema, z_type):
     fill_concept_names_msg = "adding concept names"
 
     # Add concept names
-    add_measurement_ids_stmt = Statement(fill_concept_names_sql.format(schema, z_type), fill_concept_names_msg)
+    add_measurement_ids_stmt = Statement(fill_concept_names_sql.format(schema, out_table), fill_concept_names_msg)
 
     # Execute the add concept names statement and ensure it didn't error
     add_measurement_ids_stmt.execute(conn_str)
@@ -251,7 +252,7 @@ def _fill_concept_names(conn_str, schema, z_type):
     return True
 
 
-def _copy_to_measurement_table(conn_str, schema, table, z_type):
+def _copy_to_measurement_table(conn_str, schema, table, out_table):
     copy_to_sql = """INSERT INTO {0}.{1}(
         measurement_concept_id, measurement_date, measurement_datetime, measurement_id, 
         measurement_order_date, measurement_order_datetime, measurement_result_date, 
@@ -277,12 +278,12 @@ def _copy_to_measurement_table(conn_str, schema, table, z_type):
         measurement_type_concept_name, operator_concept_name, priority_concept_name, 
         range_high_operator_concept_name, range_low_operator_concept_name, unit_concept_name, 
         value_as_concept_name, site, site_id
-        from {0}.measurement_{2}) ON CONFLICT DO NOTHING"""
+        from {0}.{2}) ON CONFLICT DO NOTHING"""
 
     copy_to_msg = "copying {0} to measurement"
 
     # Insert measurements into measurement table
-    copy_to_stmt = Statement(copy_to_sql.format(schema, table, z_type), copy_to_msg.format(table))
+    copy_to_stmt = Statement(copy_to_sql.format(schema, table, out_table), copy_to_msg.format(table))
 
     # Execute the insert measurements statement and ensure it didn't error
     copy_to_stmt.execute(conn_str)
@@ -293,7 +294,7 @@ def _copy_to_measurement_table(conn_str, schema, table, z_type):
 
 
 def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept, age, neg_ids,
-               skip_calc, table, person_table, password, search_path, model_version, id_name):
+               skip_calc, table, out_table, person_table, password, search_path, model_version, id_name):
     """Run the Z Score tool.
 
     * Create config file
@@ -317,6 +318,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     :param bool neg_ids: if True, use negative ids
     :param bool skip_calc: if True, skip the actual calculation
     :param str table:    name of input/copy table (measurement/measurement_anthro)
+    :param str out_table:    name of output table)
     :param str person_table:    name of person table)
     :param str password:    user's password
     :param str search_path: PostgreSQL schema search path
@@ -356,15 +358,15 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
         config_path = "/app"
 
         if z_type == 'ht_z':
-            _create_height_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table)
+            _create_height_z_config_file(config_path, config_file, schema, table, out_table, password, conn_info_dict, person_table)
         elif z_type == 'wt_z':
-            _create_weight_z_config_file(config_path, config_file, schema, table, password, conn_info_dict, person_table)
+            _create_weight_z_config_file(config_path, config_file, schema, table, out_table, password, conn_info_dict, person_table)
         else:
-            _create_bmiz_config_file(config_path, config_file, schema, password, conn_info_dict, person_table)
+            _create_bmiz_config_file(config_path, config_file, schema, out_table, password, conn_info_dict, person_table)
 
         # create measurement z_score table
         # Add a creation statement.
-        create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.format(schema, z_type))
+        create_stmt = Statement(CREATE_MEASURE_LIKE_TABLE_SQL.format(schema, out_table))
         stmts.add(create_stmt)
 
         # Check for any errors and raise exception if they are found.
@@ -384,7 +386,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
         # Alter table to increase value as number to avoid numeric overflow error
         if z_type == 'bmiz':
             stmts.clear()
-            alter_stmt = Statement(BMIZ_INCREASE_VALUE_AS_NUMBER.format(schema))
+            alter_stmt = Statement(BMIZ_INCREASE_VALUE_AS_NUMBER.format(schema, out_table))
             stmts.add(alter_stmt)
 
             # Check for any errors and raise exception if they are found.
@@ -403,7 +405,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
 
         # Add drop null statement
         stmts.clear()
-        drop_stmt = Statement(DROP_NULL_Z_TABLE_SQL.format(schema, z_type))
+        drop_stmt = Statement(DROP_NULL_Z_TABLE_SQL.format(schema, out_table))
         stmts.add(drop_stmt)
 
         # Check for any errors and raise exception if they are found.
@@ -426,7 +428,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
         # Delete any value_as_number that overflows numeric 10^15
         if z_type == 'bmiz':
             stmts.clear()
-            delete_stmt = Statement(BMIZ_DELETE_OVERFLOW.format(schema))
+            delete_stmt = Statement(BMIZ_DELETE_OVERFLOW.format(schema, out_table))
             stmts.add(delete_stmt)
 
             # Check for any errors and raise exception if they are found.
@@ -446,7 +448,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
         # return value_as_number column to default size
         if z_type == 'bmiz':
             stmts.clear()
-            alter_stmt = Statement(BMIZ_DEFAULT_VALUE_AS_NUMBER.format(schema))
+            alter_stmt = Statement(BMIZ_DEFAULT_VALUE_AS_NUMBER.format(schema, out_table))
             stmts.add(alter_stmt)
 
             # Check for any errors and raise exception if they are found.
@@ -465,7 +467,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
 
         # get rid of NaN value_source values
         stmts.clear()
-        delete_stmt = Statement(Z_DELETE_NAN.format(schema, z_type))
+        delete_stmt = Statement(Z_DELETE_NAN.format(schema, out_table))
         stmts.add(delete_stmt)
 
         # Check for any errors and raise exception if they are found.
@@ -491,8 +493,13 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
                      'measurement_source_value', 'value_as_concept_id', 'value_as_number',)
 
         for col in col_index:
-            idx_name = _make_index_name(z_type, col)
-            idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.format(idx_name, schema, z_type, col))
+            if out_table == 'measurement_' + z_type:
+                idx_name = _make_index_name(z_type, col)
+                idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.format(idx_name, schema, out_table, col))
+            else:
+                idx_stmt = Statement(IDX_NONAME_MEASURE_LIKE_TABLE_SQL.
+                                     format(out_table, col))
+
             stmts.add(idx_stmt)
 
         # Execute the statements in parallel.
@@ -514,14 +521,14 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
 
     # add measurement_ids
     if ids:
-        okay = _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg_ids, id_name)
+        okay = _add_measurement_ids(z_type, out_table, conn_str, site, search_path, model_version, neg_ids, id_name)
         if not okay:
             return False
 
     # Add the concept_names
     if concept:
         logger.info({'msg': 'add concept names'})
-        okay = _fill_concept_names(conn_str, schema, z_type)
+        okay = _fill_concept_names(conn_str, schema, out_table)
         if not okay:
             return False
         logger.info({'msg': 'concept names added'})
@@ -529,7 +536,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     # Add age in months
     if age:
         logger.info({'msg': 'add age in months'})
-        okay = _fill_age_in_months(conn_str, schema, z_type)
+        okay = _fill_age_in_months(conn_str, schema, out_table)
         if not okay:
             return False
         logger.info({'msg': 'age in months added'})
@@ -537,14 +544,14 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     # Copy to the measurement table
     if copy:
         logger.info({'msg': 'copy measurements to measurement'})
-        okay = _copy_to_measurement_table(conn_str, schema, table, z_type)
+        okay = _copy_to_measurement_table(conn_str, schema, table, out_table)
         if not okay:
             return False
         logger.info({'msg': 'measurements copied to measurement'})
 
     # Vacuum analyze tables for piney freshness.
     logger.info({'msg': 'begin vacuum'})
-    vacuum(conn_str, model_version, analyze=True, tables=['measurement_' + z_type])
+    vacuum(conn_str, model_version, analyze=True, tables=[out_table])
     logger.info({'msg': 'vacuum finished'})
 
     # Log end of function.
@@ -555,7 +562,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
     return True
 
 
-def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg_ids, id_name):
+def _add_measurement_ids(z_type, out_table, conn_str, site, search_path, model_version, neg_ids, id_name):
     """Add measurement ids for the bmi table
 
     * Find how many ids needed
@@ -577,8 +584,8 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg
     """
 
     new_id_count_sql = """SELECT COUNT(*)
-        FROM {0}.measurement_{1} WHERE measurement_id IS NULL"""
-    new_id_count_msg = "counting new IDs needed for measurement_{0}"
+        FROM {0}.{1} WHERE measurement_id IS NULL"""
+    new_id_count_msg = "counting new IDs needed for {0}"
     lock_last_id_sql = """LOCK {last_id_table_name}"""
     lock_last_id_msg = "locking {table_name} last ID tracking table for update"
 
@@ -592,10 +599,10 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg
     create_seq_measurement_msg = "creating measurement id sequence"
     set_seq_number_sql = "alter sequence {0}.{1}_{2}_measurement_id_seq restart with {3};"
     set_seq_number_msg = "setting sequence number"
-    add_measurement_ids_sql = """update {0}.measurement_{1} set measurement_id = nextval('{0}.{2}_{1}_measurement_id_seq')
+    add_measurement_ids_sql = """update {0}.{3} set measurement_id = nextval('{0}.{2}_{1}_measurement_id_seq')
         where measurement_id is null"""
-    add_measurement_ids_msg = "adding the measurement ids to the measurement_{0} table"
-    pk_measurement_id_sql = "alter table {0}.measurement_{1} add primary key (measurement_id)"
+    add_measurement_ids_msg = "adding the measurement ids to the {0} table"
+    pk_measurement_id_sql = "alter table {0}.{1} add primary key (measurement_id)"
     pk_measurement_id_msg = "making measurement_id the primary key"
 
     conn_info_dict = get_conn_info_dict(conn_str)
@@ -669,7 +676,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg
         measurement_seq_stmt = Statement(create_neg_seq_measurement_sql.format(schema, site, z_type),
                                          create_seq_measurement_msg)
     else:
-        measurement_seq_stmt = Statement( create_seq_measurement_sql.format(schema, site, z_type),
+        measurement_seq_stmt = Statement(create_seq_measurement_sql.format(schema, site, z_type),
                                           create_seq_measurement_msg)
 
     # Execute the create the measurement id sequence statement and ensure it didn't error
@@ -689,7 +696,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg
 
     # Add the measurement ids
     logger.info({'msg': 'begin add measurement ids'})
-    add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema, z_type, site),
+    add_measurement_ids_stmt = Statement(add_measurement_ids_sql.format(schema, z_type, site, out_table),
                                          add_measurement_ids_msg.format(z_type))
 
     # Execute the add the measurement ids statement and ensure it didn't error
@@ -699,7 +706,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg
 
     # Make measurement Id the primary key
     logger.info({'msg': 'begin add primary key'})
-    pk_measurement_id_stmt = Statement(pk_measurement_id_sql.format(schema, z_type),
+    pk_measurement_id_stmt = Statement(pk_measurement_id_sql.format(schema, out_table),
                                          pk_measurement_id_msg)
 
     # Execute the Make measurement Id the primary key statement and ensure it didn't error
@@ -715,7 +722,7 @@ def _add_measurement_ids(z_type, conn_str, site, search_path, model_version, neg
     return True
 
 
-def copy_z_measurement(z_type, conn_str, site, table, search_path):
+def copy_z_measurement(z_type, conn_str, site, table, out_table, search_path):
     """Run the Z Score tool.
 
     * Copy to the measurement table
@@ -724,6 +731,7 @@ def copy_z_measurement(z_type, conn_str, site, table, search_path):
     :param str conn_str:      database connection string
     :param str site:    site to run BMI for
     :param str table:    name of input/copy table (measurement/measurement_anthro)
+    :param str out_table:    name of output table
     :param str search_path: PostgreSQL schema search path
     :returns:                 True if the function succeeds
     :rtype:                   bool
@@ -750,7 +758,7 @@ def copy_z_measurement(z_type, conn_str, site, table, search_path):
 
     # Copy to the measurement table
     logger.info({'msg': 'copy measurements to measurement'})
-    okay = _copy_to_measurement_table(conn_str, schema, table, z_type)
+    okay = _copy_to_measurement_table(conn_str, schema, table, out_table)
     if not okay:
         return False
     logger.info({'msg': 'measurements copied to measurement'})
