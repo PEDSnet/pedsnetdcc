@@ -630,7 +630,7 @@ def _add_measurement_ids(z_type, out_table, conn_str, site, search_path, model_v
     tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.format(**tpl_vars)
 
     # Build the statement to count how many new ID mappings are needed.
-    new_id_count_stmt = Statement(new_id_count_sql.format(schema, z_type), new_id_count_msg.format(z_type))
+    new_id_count_stmt = Statement(new_id_count_sql.format(schema, out_table), new_id_count_msg.format(z_type))
 
     # Execute the new ID mapping count statement and ensure it didn't
     # error and did return a result.
