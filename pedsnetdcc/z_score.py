@@ -498,7 +498,7 @@ def run_z_calc(z_type, config_file, conn_str, site, copy, ids, indexes, concept,
                 idx_stmt = Statement(IDX_MEASURE_LIKE_TABLE_SQL.format(idx_name, schema, out_table, col))
             else:
                 idx_stmt = Statement(IDX_NONAME_MEASURE_LIKE_TABLE_SQL.
-                                     format(out_table, col))
+                                     format(schema, out_table, col))
 
             stmts.add(idx_stmt)
 

@@ -31,12 +31,12 @@ def _create_config_file(config_path, config_file, schema, table, out_table, pass
         out_config.write('person_chunk_size = 1000' + os.linesep)
         out_config.write('clone_bmi_measurements = 1' + os.linesep)
         out_config.write('verbose = 0' + os.linesep)
+        out_config.write('meas_match_limit_sec = ' + max_time + os.linesep)
         out_config.write('<src_rdb>' + os.linesep)
         out_config.write('driver = Pg' + os.linesep)
         out_config.write('host = ' + conn_info_dict.get('host') + os.linesep)
         out_config.write('database = ' + conn_info_dict.get('dbname') + os.linesep)
         out_config.write('schema = ' + schema + os.linesep)
-        out_config.write('meas_match_limit_sec = ' + max_time + os.linesep)
         out_config.write('username = ' + conn_info_dict.get('user') + os.linesep)
         out_config.write('password = ' + password + os.linesep)
         out_config.write('domain = stage' + os.linesep)
@@ -46,7 +46,6 @@ def _create_config_file(config_path, config_file, schema, table, out_table, pass
         out_config.write('output_measurement_table = ' + out_table + os.linesep)
         out_config.write('person_finder_sql = select distinct person_id from ' + table + ' ')
         out_config.write('where measurement_concept_id in (3013762, 3023540, 3036277, 3025315)' + os.linesep)
-
 
 def _make_index_name(table_name, column_name):
     """
