@@ -112,11 +112,6 @@ class IDMappingTransform(Transform):
             # The mapping table and last id tracking table names are defined
             # by convention.
 
-            if table_name == 'drug_iv_pilot':
-                tpl_vars['pkey_name'] = 'drug_exposure_id'
-                tpl_vars['map_table_name'] = 'drug_exposure_ids'
-                tpl_vars['last_id_table_name'] = id_name + '_drug_exposure_id'
-            else:
                 tpl_vars['pkey_name'] = list(table.primary_key.columns.keys())[0]
                 tpl_vars['map_table_name'] = map_table_name_tmpl.format(**tpl_vars)
                 tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.format(**tpl_vars)
@@ -176,9 +171,6 @@ class IDMappingTransform(Transform):
                          'count': insert_new_maps_stmt.rowcount,
                          'elapsed': secs_since(starttime)})
 
-            if table_name == 'drug_iv_pilot':
-                index_stmt = Statement(CREATE_ID_MAP_INDEX_SQL.format('drug_exposure'))
-            else:
                 index_stmt = Statement(CREATE_ID_MAP_INDEX_SQL.format(table))
             index_stmt.execute(conn_str)
             check_stmt_err(index_stmt, 'id mapping indexes')
@@ -218,10 +210,6 @@ class IDMappingTransform(Transform):
 
             # Get primary key name and mapping table name, defined by
             # convention.
-            if table_name == 'drug_iv_pilot':
-                pkey_name = 'drug_exposure_id'
-                map_table_name = 'drug_exposure_ids'
-            else:
                 pkey_name = list(table.primary_key.columns.keys())[0]
                 map_table_name = map_table_name_tmpl.format(table_name=table_name)
 
@@ -268,9 +256,6 @@ class IDMappingTransform(Transform):
             # Get foreign key name and mapping table name, defined by
             # convention.
             fkey_name = fkey.column_keys[0]
-            if ref_table_name == 'drug_iv_pilot':
-                map_table_name = 'drug_exposure_ids'
-            else:
                 map_table_name = map_table_name_tmpl.\
                 format(table_name=ref_table_name)
 
