@@ -112,9 +112,9 @@ class IDMappingTransform(Transform):
             # The mapping table and last id tracking table names are defined
             # by convention.
 
-                tpl_vars['pkey_name'] = list(table.primary_key.columns.keys())[0]
-                tpl_vars['map_table_name'] = map_table_name_tmpl.format(**tpl_vars)
-                tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.format(**tpl_vars)
+            tpl_vars['pkey_name'] = list(table.primary_key.columns.keys())[0]
+            tpl_vars['map_table_name'] = map_table_name_tmpl.format(**tpl_vars)
+            tpl_vars['last_id_table_name'] = last_id_table_name_tmpl.format(**tpl_vars)
 
             # Build the statement to count how many new ID mappings are needed.
             new_id_count_stmt = Statement(new_id_count_sql.format(**tpl_vars),
@@ -171,7 +171,7 @@ class IDMappingTransform(Transform):
                          'count': insert_new_maps_stmt.rowcount,
                          'elapsed': secs_since(starttime)})
 
-                index_stmt = Statement(CREATE_ID_MAP_INDEX_SQL.format(table))
+            index_stmt = Statement(CREATE_ID_MAP_INDEX_SQL.format(table))
             index_stmt.execute(conn_str)
             check_stmt_err(index_stmt, 'id mapping indexes')
             logger.info({'msg': 'created ID mapping indexes',
@@ -210,8 +210,8 @@ class IDMappingTransform(Transform):
 
             # Get primary key name and mapping table name, defined by
             # convention.
-                pkey_name = list(table.primary_key.columns.keys())[0]
-                map_table_name = map_table_name_tmpl.format(table_name=table_name)
+            pkey_name = list(table.primary_key.columns.keys())[0]
+            map_table_name = map_table_name_tmpl.format(table_name=table_name)
 
             # Construct table object for mapping table, if necessary.
             if map_table_name not in metadata.tables:
