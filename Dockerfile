@@ -152,14 +152,93 @@ RUN apt-get install -y python-is-python2
 
 RUN apt-get install -y python-dev
 
+#RUN mkdir /usr/local/share/ca-certificates/extra
+
+#COPY netscope-int.pem /usr/local/share/ca-certificates/extra/netscope-int.crt
+
+#COPY netscope-root.pem /usr/local/share/ca-certificates/extra/netscope-root.crt
+
+#RUN dpkg-reconfigure ca-certificates
+
 COPY . /app/
 
-#RUN cd /app/ && pip install -r requirements.txt && python setup.py install
+RUN pip2 install --no-index /app/pip_requirements/click-6.7
+
+RUN pip2 install --no-index /app/pip_requirements/docopt-0.6.2
+
+RUN pip2 install --no-index /app/pip_requirements/six-1.17.0
+
+RUN pip2 install --no-index /app/pip_requirements/scandir-1.10.0
+
+RUN pip2 install --no-index /app/pip_requirements/typing-3.10.0.0
+
+RUN pip2 install --no-index /app/pip_requirements/contextlib2-0.6.0.post1
+
+RUN pip2 install --no-index /app/pip_requirements/pathlib2-2.3.7.post1
+
+RUN pip2 install --no-index /app/pip_requirements/configparser-3.5.0
+
+RUN pip2 install --no-index --no-build-isolation --find-links /app/pip_requirements /app/pip_requirements/setuptools_scm-5.0.2
+
+RUN pip2 install --no-index --no-build-isolation --find-links /app/pip_requirements /app/pip_requirements/zipp-0.5.1
+
+RUN pip2 install --no-index --no-build-isolation --find-links /app/pip_requirements /app/pip_requirements/importlib_metadata-2.1.3
+
+# RUN pip2 install --no-index /app/pip_requirements/sqlalchemy-1.4.54
+
+RUN pip2 install --no-index --no-build-isolation --find-links /app/pip_requirements /app/pip_requirements/SQLAlchemy-1.3.0
+
+RUN pip2 install --no-index /app/pip_requirements/pygraphviz-1.3.1
+
+RUN pip2 install --no-index /app/pip_requirements/ERAlchemy-0.0.28
+
+RUN pip2 install --no-index /app/pip_requirements/itsdangerous-0.24
+
+RUN pip2 install --no-index /app/pip_requirements/MarkupSafe-0.23
+
+RUN pip2 install --no-index /app/pip_requirements/Jinja2-2.9.4
+
+RUN pip2 install --no-index /app/pip_requirements/logutils-0.3.3
+
+# RUN pip2 install /app/pip_requirements/MarkupSafe-0.23
+
+RUN pip2 install --no-index --no-build-isolation --find-links /app/pip_requirements /app/pip_requirements/psycopg2-binary-2.7.7
+
+# RUN pip2 install /app/pip_requirements/pygraphviz-1.3.1
+
+RUN pip2 install --no-index /app/pip_requirements/sh-1.12.9
+
+RUN pip2 install --no-index /app/pip_requirements/Werkzeug-0.11.15
+
+# RUN pip2 install /app/pip_requirements/wheel-0.24.0
+
+# RUN pip2 install /app/pip_requirements/SQLAlchemy-1.3.0
+
+RUN pip2 install --no-index /app/pip_requirements/Flask-0.12.3
+
+RUN pip2 install --no-index /app/pip_requirements/github-webhook-1.0.2
+
+RUN pip2 install --no-index --no-build-isolation --find-links /app/pip_requirements /app/pip_requirements/pytest-runner-5.2
+
+RUN pip2 install --no-index /app/pip_requirements/chardet-3.0.2
+
+RUN pip2 install --no-index /app/pip_requirements/idna-2.5
+
+RUN pip2 install --no-index /app/pip_requirements/urllib3-1.24
+
+RUN pip2 install --no-index /app/pip_requirements/certifi-2017.4.17
+
+RUN pip2 install --no-index --no-build-isolation --find-links /app/pip_requirements /app/pip_requirements/requests-2.20.0
+
+RUN pip2 install --no-index /app/pip_requirements/simpleflock-0.0.3
+
 #RUN set -xe \
 #    && apt-get update \
 #    && apt-get install -y python-pip
 #RUN pip install --upgrade pip
-RUN cd /app/ && pip2 install -r requirements.txt && python setup.py install
+# RUN cd /app/ && pip2 install -r requirements.txt && python setup.py install
+
+RUN cd /app/ && python setup.py install
 
 ENV PYTHONPATH="/app/data-models-sqlalchemy:/app/data-models-sqlalchemy/dmsa"
 
