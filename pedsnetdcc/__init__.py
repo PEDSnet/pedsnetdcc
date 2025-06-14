@@ -49,7 +49,7 @@ FACT_RELATIONSHIP_DOMAINS = {
     'drug_exposure': 13,
     'device_exposure': 17,
     'condition_occurrence': 19,
-
+    'procedure_occurrence': 10,
 }
 
 SITE_ROOT = '/data/site_data'
