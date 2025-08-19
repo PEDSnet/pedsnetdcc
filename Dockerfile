@@ -35,8 +35,10 @@ RUN apt-get update && \
     libxml2-dev \
     libssl-dev \
     libfontconfig1-dev \
-    libmariadbclient-dev \
-    libmariadb-client-lgpl-dev-compat \
+    libmariadb-dev \
+    libmariadb-dev-compat \
+    #libmariadbclient-dev \
+    #libmariadb-client-lgpl-dev-compat \
     #libmariadb-client-lgpl-dev \
     software-properties-common \
     curl
@@ -150,9 +152,12 @@ RUN set -xe \
 
 RUN python2 get-pip.py
 
-RUN apt-get install -y python-is-python2
+#RUN apt-get install -y python-is-python2
+RUN apt-get install -y python2 && \
+    ln -s /usr/bin/python2 /usr/bin/python
 
-RUN apt-get install -y python-dev
+#RUN apt-get install -y python-dev
+RUN apt-get install -y python2-dev
 
 #RUN mkdir /usr/local/share/ca-certificates/extra
 
