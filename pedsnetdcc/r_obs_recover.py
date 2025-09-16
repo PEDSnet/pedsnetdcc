@@ -226,7 +226,7 @@ def _make_index_name(column_name):
 
 
 def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_name, copy,
-                    noidx, nofk, skip_query=False, limit=False, owner='loading_user'):
+                    noidx, nofk, skip_query=False, all_ages=False, limit=False, owner='loading_user'):
     """Run an R script.
 
     * Create argos file
@@ -242,6 +242,7 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
     :param bool noidx: if True, skip indexes
     :param bool nofk: if True, skip FKs
     :param bool skip_query: if True, skip the query
+    :param bool all_ages: if True, include all ages (no filter)
     :param bool limit: if True, limit permissions to owner
     :param str owner:  owner of the to grant permissions to
     :returns:                 True if the function succeeds
@@ -250,6 +251,9 @@ def run_r_obs_recover(conn_str, site, password, search_path, model_version, id_n
     """
 
     package = 'observation_derivation_recover'
+    if all_ages:
+        package = 'observation_derivation_recover_nf'
+
     config_file = site + "_" + package + "_argos_temp.json";
     conn_info_dict = get_conn_info_dict(conn_str)
 

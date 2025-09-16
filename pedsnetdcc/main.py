@@ -2644,12 +2644,14 @@ def run_r_obs_covid(pwprompt, searchpath, site, model_version, idname, copy, lim
               help='skip indexes.')
 @click.option('--nofk', is_flag=True, default=False,
               help='skip FKs.')
+@click.option('--all_ages', is_flag=True, default=False,
+              help='Include patients of all ages.')
 @click.option('--limit', is_flag=True, default=False,
               help='Limit permissions to owner.')
 @click.option('--owner', required=False, default='loading_user',
               help='the role that permissions should be granted to if permissions limited')
 @click.argument('dburi')
-def run_r_obs_recover(pwprompt, searchpath, site, model_version, idname, copy, noidx, nofk, skip_query, limit, owner, dburi):
+def run_r_obs_recover(pwprompt, searchpath, site, model_version, idname, copy, noidx, nofk, skip_query, all_ages, limit, owner, dburi):
     """Run R Script.
 
     The steps are:
@@ -2672,7 +2674,7 @@ def run_r_obs_recover(pwprompt, searchpath, site, model_version, idname, copy, n
 
     from pedsnetdcc.r_obs_recover import run_r_obs_recover
     success = run_r_obs_recover(conn_str, site, password, searchpath, model_version, idname,
-                              copy, noidx, nofk, skip_query, limit, owner)
+                              copy, noidx, nofk, skip_query, all_ages, limit, owner)
 
     if not success:
         sys.exit(1)
