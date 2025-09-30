@@ -42,6 +42,18 @@ SELECT COUNT(*) FROM fact_relationship WHERE domain_concept_id_1 = 19
 '''
 tot_cond_msg = 'counting total condition records in fact relationship'
 
+tot_person_sql = '''
+SELECT COUNT(*) FROM fact_relationship WHERE domain_concept_id_1 = 56
+'''
+tot_person_msg = 'counting total person records in fact relationship'
+
+
+tot_proc_sql = '''
+SELECT COUNT(*) FROM fact_relationship WHERE domain_concept_id_1 = 10
+'''
+tot_proc_msg = 'counting total procedure records in fact relationship'
+
+
 # The below bad fact_relationship record count statements return the
 # number of bad *records* not the number of bad *references*. There may be
 # more than one (two) bad references per record.
@@ -135,6 +147,37 @@ UNION
 ) q
 '''
 bad_cond_msg = 'counting invalid condition records in fact relationship'
+
+bad_person_sql = '''
+SELECT COUNT(*) FROM (
+    SELECT f.*
+    FROM fact_relationship f
+        LEFT JOIN person p ON f.fact_id_1 = p.person_id
+    WHERE domain_concept_id_1 = 56 AND p.person_id IS NULL
+UNION
+    SELECT f.*
+    FROM fact_relationship f
+        LEFT JOIN person p ON f.fact_id_2 = p.person_id
+    WHERE domain_concept_id_2 = 56 AND p.person_id IS NULL
+) q
+'''
+bad_person_msg = 'counting invalid person records in fact relationship'
+
+
+bad_proc_sql = '''
+SELECT COUNT(*) FROM (
+    SELECT f.*
+    FROM fact_relationship f
+        LEFT JOIN procedure_occurrence p ON f.fact_id_1 = p.procedure_occurrence_id
+    WHERE domain_concept_id_1 = 10 AND p.procedure_occurrence_id IS NULL
+UNION
+    SELECT f.*
+    FROM fact_relationship f
+        LEFT JOIN procedure_occurrence p ON f.fact_id_2 = p.procedure_occurrence_id
+    WHERE domain_concept_id_2 = 10 AND p.procedure_occurrence_id IS NULL
+) q
+'''
+bad_proc_msg = 'counting invalid procedure records in fact relationship'
 
 # The below bad fact_relationship sample statements check each fact_id field
 # independently for each domain.
@@ -247,6 +290,44 @@ LIMIT 1
 '''
 bad_cond_2_msg = 'searching for invalid condition ref in fact_id_2'
 
+
+bad_person_1_sql = '''
+SELECT f.*
+FROM fact_relationship f
+    LEFT JOIN person p ON f.fact_id_1 = p.person_id
+WHERE domain_concept_id_1 = 56 AND p.person_id IS NULL
+LIMIT 1
+'''
+bad_person_1_msg = 'searching for invalid person ref in fact_id_1'
+
+bad_person_2_sql = '''
+SELECT f.*
+FROM fact_relationship f
+    LEFT JOIN person p ON f.fact_id_2 = p.person_id
+WHERE domain_concept_id_2 = 56 AND p.person_id IS NULL
+LIMIT 1
+'''
+bad_person_2_msg = 'searching for invalid person ref in fact_id_2'
+
+
+bad_proc_1_sql = '''
+SELECT f.*
+FROM fact_relationship f
+    LEFT JOIN procedure_occurrence p ON f.fact_id_1 = p.procedure_occurrence_id
+WHERE domain_concept_id_1 = 10 AND p.procedure_occurrence_id IS NULL
+LIMIT 1
+'''
+bad_proc_1_msg = 'searching for invalid procedure ref in fact_id_1'
+
+bad_proc_2_sql = '''
+SELECT f.*
+FROM fact_relationship f
+    LEFT JOIN procedure_occurrence p ON f.fact_id_2 = p.procedure_occurrence_id
+WHERE domain_concept_id_2 = 10 AND p.procedure_occurrence_id IS NULL
+LIMIT 1
+'''
+bad_proc_2_msg = 'searching for invalid procedure ref in fact_id_2'
+
 logger = logging.getLogger(__name__)
 
 
@@ -298,12 +379,16 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
         stmts.add(Statement(tot_drug_sql, tot_drug_msg))
         stmts.add(Statement(tot_dev_sql, tot_dev_msg))
         stmts.add(Statement(tot_cond_sql, tot_cond_msg))
+        stmts.add(Statement(tot_person_sql, tot_person_msg))        
+        stmts.add(Statement(tot_proc_sql, tot_proc_msg))
         stmts.add(Statement(bad_obs_sql, bad_obs_msg))
         stmts.add(Statement(bad_meas_sql, bad_meas_msg))
         stmts.add(Statement(bad_visit_sql, bad_visit_msg))
         stmts.add(Statement(bad_drug_sql, bad_drug_msg))
         stmts.add(Statement(bad_dev_sql, bad_dev_msg))
         stmts.add(Statement(bad_cond_sql, bad_cond_msg))
+        stmts.add(Statement(bad_person_sql, bad_person_msg))
+        stmts.add(Statement(bad_proc_sql, bad_proc_msg))
 
     if output in ['samples', 'both']:
 
@@ -319,6 +404,10 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
         stmts.add(Statement(bad_dev_2_sql, bad_dev_2_msg))
         stmts.add(Statement(bad_cond_1_sql, bad_cond_1_msg))
         stmts.add(Statement(bad_cond_2_sql, bad_cond_2_msg))
+        stmts.add(Statement(bad_person_1_sql, bad_person_1_msg))
+        stmts.add(Statement(bad_person_2_sql, bad_person_2_msg))
+        stmts.add(Statement(bad_proc_1_sql, bad_proc_1_msg))
+        stmts.add(Statement(bad_proc_2_sql, bad_proc_2_msg))
 
     stmts.parallel_execute(conn_str, pool_size)
 
@@ -335,7 +424,10 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
                  'samples': [], 'valid': True},
         'cond': {'total': None, 'bad': None, 'percent': None,
                 'samples': [], 'valid': True},
-
+        'person': {'total': None, 'bad': None, 'percent': None,
+                'samples': [], 'valid': True},
+        'proc': {'total': None, 'bad': None, 'percent': None,
+                'samples': [], 'valid': True},
     }
 
     for stmt in stmts:
@@ -374,6 +466,14 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
             check_stmt_data(stmt, 'fact relationship check')
             results['cond']['total'] = stmt.data[0][0]
 
+        elif stmt.msg == tot_person_msg:
+            check_stmt_data(stmt, 'fact relationship check')
+            results['person']['total'] = stmt.data[0][0]
+
+        elif stmt.msg == tot_proc_msg:
+            check_stmt_data(stmt, 'fact relationship check')
+            results['proc']['total'] = stmt.data[0][0]
+
         elif stmt.msg == bad_obs_msg:
             check_stmt_data(stmt, 'fact relationship check')
             results['obs']['bad'] = stmt.data[0][0]
@@ -397,6 +497,14 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
         elif stmt.msg == bad_cond_msg:
             check_stmt_data(stmt, 'fact relationship check')
             results['cond']['bad'] = stmt.data[0][0]
+
+        elif stmt.msg == bad_person_msg:
+            check_stmt_data(stmt, 'fact relationship check')
+            results['person']['bad'] = stmt.data[0][0]
+
+        elif stmt.msg == bad_proc_msg:
+            check_stmt_data(stmt, 'fact relationship check')
+            results['proc']['bad'] = stmt.data[0][0]
 
         elif stmt.msg == bad_obs_1_msg:
             if len(stmt.data) > 0:
@@ -470,6 +578,30 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
                 field = 'fact_id_2'
                 sample = dict(zip(stmt.fields, stmt.data[0]))
 
+        elif stmt.msg == bad_person_1_msg:
+            if len(stmt.data) > 0:
+                domain = 'person'
+                field = 'fact_id_1'
+                sample = dict(zip(stmt.fields, stmt.data[0]))
+
+        elif stmt.msg == bad_person_2_msg:
+            if len(stmt.data) > 0:
+                domain = 'person'
+                field = 'fact_id_2'
+                sample = dict(zip(stmt.fields, stmt.data[0]))
+        
+        elif stmt.msg == bad_proc_1_msg:
+            if len(stmt.data) > 0:
+                domain = 'proc'
+                field = 'fact_id_1'
+                sample = dict(zip(stmt.fields, stmt.data[0]))
+
+        elif stmt.msg == bad_proc_2_msg:
+            if len(stmt.data) > 0:
+                domain = 'proc'
+                field = 'fact_id_2'
+                sample = dict(zip(stmt.fields, stmt.data[0]))
+                
         if sample:
             results[domain]['samples'].append({'field': field,
                                                'row': sample})
@@ -538,10 +670,29 @@ def check_fact_relationship(conn_str, output='both', pool_size=None):
                                    ' condition references'},
                                   results['cond']))
 
+    if results['person']['valid']:
+        logger.info({
+            'msg': 'all fact relationship person references are valid'
+        })
+    else:
+        logger.warn(combine_dicts({'msg': 'fact relationship table has bad'
+                                   ' person references'},
+                                  results['person']))
+
+    if results['proc']['valid']:
+        logger.info({
+            'msg': 'all fact relationship procedure references are valid'
+        })
+    else:
+        logger.warn(combine_dicts({'msg': 'fact relationship table has bad'
+                                   ' procedure references'},
+                                  results['proc']))
+
     # Overall fact relationship validity.
     valid = (results['obs']['valid'] and results['meas']['valid'] and
              results['visit']['valid'] and results['drug']['valid'] and
-             results['dev']['valid'] and results['cond']['valid'])
+             results['dev']['valid'] and results['cond']['valid'] and 
+             results['person']['valid'] and results['proc']['valid'])
 
     # Output summary message.
     logger.info({'msg': 'finished fact relationship check', 'valid': valid,
