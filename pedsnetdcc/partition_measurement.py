@@ -318,7 +318,7 @@ def _copy_to_measure_table(conn_str, table, concepts):
         operator_concept_name, priority_concept_name, range_high_operator_concept_name, 
         range_low_operator_concept_name, specimen_concept_name, 
         unit_concept_name, value_as_concept_name, site, measurement_id, site_id, 
-        person_id, provider_id, visit_occurrence_id)
+        person_id, provider_id, visit_occurrence_id,visit_detail_id)
         (select measurement_concept_id, measurement_date, measurement_datetime, 
         measurement_order_date, measurement_order_datetime, measurement_result_date,
         measurement_result_datetime, measurement_source_concept_id, measurement_source_value, 
@@ -332,7 +332,7 @@ def _copy_to_measure_table(conn_str, table, concepts):
         operator_concept_name, priority_concept_name, range_high_operator_concept_name, 
         range_low_operator_concept_name, specimen_concept_name, 
         unit_concept_name, value_as_concept_name, site, measurement_id, site_id, 
-        person_id, provider_id, visit_occurrence_id
+        person_id, provider_id, visit_occurrence_id, visit_detail_id
         FROM measurement_anthro WHERE measurement_concept_id IN ({1})) ON CONFLICT DO NOTHING"""
 
     copy_to_msg = "copying {0} to measurement_{0}"
