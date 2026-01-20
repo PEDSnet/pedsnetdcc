@@ -138,6 +138,11 @@ def merge_site_data(model_version, conn_str, addsites, force=False, notable=Fals
 
         fields = ','.join(table.c.keys())
 
+        # Hard coding this addition for visit_detail_id to be added to fact tables:
+        if table_name.lower() in ["measurement_organism", "immunization", "device_exposure", "drug_exposure", "visit_detail", "measurement_vitals", "measurement_anthro", "measurement_labs", "measurement_wt_z", "measurement_ht_z", "condition_occurrence", "procedure_occurrence", "measurement_bmi", "measurement", "observation", "adt_occurrence", "measurement_bmiz", "visit_payer"]:
+            if 'visit_detail_id' not in table.c:
+                fields += ', visit_detail_id'
+
         unions = ''
 
         # Add a union statement for each site.
@@ -340,6 +345,11 @@ def merge_data_to_schema(model_version, conn_str, schema, altname, skipsites, ad
         table = metadata.tables[table_name]
 
         fields = ','.join(table.c.keys())
+        
+        # Hard coding this addition for visit_detail_id to be added to fact tables:
+        if table_name.lower() in ["measurement_organism", "immunization", "device_exposure", "drug_exposure", "visit_detail", "measurement_vitals", "measurement_anthro", "measurement_labs", "measurement_wt_z", "measurement_ht_z", "condition_occurrence", "procedure_occurrence", "measurement_bmi", "measurement", "observation", "adt_occurrence", "measurement_bmiz", "visit_payer"]:
+            if 'visit_detail_id' not in table.c:
+                fields += ', visit_detail_id'
 
         unions = ''
 
